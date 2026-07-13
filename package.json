@@ -1,0 +1,33 @@
+{
+  "name": "lintel",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-tenant learning platform for institutions whose teaching is conditional on who the learner is.",
+  "engines": { "node": ">=22" },
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "check": "node scripts/checkers/run-all.js",
+    "test": "vitest run",
+    "test:isolation": "vitest run tests/isolation",
+    "seed": "node seed/synthetic.js",
+    "precommit": "npm run check"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "connect-mongo": "^5.1.0",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "mongoose": "^8.5.0",
+    "otplib": "^12.0.1",
+    "pino": "^9.3.2",
+    "pino-http": "^10.2.0"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^10.0.0",
+    "vitest": "^2.0.5"
+  }
+}

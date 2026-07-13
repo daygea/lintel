@@ -1,0 +1,23 @@
+<%- include("../layouts/head") %>
+<h1><%= tenant.name %></h1>
+<p style="color:#6E6B63"><%= members.length %> member<%= members.length === 1 ? '' : 's' %> · plan: <%= tenant.plan %></p>
+
+<table>
+  <thead><tr><th>Name</th><th>Email</th><th>Roles</th><th>Status</th></tr></thead>
+  <tbody>
+  <% members.forEach(function (m) { %>
+    <tr>
+      <td><%= m.userId ? m.userId.name : '—' %></td>
+      <td><%= m.userId ? m.userId.email : '—' %></td>
+      <td><%= m.roles.join(', ') %></td>
+      <td><%= m.status %></td>
+    </tr>
+  <% }); %>
+  </tbody>
+</table>
+
+<form method="post" action="/logout" style="margin-top:28px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <button type="submit">Sign out</button>
+</form>
+<%- include("../layouts/foot") %>

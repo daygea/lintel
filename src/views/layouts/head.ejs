@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= typeof tenant !== 'undefined' && tenant ? tenant.name : 'Lintel' %></title>
+  <style>
+    body{font-family:system-ui,sans-serif;margin:0;background:#FBFAF8;color:#14192B;line-height:1.6}
+    .wrap{max-width:720px;margin:0 auto;padding:48px 24px}
+    h1{font-weight:600;letter-spacing:-.01em}
+    label{display:block;font-size:14px;margin:14px 0 4px}
+    input{width:100%;padding:9px 11px;border:1px solid #D8D5CD;border-radius:3px;font-size:15px}
+    button{margin-top:18px;padding:9px 16px;background:#14192B;color:#fff;border:0;border-radius:3px;font-size:14px;cursor:pointer}
+    .err{background:#EEEBF2;border-left:3px solid #4A4560;padding:12px 14px;margin-bottom:18px;font-size:14px}
+    table{width:100%;border-collapse:collapse;margin-top:20px;font-size:14px}
+    th,td{text-align:left;padding:9px 0;border-bottom:1px solid #E3E0D9}
+  </style>
+</head>
+<body>
+  <div class="wrap">
