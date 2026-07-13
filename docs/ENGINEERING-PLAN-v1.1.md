@@ -1,8 +1,13 @@
 # Engineering Plan & Handover
-## Multi-tenant learning platform — v1.0
+## Lintel — multi-tenant learning platform — v1.1
 
 **Audience:** the engineer building this, whether that is the founder or someone who has never met him.
-**Status:** ready to execute. Sprint 0 is unblocked once the product is named.
+**Status:** **Sprint 0 shipped and green** (15/15 isolation tests, 9/9 checkers). Sprint 1 is next.
+
+**Changes since v1.0**
+- Product named: **Lintel**.
+- **WhatsApp deferred** (ADR-013). The `NotificationChannel` interface ships; the WhatsApp adapter does not. An external approval gate that can idle a solo builder for weeks is not an acceptable dependency. Replaced by SMS (Sprint 2) and Web Push (Sprint 4, free, no gatekeeper).
+- Sprint 0 marked complete, with the three bugs it surfaced recorded in Part III so they are not repeated.
 **Companion documents:** `LMS-architecture-data-model-v0.2.md` (data model, ADRs), `OISS-presentation-brief.md` (first tenant, governance decisions outstanding).
 
 ---
@@ -68,7 +73,7 @@ A new engineer will misread the domain without this.
 | Object storage | Cloudflare R2 (S3-compatible) | **Zero egress fees** — decisive for video in Africa |
 | Media | ffmpeg in a worker | Bitrate ladder, HLS for stream-only content |
 | Payments | Paystack first, behind a `PaymentProvider` interface | Flutterwave and Stripe as later adapters |
-| Notifications | Email + SMS + WhatsApp behind `NotificationChannel` | WhatsApp is the real channel in Nigeria; email deliverability is poor |
+| Notifications | Email + SMS + Web Push behind `NotificationChannel` | Email deliverability is poor in Nigeria. SMS is transactional-only (DND regime). **WhatsApp is a stub — see ADR-013.** |
 | Auth | Session cookie (`express-session` + `connect-mongo`) + CSRF | Same-origin for both surfaces. SAML/OIDC in Sprint 8 |
 | Logging | pino, structured, `requestId` + `tenantId` on every line | |
 | Errors | Sentry | |
@@ -217,8 +222,8 @@ Estimates below are in **focused engineering weeks** — uninterrupted, one comp
 
 # Part II — The sprints
 
-## Sprint 0 — Foundation and tenancy
-**~2 weeks · blocked on: product name**
+## Sprint 0 — Foundation and tenancy ✅ SHIPPED
+**Actual: ~1 week · 15/15 isolation tests green · 9/9 checkers green**
 
 **Goal.** A second tenant can be provisioned and provably cannot see the first tenant's data.
 
@@ -241,6 +246,18 @@ Estimates below are in **focused engineering weeks** — uninterrupted, one comp
 **Not in this sprint.** Any content model. Any UI beyond auth and tenant setup. Resist this.
 
 **Risks.** Getting the guard plugin wrong here is unrecoverable — every later sprint sits on it. Spend the extra two days. Write the isolation suite *first*.
+
+### What Sprint 0 actually taught us
+
+Three bugs, all caught by the suite rather than by a customer. Recorded so they are not repeated.
+
+**1. Mongoose runs validation BEFORE `pre('save')`.** Since `tenantId` is `required`, stamping it in `pre('save')` is too late — validation has already rejected the document. The stamp happens in `pre('validate')`; `pre('save')` is retained as a second gate that asserts rather than stamps. Do not "tidy" this away.
+
+**2. A Mongoose Query is lazy, and can escape the tenant scope.** `runWithTenant(id, uid, () => Model.find({}))` builds the query inside the context, returns it, and then executes it *outside* — throwing `NoTenantContextError` from code that visibly has a context. This does not affect request handling (`tenantResolver` wraps `next()`, so the whole async chain inherits the context and a plain `await Model.find()` in a controller is safe). It bites at boundaries: **tests, seeds, workers.** `runWithTenant` and `runAsPlatform` now detect an unexecuted Query and throw an actionable message. At boundaries, always `.exec()`.
+
+**3. A destructive seed script pointed at a cloud cluster is a loaded gun.** `seed/synthetic.js` refuses to run unless the database is unmistakably a development one. If the guard refuses, do not weaken it — point it somewhere else.
+
+Also worth knowing: MongoDB Atlas rejects a non-allowlisted IP by **failing the TLS handshake with alert 80**, not by timing out. It looks like a certificate problem and is a firewall problem. Add your IP under Network Access.
 
 ---
 
@@ -273,24 +290,29 @@ Estimates below are in **focused engineering weeks** — uninterrupted, one comp
 ## Sprint 2 — Enrolment, cohorts, and notifications
 **~3 weeks · depends on: 1**
 
-**Goal.** A cohort opens, a learner applies, a registrar admits, progress persists, and a reminder arrives on WhatsApp.
+**Goal.** A cohort opens, a learner applies, a registrar admits, progress persists, and a reminder reaches the learner.
 
 **Build**
 - Models: `Cohort`, `Application`, `Enrollment`, `LessonProgress`, `Group`, `Session`, `Attendance`.
 - Admissions review queue.
 - Scheduled live sessions with attendance capture (the video call itself is Zoom/Meet — **do not build conferencing**).
 - Groups within a cohort (tutorial groups, study circles).
-- `NotificationChannel` interface + adapters: email, SMS, **WhatsApp**. Templates are locale-mapped and tenant-authored.
+- `NotificationChannel` interface + adapters: **email**, **SMS** (Termii or Africa's Talking). Templates are locale-mapped and tenant-authored.
+- **WhatsApp adapter is a stub that throws `NotImplemented`.** Keep the seam; do not build behind it (ADR-013). The day a tenant pays for WhatsApp it is a week of work, not a re-architecture.
+- SMS is **transactional only** — "your assessment is due Friday", never "see our new course". Nigeria's DND regime filters anything that reads as promotional, and a filtered sender reputation is hard to recover.
 - Learner dashboard, instructor roster.
 
 **Exit criteria**
 - Full lifecycle: cohort opens → learner applies → registrar admits → learner progresses → progress persists across sessions.
-- A due-date reminder is delivered by WhatsApp and logged.
+- A due-date reminder is delivered by email **and** SMS, and both deliveries are logged.
+- Calling the WhatsApp adapter throws `NotImplemented` — loudly, not silently.
 - Attendance at a live session is recorded against an `Enrollment`.
 
 **Not in this sprint.** Payment. Enrolment is free and manual for now.
 
-**Risks.** WhatsApp Business API onboarding is slow and bureaucratic. **Start the application in Sprint 0**, not Sprint 2, or this sprint stalls waiting on Meta.
+**Risks.** SMS deliverability, not availability. Nigerian networks filter aggressively; get a registered sender ID early and test against all four major networks before you promise a tenant that reminders work.
+
+**Known weakness, stated honestly.** Reminder delivery in Sprint 2 is weaker than v1.0 promised. For OISS — 147 students, an olùkọ́ who knows every one of them, announcements already made by voice on Saturdays — this is survivable. For a tenant like a public-health trainer with thousands of learners across a region, it is not. **That is the tenant who forces the WhatsApp adapter back onto the roadmap**, and it is not the first one.
 
 ---
 
@@ -347,10 +369,10 @@ Estimates below are in **focused engineering weeks** — uninterrupted, one comp
 
 ---
 
-## Sprint 4 — Learner PWA
+## Sprint 4 — Learner PWA and Web Push
 **~4 weeks · depends on: 3**
 
-**Goal.** A learner on 3G completes a downloadable lesson offline; a tier-3 lesson refuses to cache.
+**Goal.** A learner on 3G completes a downloadable lesson offline; a tier-3 lesson refuses to cache; a reminder arrives without Meta's permission.
 
 **Build**
 - Service worker with the BUILD-version discipline (the founder has been burned by stale service workers on Orírùn — carry that lesson over).
@@ -358,13 +380,17 @@ Estimates below are in **focused engineering weeks** — uninterrupted, one comp
 - HLS streaming for `streamOnly` content; no direct asset URL ever issued.
 - Audio-first low-bandwidth mode.
 - Install prompt, offline shell, sync-on-reconnect.
+- **Web Push** (ADR-014): VAPID keys, `PushSubscription` model, permission prompt, delivery worker. Registers as a `NotificationChannel` adapter alongside email and SMS.
+
+**Why Web Push belongs here.** It is free, needs approval from nobody, works on Android Chrome and on iOS 16.4+ once the PWA is installed, and reaches precisely the learner who cared enough to install the app. The infrastructure was being built anyway. It is the honest replacement for WhatsApp, not a consolation prize.
 
 **Exit criteria**
 - Aeroplane mode: a downloaded lesson plays; a tier-3 lesson is absent from the cache entirely (not present-but-locked).
 - Chrome "Slow 3G": a lesson is usable.
 - Deploying a new build does not serve stale JS.
+- A due-date reminder arrives as a push notification on an installed PWA, and the delivery is logged like any other channel.
 
-**Risks.** iOS Safari service-worker and IndexedDB quirks. Budget a week for iOS alone.
+**Risks.** iOS Safari service-worker and IndexedDB quirks. Budget a week for iOS alone. iOS Web Push requires the PWA to be added to the home screen — it does not work in the browser tab, and learners must be told so.
 
 ---
 
@@ -512,7 +538,7 @@ Estimates below are in **focused engineering weeks** — uninterrupted, one comp
 
 # Part III — Things that will bite you
 
-1. **The WhatsApp Business API takes weeks to approve.** Start it in Sprint 0.
+1. **A tenant will eventually need WhatsApp**, and the day they do, the Meta approval clock starts then — not now. That is the deliberate trade in ADR-013: no gatekeeper on the critical path, at the cost of a slower start when the need arrives. Do not let anyone quietly build a direct WhatsApp call to route around the stub.
 2. **A stale service worker will convince you the deploy failed.** Version the build; the founder has lost a day to this on Orírùn already.
 3. **Cache invalidation on eligibility is a security boundary, not a performance concern.** When in doubt, recompute.
 4. **Transcoding a 90-minute lecture is not like transcoding a 30-second test clip.** Find out in Sprint 1, not Sprint 4.
@@ -529,7 +555,7 @@ Estimates below are in **focused engineering weeks** — uninterrupted, one comp
 
 | # | Decision | Blocks | Owner |
 |---|---|---|---|
-| 1 | **Product name and domain** | Sprint 0 | Founder |
+| ~~1~~ | ~~Product name~~ — **resolved: Lintel** | — | — |
 | 2 | Which attestation types OISS recognises; who may grant each | Sprint 3 config | OISS governance |
 | 3 | Whether restriction by gender or lineage applies; who adjudicates | Sprint 3 config | OISS governance |
 | 4 | Exact denial wording, Yorùbá and English | Sprint 3 config | OISS governance |

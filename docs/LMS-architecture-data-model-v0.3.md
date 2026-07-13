@@ -1,4 +1,6 @@
-# Multi-tenant LMS — Architecture & Data Model v0.2
+# Lintel — Architecture & Data Model v0.3
+
+**Changes since v0.2:** product named **Lintel**; ADR-013 (WhatsApp deferred) and ADR-014 (Web Push) added; Sprint 0 shipped.
 
 **Changes since v0.1:** competitive gap audit added (§8); sprints reordered — the eligibility engine now follows enrollment, because it cannot evaluate `enrolled` or `course_completed` rules against models that do not exist. A **rule registry** replaces the fixed rule list, so later sprints register new rule types without touching the evaluator. Gradebook, quiz engine, SSO, LTI, accessibility and data export added after audit against Moodle and Canvas.
 
@@ -62,6 +64,22 @@ The evaluator does not know the rule types. Each rule type is a registered plugi
 ### ADR-009 — The gradebook is line-item-native
 Every gradable thing is a **line item** on a course gradebook, with a category, weight, and a score. This is not aesthetic: LTI Advantage's Assignment and Grade Service posts scores against line items. A gradebook built without them makes LTI a migration rather than a feature.
 **Consequence:** LTI 1.3 is deferrable to Sprint 9 at no architectural cost.
+
+### ADR-013 — WhatsApp is a stub, not an adapter
+The `NotificationChannel` interface ships with **email** and **SMS** adapters. The WhatsApp adapter exists as a stub that throws `NotImplemented`.
+
+**Rationale:** WhatsApp Business API access is gated on Meta's approval, which takes weeks and cannot be worked around in code. A single external gatekeeper that can idle a solo builder for an entire sprint is not an acceptable dependency, and WhatsApp is the only one in the whole plan.
+
+**Consequence:** reminder delivery in Sprint 2 is weaker than it would otherwise be. This is survivable for a small institution whose teachers know every learner by name. It is **not** survivable for a tenant with thousands of learners across a region — that tenant is what should pull the adapter back onto the roadmap, at which point it is roughly a week of work because the seam already exists.
+
+**Do not** route around the stub with a direct WhatsApp call somewhere in a service. The seam is the whole point.
+
+### ADR-014 — Web Push is the third channel
+Web Push registers as a `NotificationChannel` adapter in Sprint 4, alongside email and SMS.
+
+**Rationale:** it is free, requires approval from nobody, works on Android Chrome and iOS 16.4+ once the PWA is installed, and reaches exactly the learner engaged enough to have installed the app. The service-worker infrastructure is being built for offline lessons regardless, so the marginal cost is a VAPID key pair and a `PushSubscription` model.
+
+**Constraint:** on iOS, Web Push requires the PWA to be added to the home screen. It does not work in a browser tab. Learners must be told this in the install prompt, not left to discover it.
 
 ### ADR-010 — Peer review is prohibited, permanently
 Peer review exposes one learner's submission to another. For any content above consent tier 2 this is a consent violation, and the platform cannot verify that a peer is entitled to see what they are being asked to mark. This is recorded as a permanent non-goal so that it is not proposed in year two as an obvious saving.
@@ -388,7 +406,7 @@ No comparator has the first three. That is the defensible position.
 | Quiz engine (question bank, types, pools, auto-marking) | blocking | 5b |
 | SSO — SAML / Azure AD / Google Workspace | blocking | 8 |
 | Course copy and versioning across sessions | high | 1 |
-| Notifications by SMS and WhatsApp, not just email | high | 2 |
+| Notifications by SMS (and Web Push in S4), not just email | high | 2 |
 | Scheduled sessions and attendance capture | high | 2 |
 | Groups within a cohort | medium | 2 |
 | Accessibility — WCAG 2.1 AA, VPAT | medium | every sprint; audited in 8 |
@@ -420,7 +438,7 @@ No comparator has the first three. That is the defensible position.
 | **1** — Curriculum | Program → Course → Module → Lesson → ContentBlock. Locale maps throughout, diacritic-insensitive search. Asset pipeline: upload, checksum, transcode ladder, transcripts, captions. Course copy and versioning. Authoring UI. | An admin builds a course in English and Yorùbá with audio, clones it into next session, and a learner preview renders it. |
 | **2** — Enrollment | Cohort, Application, Enrollment, LessonProgress. Groups. Scheduled sessions and attendance. Multi-channel notifications behind one `NotificationChannel` interface (email, SMS, WhatsApp). | A cohort opens, a learner applies, a registrar admits, progress persists, and a reminder arrives by WhatsApp. |
 | **3** — Eligibility ⚠️ | **The keystone.** AttestationType, Attestation (append-only; revocation is a write). EligibilityPolicy + rule registry + evaluator. ContentPolicy. AccessLog (append-only). Policy builder UI. `denialMessage` rendering. | A gated lesson is invisible without the attestation, visible when an assessor issues it, and invisible again within one request of revocation — and all three evaluations appear in the access log. |
-| **4** — Learner PWA | Offline lesson packs honouring `offlineCacheable`. Streaming-only for restricted tiers. Watermarking. Service worker with the BUILD-version discipline. Audio-first low-bandwidth mode. | A learner on 3G completes a downloadable lesson offline; a tier-3 lesson refuses to cache. |
+| **4** — Learner PWA | Offline lesson packs honouring `offlineCacheable`. Streaming-only for restricted tiers. Watermarking. Service worker with the BUILD-version discipline. Audio-first low-bandwidth mode. **Web Push** (ADR-014). | A learner on 3G completes a downloadable lesson offline; a tier-3 lesson refuses to cache; a push reminder arrives on an installed PWA. |
 | **5a** — Assessment | Assessment, Rubric, Submission, AssessorAssignment, Grade. In-browser recording, chunked resumable upload. Rubric grading. Second-marking and moderation (a second `Grade`, never an overwrite). Spoken feedback. Registers `assessment_score`. | A 6-minute recitation survives two dropped uploads, is graded, is moderated by an elder, and both judgements persist. |
 | **5b** — Gradebook & quiz | Line-item gradebook: categories, weights, schemes, overrides, transcripts. Quiz engine: question bank, question types, pools, randomisation, timing, partial credit, auto-marking. | A weighted final grade computes correctly, an override is attributed to a named person, and a transcript exports. |
 | **6** — Commerce | FeeSchedule, PaymentPlan, Invoice, Payment. `PaymentProvider` interface + Paystack adapter (Flutterwave, Stripe stubbed). Installments, bank transfer with manual confirmation, waivers. Registers `payment_state`. | A learner part-pays, keeps access, misses an installment, loses access — enforced by the eligibility engine, not by bespoke payment code. |

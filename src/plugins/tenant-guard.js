@@ -1,6 +1,6 @@
 'use strict';
 
-const { Schema } = require('mongoose');
+const { Schema, Types } = require('mongoose');
 const { currentTenantId, isPlatform } = require('../lib/context');
 const { CrossTenantWriteError } = require('../lib/errors');
 
@@ -18,6 +18,18 @@ const { CrossTenantWriteError } = require('../lib/errors');
  *
  * Platform-scoped models (Tenant, User) do not use this plugin and are listed in
  * scripts/checkers/check-tenant-guard.js under PLATFORM_SCOPED.
+ *
+ * ---------------------------------------------------------------------------
+ * ORDERING NOTE — do not "tidy" this away.
+ *
+ * Mongoose runs validation BEFORE user-registered pre('save') hooks. Since
+ * tenantId is `required`, stamping it in pre('save') is too late: validation has
+ * already rejected the document. The stamp therefore happens in pre('validate').
+ *
+ * pre('save') is retained as a second gate: it asserts (but no longer relies on
+ * stamping) that the document's tenantId still matches the request context at
+ * the moment of the write.
+ * ---------------------------------------------------------------------------
  */
 
 const QUERY_HOOKS = [
@@ -69,7 +81,8 @@ module.exports = function tenantGuard(schema) {
     this.pipeline().unshift({ $match: { tenantId: toObjectId(currentTenantId()) } });
   });
 
-  schema.pre('save', function stampTenant(next) {
+  // Stamp here, not in pre('save') — validation runs first. See ORDERING NOTE.
+  schema.pre('validate', function stampTenant(next) {
     if (isPlatform()) {
       if (!this.tenantId) {
         return next(
@@ -80,9 +93,32 @@ module.exports = function tenantGuard(schema) {
     }
 
     const tenantId = currentTenantId();
+
     if (!this.tenantId) {
       this.tenantId = tenantId;
       return next();
+    }
+    if (String(this.tenantId) !== String(tenantId)) {
+      return next(
+        new CrossTenantWriteError(
+          `Document belongs to tenant ${this.tenantId} but the request context is tenant ${tenantId}`
+        )
+      );
+    }
+    return next();
+  });
+
+  // Second gate. Asserts only — the stamp already happened during validation.
+  schema.pre('save', function assertTenant(next) {
+    if (isPlatform()) {
+      return this.tenantId
+        ? next()
+        : next(new CrossTenantWriteError('Platform context must set tenantId explicitly when saving'));
+    }
+
+    const tenantId = currentTenantId();
+    if (!this.tenantId) {
+      return next(new CrossTenantWriteError('Document reached save() with no tenantId'));
     }
     if (String(this.tenantId) !== String(tenantId)) {
       return next(
@@ -108,6 +144,5 @@ module.exports = function tenantGuard(schema) {
 };
 
 function toObjectId(id) {
-  const mongoose = require('mongoose');
-  return id instanceof mongoose.Types.ObjectId ? id : new mongoose.Types.ObjectId(String(id));
+  return id instanceof Types.ObjectId ? id : new Types.ObjectId(String(id));
 }

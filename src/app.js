@@ -28,6 +28,7 @@ function createApp() {
 
   app.use(
     session({
+      name: 'lintel.sid',  
       secret: sessionSecret,
       resave: false,
       saveUninitialized: false,
