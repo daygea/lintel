@@ -1,0 +1,34 @@
+<%- include("../layouts/head") %>
+<h1><%= asset.filename %></h1>
+<p style="color:#6E6B63">
+  <%= asset.kind %> · <%= asset.status %>
+  <% if (asset.durationMs) { %> · <%= Math.round(asset.durationMs / 1000) %>s<% } %>
+  <% if (asset.bytes) { %> · <%= (asset.bytes / 1048576).toFixed(1) %> MB<% } %>
+</p>
+<p><a href="/media">← All media</a></p>
+
+<% if (asset.error) { %><div class="err"><%= asset.error %></div><% } %>
+
+<h2 style="margin-top:28px;font-size:16px">Renditions</h2>
+<table>
+  <tbody>
+  <% asset.derivatives.forEach(function (d) { %>
+    <tr>
+      <td><%= d.rung %></td>
+      <td style="color:#6E6B63;font-size:13px">
+        <% if (d.bitrateKbps) { %><%= d.bitrateKbps %> kbps<% } %>
+        <% if (d.bytes) { %> · <%= (d.bytes / 1048576).toFixed(1) %> MB<% } %>
+      </td>
+    </tr>
+  <% }); %>
+  <% if (!asset.derivatives.length) { %>
+    <tr><td style="color:#6E6B63">None yet. Is the worker running? <code>npm run worker</code></td></tr>
+  <% } %>
+  </tbody>
+</table>
+
+<p style="color:#6E6B63;font-size:13px;margin-top:24px">
+  Playback is only ever served through a signed URL that expires in five minutes.
+  There is no public link to this file, and there never will be.
+</p>
+<%- include("../layouts/foot") %>

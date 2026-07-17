@@ -1,0 +1,30 @@
+<%- include("../layouts/head") %>
+<h1>Attestation register</h1>
+<p style="color:#6E6B63"><a href="/">← <%= tenant.name %></a> · Every standing the institution recognises. Nothing here is ever deleted — a withdrawal is written down.</p>
+
+<h2 style="font-size:16px;margin-top:26px">Standings recognised</h2>
+<table>
+  <tbody>
+  <% types.forEach(function (t) { %>
+    <tr><td><%= pick(t.label, locale) %><br><span class="mono" style="font-size:12px;color:#6E6B63"><%= t.slug %></span></td>
+    <td style="color:#6E6B63">granted by: <%= t.requiresIssuerRole %><%= t.isSensitive ? ' · sensitive' : '' %></td></tr>
+  <% }); %>
+  <% if (!types.length) { %><tr><td style="color:#6E6B63">No standings defined yet.</td></tr><% } %>
+  </tbody>
+</table>
+
+<h2 style="font-size:16px;margin-top:32px">Issued</h2>
+<table>
+  <thead><tr><th>Standing</th><th>Status</th><th>Issued</th></tr></thead>
+  <tbody>
+  <% attestations.forEach(function (a) { %>
+    <tr>
+      <td><%= a.typeSlug %></td>
+      <td><%= a.status === 'revoked' ? 'withdrawn — reason recorded' : 'current' %></td>
+      <td style="color:#6E6B63"><%= new Date(a.createdAt).toLocaleDateString() %></td>
+    </tr>
+  <% }); %>
+  <% if (!attestations.length) { %><tr><td colspan="3" style="color:#6E6B63">Nothing issued yet.</td></tr><% } %>
+  </tbody>
+</table>
+<%- include("../layouts/foot") %>

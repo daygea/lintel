@@ -1,0 +1,19 @@
+<%- include("../layouts/head") %>
+<h1>Cohorts</h1>
+<p style="color:#6E6B63"><a href="/">← <%= tenant.name %></a></p>
+
+<table>
+  <thead><tr><th>Title</th><th>Session</th><th>Mode</th><th>Status</th></tr></thead>
+  <tbody>
+  <% cohorts.forEach(function (c) { %>
+    <tr>
+      <td><a href="/cohorts/<%= c._id %>"><%= pick(c.title, locale) %></a></td>
+      <td><%= c.session %></td>
+      <td><%= c.mode %></td>
+      <td><%= c.status %></td>
+    </tr>
+  <% }); %>
+  <% if (!cohorts.length) { %><tr><td colspan="4" style="color:#6E6B63">No cohorts yet.</td></tr><% } %>
+  </tbody>
+</table>
+<%- include("../layouts/foot") %>

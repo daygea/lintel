@@ -1,0 +1,15 @@
+<%- include("../layouts/head") %>
+<h1>Who may receive a teaching</h1>
+<p><a href="/">← <%= tenant.name %></a></p>
+<% policies.forEach(function (p) { %>
+  <div style="border:1px solid #E3E0D9;border-radius:3px;padding:16px 18px;margin:14px 0">
+    <div class="mono" style="font-size:14px"><%= p.slug %></div>
+    <p style="font-size:14px;margin:6px 0"><%= pick(p.label, locale) %> · a learner must meet <%= p.combinator === 'all' ? 'all' : 'any' %></p>
+    <% p.rules.forEach(function (r) { %>
+      <div style="background:#FBFAF8;border:1px solid #E3E0D9;border-radius:3px;padding:8px 10px;margin:6px 0" class="mono" style="font-size:12px"><%= r.type %><%= r.params ? ' · ' + JSON.stringify(r.params) : '' %></div>
+    <% }); %>
+    <p style="font-family:Georgia,serif;color:#3E3952;margin-top:10px">“<%= pick(p.denialMessage, locale) %>”</p>
+  </div>
+<% }); %>
+<% if (!policies.length) { %><p style="color:#6E6B63">No policies yet.</p><% } %>
+<%- include("../layouts/foot") %>

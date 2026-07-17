@@ -1,0 +1,55 @@
+<%- include("../layouts/head") %>
+<h1>Cohort</h1>
+<p><a href="/cohorts">← All cohorts</a></p>
+
+<h2 style="font-size:16px;margin-top:26px">Applications awaiting a decision</h2>
+<table>
+  <tbody>
+  <% applications.forEach(function (a) { %>
+    <tr>
+      <td><%= a.userId ? a.userId.name : '—' %><br><span style="color:#6E6B63;font-size:13px"><%= a.userId ? a.userId.email : '' %></span></td>
+      <td style="text-align:right">
+        <form method="post" action="/applications/<%= a._id %>/decide" style="display:inline">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="cohortId" value="<%= cohortId %>">
+          <input type="hidden" name="decision" value="admitted">
+          <button type="submit">Admit</button>
+        </form>
+        <form method="post" action="/applications/<%= a._id %>/decide" style="display:inline">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="cohortId" value="<%= cohortId %>">
+          <input type="hidden" name="decision" value="declined">
+          <button type="submit" style="background:#EEEBF2;color:#3E3952">Decline</button>
+        </form>
+      </td>
+    </tr>
+  <% }); %>
+  <% if (!applications.length) { %><tr><td style="color:#6E6B63">Nothing awaiting a decision.</td></tr><% } %>
+  </tbody>
+</table>
+
+<h2 style="font-size:16px;margin-top:32px">Enrolled — <%= enrollments.length %></h2>
+<table>
+  <thead><tr><th>Name</th><th>Status</th><th>Fees</th></tr></thead>
+  <tbody>
+  <% enrollments.forEach(function (e) { %>
+    <tr>
+      <td><%= e.userId ? e.userId.name : '—' %></td>
+      <td><%= e.status %></td>
+      <td><%= e.paymentState %></td>
+    </tr>
+  <% }); %>
+  <% if (!enrollments.length) { %><tr><td colspan="3" style="color:#6E6B63">No one enrolled yet.</td></tr><% } %>
+  </tbody>
+</table>
+
+<h2 style="font-size:16px;margin-top:32px">Sessions</h2>
+<table>
+  <tbody>
+  <% sessions.forEach(function (s) { %>
+    <tr><td><%= pick(s.title, locale) %></td><td style="color:#6E6B63"><%= s.startsAt ? new Date(s.startsAt).toLocaleString() : '' %></td></tr>
+  <% }); %>
+  <% if (!sessions.length) { %><tr><td style="color:#6E6B63">No sessions scheduled.</td></tr><% } %>
+  </tbody>
+</table>
+<%- include("../layouts/foot") %>

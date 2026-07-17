@@ -14,9 +14,14 @@
     "test": "vitest run",
     "test:isolation": "vitest run tests/isolation",
     "seed": "node seed/synthetic.js",
-    "precommit": "npm run check"
+    "precommit": "npm run check",
+    "worker": "node src/workers/index.js",
+    "dev:worker": "node --watch src/workers/index.js",
+    "indexes": "node scripts/sync-indexes.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1086.0",
+    "@aws-sdk/s3-request-presigner": "^3.1086.0",
     "bcryptjs": "^2.4.3",
     "connect-mongo": "^5.1.0",
     "dotenv": "^16.4.5",
@@ -26,7 +31,8 @@
     "mongoose": "^8.5.0",
     "otplib": "^12.0.1",
     "pino": "^9.3.2",
-    "pino-http": "^10.2.0"
+    "pino-http": "^10.2.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "mongodb-memory-server": "^10.0.0",

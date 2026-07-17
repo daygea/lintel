@@ -13,12 +13,18 @@ const ROLES = {
   REGISTRAR: 'registrar',
   INSTRUCTOR: 'instructor',
   ASSESSOR: 'assessor',
+  /**
+   * A senior-initiate role whose authority is spiritual, not operational. An
+   * elder may confer initiation and office; an admin may not, and gains no such
+   * power merely by being an admin. Kept separate on purpose (OISS decision #2).
+   */
+  ELDER: 'elder',
   LEARNER: 'learner',
 };
 
 const ALL = Object.values(ROLES);
 
-const STAFF = [ROLES.OWNER, ROLES.ADMIN, ROLES.REGISTRAR, ROLES.INSTRUCTOR, ROLES.ASSESSOR];
+const STAFF = [ROLES.OWNER, ROLES.ADMIN, ROLES.REGISTRAR, ROLES.INSTRUCTOR, ROLES.ASSESSOR, ROLES.ELDER];
 
 const has = (membership, ...roles) =>
   !!membership && roles.some((r) => membership.roles.includes(r));

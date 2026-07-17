@@ -1,0 +1,55 @@
+<%- include("../layouts/head") %>
+<h1>Media</h1>
+<p style="color:#6E6B63"><a href="/">← <%= tenant.name %></a></p>
+
+<% if (!storageReady) { %>
+  <div class="err">Media storage is not configured. Set the R2_* variables in .env and restart.</div>
+<% } else { %>
+  <div style="border:1px dashed #D8D5CD;border-radius:3px;padding:20px;margin:22px 0">
+    <label for="file">Upload audio or video</label>
+    <input id="file" type="file" accept="audio/*,video/*,image/*,application/pdf">
+    <div id="bar" style="height:3px;background:#E3E0D9;margin-top:14px;display:none">
+      <div id="fill" style="height:3px;width:0;background:#14192B"></div>
+    </div>
+    <p id="status" style="font-size:13px;color:#6E6B63;margin-top:10px"></p>
+  </div>
+<% } %>
+
+<table>
+  <thead><tr><th>File</th><th>Kind</th><th>Status</th><th>Duration</th></tr></thead>
+  <tbody>
+  <% assets.forEach(function (a) { %>
+    <tr>
+      <td><a href="/media/<%= a._id %>"><%= a.filename %></a></td>
+      <td><%= a.kind %></td>
+      <td><%= a.status %><% if (a.error) { %> <span style="color:#4A4560">· <%= a.error %></span><% } %></td>
+      <td><%= a.durationMs ? Math.round(a.durationMs / 1000) + 's' : '—' %></td>
+    </tr>
+  <% }); %>
+  <% if (!assets.length) { %><tr><td colspan="4" style="color:#6E6B63">Nothing uploaded yet.</td></tr><% } %>
+  </tbody>
+</table>
+
+<script src="/js/upload.js"></script>
+<script>
+  const file = document.getElementById('file');
+  if (file) file.addEventListener('change', async () => {
+    const f = file.files[0];
+    if (!f) return;
+    const bar = document.getElementById('bar');
+    const fill = document.getElementById('fill');
+    const status = document.getElementById('status');
+    bar.style.display = 'block';
+    status.textContent = 'Uploading…';
+    try {
+      const asset = await window.lintelUpload(f, { onProgress: (p) => (fill.style.width = p + '%') });
+      status.textContent = asset.status === 'processing'
+        ? 'Uploaded. Encoding in the background — refresh in a minute.'
+        : 'Uploaded.';
+      setTimeout(() => location.reload(), 1500);
+    } catch (err) {
+      status.textContent = err.message;
+    }
+  });
+</script>
+<%- include("../layouts/foot") %>

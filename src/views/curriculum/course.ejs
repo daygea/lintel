@@ -1,0 +1,39 @@
+<%- include("../layouts/head") %>
+<h1><%= pick(tree.course.title, locale) %></h1>
+<p style="color:#6E6B63">
+  <%= tree.course.code %> · <%= tree.course.session || 'no session' %> ·
+  <%= tree.course.status %> ·
+  <%= tree.course.visibility === 'private' ? 'not published' : tree.course.visibility %>
+  <% if (tree.course.copiedFromCourseId) { %> · copied, v<%= tree.course.version %><% } %>
+</p>
+<p><a href="/courses">← All courses</a></p>
+
+<% tree.modules.forEach(function (m) { %>
+  <h2 style="margin-top:28px;font-size:18px"><%= pick(m.module.title, locale) %></h2>
+  <table>
+    <tbody>
+    <% m.lessons.forEach(function (l) { %>
+      <tr>
+        <td><%= pick(l.lesson.title, locale) %></td>
+        <td style="color:#6E6B63;font-size:13px">
+          <%= l.blocks.length %> block<%= l.blocks.length === 1 ? '' : 's' %><% if (l.lesson.estimatedMinutes) { %> · <%= l.lesson.estimatedMinutes %> min<% } %>
+        </td>
+      </tr>
+    <% }); %>
+    </tbody>
+  </table>
+<% }); %>
+
+<% if (!tree.modules.length) { %>
+  <p style="color:#6E6B63">No modules yet.</p>
+<% } %>
+
+<h2 style="margin-top:36px;font-size:18px">Run this course again</h2>
+<p style="color:#6E6B63;font-size:14px">The copy starts private and unpublished, whatever this one is.</p>
+<form method="post" action="/courses/<%= tree.course._id %>/copy">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <label for="session">New session</label>
+  <input id="session" name="session" placeholder="2027/2028" required>
+  <button type="submit">Copy</button>
+</form>
+<%- include("../layouts/foot") %>

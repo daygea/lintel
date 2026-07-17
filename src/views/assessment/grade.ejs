@@ -1,0 +1,22 @@
+<%- include("../layouts/head") %>
+<h1>Grades</h1>
+<p style="color:#6E6B63">Every mark is kept. A moderator's grade is added beside the first, never over it.</p>
+
+<% if (final) { %>
+  <div class="card" style="border:1px solid #C9C5BC;border-radius:3px;padding:14px 16px;background:#fff">
+    <strong>Counts:</strong> <%= final.totalPoints %> points
+    <%= final.isFinal ? '(moderated)' : '(provisional — awaiting moderation)' %>
+  </div>
+<% } %>
+
+<h2 style="font-size:16px;margin-top:22px">All marks recorded</h2>
+<% grades.forEach(function (g) { %>
+  <div style="border:1px solid #E3E0D9;border-radius:3px;padding:12px 14px;margin:10px 0">
+    <div><%= g.totalPoints %> points <%= g.isFinal ? '· final (moderated)' : '· provisional' %></div>
+    <% if (g.moderatedFromGradeId) { %><div style="color:#6E6B63;font-size:13px">moderates an earlier mark</div><% } %>
+    <% if (g.feedbackAssetId) { %><div style="color:#8C6E33;font-size:13px">▸ spoken feedback attached</div><% } %>
+    <% if (g.feedback) { %><p style="font-family:Georgia,serif;color:#3E3952;margin:6px 0 0"><%= pick(g.feedback, locale) %></p><% } %>
+  </div>
+<% }); %>
+<% if (!grades.length) { %><p style="color:#6E6B63">Not yet marked.</p><% } %>
+<%- include("../layouts/foot") %>

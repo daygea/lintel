@@ -1,0 +1,20 @@
+<%- include("../layouts/head") %>
+<h1><%= pick(assessment.title, locale) %></h1>
+<p style="color:#6E6B63"><a href="/assessments">← Assessments</a> · <%= assessment.type %><%= assessment.requiresModeration ? ' · moderated by ' + assessment.moderatorRole : '' %></p>
+
+<h2 style="font-size:16px;margin-top:24px">Submissions</h2>
+<table>
+  <thead><tr><th>Learner</th><th>Attempt</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  <% submissions.forEach(function (s) { %>
+    <tr>
+      <td><%= s.userId ? s.userId.name : '—' %></td>
+      <td><%= s.attemptNo %></td>
+      <td><%= s.status %></td>
+      <td><a href="/submissions/<%= s._id %>/grade">Grade</a></td>
+    </tr>
+  <% }); %>
+  <% if (!submissions.length) { %><tr><td colspan="4" style="color:#6E6B63">Nothing submitted yet.</td></tr><% } %>
+  </tbody>
+</table>
+<%- include("../layouts/foot") %>

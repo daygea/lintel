@@ -1,0 +1,18 @@
+<%- include("../layouts/head") %>
+<h1>Assessments</h1>
+<p style="color:#6E6B63"><a href="/">← <%= tenant.name %></a></p>
+<table>
+  <thead><tr><th>Title</th><th>Type</th><th>Moderation</th><th>Status</th></tr></thead>
+  <tbody>
+  <% assessments.forEach(function (a) { %>
+    <tr>
+      <td><a href="/assessments/<%= a._id %>"><%= pick(a.title, locale) %></a></td>
+      <td><%= a.type %></td>
+      <td><%= a.requiresModeration ? 'by ' + a.moderatorRole : 'none' %></td>
+      <td><%= a.status %></td>
+    </tr>
+  <% }); %>
+  <% if (!assessments.length) { %><tr><td colspan="4" style="color:#6E6B63">No assessments yet.</td></tr><% } %>
+  </tbody>
+</table>
+<%- include("../layouts/foot") %>

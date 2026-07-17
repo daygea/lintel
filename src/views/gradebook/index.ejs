@@ -1,0 +1,24 @@
+<%- include("../layouts/head") %>
+<h1>Gradebook</h1>
+<p style="color:#6E6B63"><a href="/">← <%= tenant.name %></a> · Every gradable thing is a line item — the same rows LTI will read.</p>
+
+<h2 style="font-size:16px;margin-top:24px">Grade schemes</h2>
+<table>
+  <tbody>
+  <% schemes.forEach(function (s) { %>
+    <tr><td><%= pick(s.label, locale) %></td><td style="color:#6E6B63"><%= s.categories.length %> categories · pass ≥ <%= s.passPercent %>%</td></tr>
+  <% }); %>
+  <% if (!schemes.length) { %><tr><td style="color:#6E6B63">No schemes yet.</td></tr><% } %>
+  </tbody>
+</table>
+
+<h2 style="font-size:16px;margin-top:26px">Quizzes</h2>
+<table>
+  <tbody>
+  <% quizzes.forEach(function (q) { %>
+    <tr><td><%= pick(q.title, locale) %></td><td style="color:#6E6B63"><%= q.questions.length %> questions · <%= q.status %></td></tr>
+  <% }); %>
+  <% if (!quizzes.length) { %><tr><td style="color:#6E6B63">No quizzes yet.</td></tr><% } %>
+  </tbody>
+</table>
+<%- include("../layouts/foot") %>

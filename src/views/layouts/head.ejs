@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
   <title><%= typeof tenant !== 'undefined' && tenant ? tenant.name : 'Lintel' %></title>
   <style>
     body{font-family:system-ui,sans-serif;margin:0;background:#FBFAF8;color:#14192B;line-height:1.6}

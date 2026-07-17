@@ -1,0 +1,39 @@
+<%- include("../layouts/head") %>
+<h1>Courses</h1>
+<p style="color:#6E6B63"><a href="/">← <%= tenant.name %></a></p>
+
+<form method="get" action="/courses/search" style="margin:22px 0">
+  <label for="q">Search — tone marks optional</label>
+  <input id="q" name="q" placeholder="oriki, ayanmo, cosmology…">
+  <button type="submit">Search</button>
+</form>
+
+<table>
+  <thead><tr><th>Code</th><th>Title</th><th>Session</th><th>Status</th><th>Public</th></tr></thead>
+  <tbody>
+  <% courses.forEach(function (c) { %>
+    <tr>
+      <td><a href="/courses/<%= c._id %>"><%= c.code %></a></td>
+      <td><%= pick(c.title, locale) %></td>
+      <td><%= c.session || '—' %></td>
+      <td><%= c.status %></td>
+      <td><%= c.visibility === 'private' ? 'held' : c.visibility %></td>
+    </tr>
+  <% }); %>
+  </tbody>
+</table>
+
+<h2 style="margin-top:36px;font-size:18px">New course</h2>
+<form method="post" action="/courses">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <label for="code">Code</label>
+  <input id="code" name="code" placeholder="YIS 214" required>
+  <% tenant.locales.forEach(function (loc) { %>
+    <label for="title_<%= loc %>">Title (<%= loc %>)</label>
+    <input id="title_<%= loc %>" name="title_<%= loc %>" <%= loc === tenant.defaultLocale ? 'required' : '' %>>
+  <% }); %>
+  <label for="session">Session</label>
+  <input id="session" name="session" placeholder="2026/2027">
+  <button type="submit">Create</button>
+</form>
+<%- include("../layouts/foot") %>

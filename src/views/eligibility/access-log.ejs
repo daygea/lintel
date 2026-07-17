@@ -1,0 +1,18 @@
+<%- include("../layouts/head") %>
+<h1>Access log</h1>
+<p style="color:#6E6B63"><a href="/">← <%= tenant.name %></a> · Every evaluation, granted or withheld.</p>
+<table>
+  <thead><tr><th>When</th><th>Action</th><th>Policy</th><th>Failed rules</th></tr></thead>
+  <tbody>
+  <% log.forEach(function (e) { %>
+    <tr>
+      <td style="color:#6E6B63"><%= new Date(e.at).toLocaleString() %></td>
+      <td><%= e.action.replace('eligibility_', '') %></td>
+      <td class="mono" style="font-size:12px"><%= e.policySlug || '—' %></td>
+      <td class="mono" style="font-size:12px;color:#6E6B63"><%= (e.failedRules || []).join(', ') || '—' %></td>
+    </tr>
+  <% }); %>
+  <% if (!log.length) { %><tr><td colspan="4" style="color:#6E6B63">Nothing logged yet.</td></tr><% } %>
+  </tbody>
+</table>
+<%- include("../layouts/foot") %>
