@@ -1,0 +1,46 @@
+<% var nav = 'fees'; var pageTitle = 'Fees'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'RECORDS'; var heading = 'Fees'; var lede = 'Free is first-class — a schedule with no items charges nothing, and an unpriced course can still be held by standing. Payment composes with eligibility; it does not replace it.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+<div class="section" style="margin-top:22px">
+  <table class="table">
+    <thead><tr><th>Schedule</th><th>Items</th><th>Total</th></tr></thead>
+    <tbody>
+    <% schedules.forEach(function (s) {
+         var total = s.items.reduce(function(a,i){ return a + i.amount.amount; }, 0);
+         var cur = s.items[0] ? s.items[0].amount.currency : 'NGN'; %>
+      <tr>
+        <td><%= pick(s.label, locale) %></td>
+        <td class="quiet"><%= (s.items||[]).length %></td>
+        <td class="mono"><% if (total) { %><%= (total/100).toLocaleString() %> <%= cur %><% } else { %><span class="badge open">free</span><% } %></td>
+      </tr>
+    <% }); %>
+    <% if (!schedules.length) { %><tr class="empty"><td colspan="3">No fee schedules yet.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+
+<div class="section" style="margin-top:8px">
+  <h2>New fee schedule</h2>
+  <% if (typeof error !== "undefined" && error) { %><div class="notice err"><%= error %></div><% } %>
+  <p class="hint">A schedule is a named fee. Enter the tuition amount (what a person pays, e.g. 250 or 250.00) and optionally break it into extra line items. Free is fine — leave the amount at 0 and add no line items.</p>
+  <form method="post" action="/fees/schedules" class="form-narrow" style="max-width:520px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field"><label for="fs_label">Label</label><input id="fs_label" name="label" placeholder="e.g. 2026/2027 Tuition" required></div>
+    <div style="display:flex;gap:8px">
+      <div class="field" style="flex:1"><label for="fs_amount">Tuition amount</label><input id="fs_amount" name="amount" type="number" step="0.01" min="0" value="0" required><input type="hidden" name="amount_label" value="Tuition"></div>
+      <div class="field"><label for="fs_currency">Currency</label>
+        <select id="fs_currency" name="currency"><% currencies.forEach(function(c){ %><option value="<%= c %>" <%= c==='NGN'?'selected':'' %>><%= c %></option><% }); %></select>
+      </div>
+    </div>
+    <h3 style="font-size:14px;margin-top:12px">Line items <span class="quiet">(optional breakdown)</span></h3>
+    <% for (var i=0;i<3;i++) { %>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <input name="item_label" placeholder="e.g. Registration" style="flex:1">
+        <input name="item_amount" type="number" step="0.01" min="0" placeholder="amount" style="max-width:120px">
+      </div>
+    <% } %>
+    <button class="btn" type="submit">Create schedule</button>
+  </form>
+</div>
+<%- include("../layouts/foot") %>

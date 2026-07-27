@@ -1,0 +1,72 @@
+<% var nav='institutions'; var pageTitle=tenant.name; %>
+<%- include("head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<div class="page-head">
+  <div class="eyebrow">INSTITUTION</div>
+  <h1><%= tenant.name %></h1>
+  <p class="lede mono" style="font-size:13px"><%= tenant.slug %>.<%= locals.rootDomain || 'lintel.africa' %></p>
+</div>
+<div style="margin:-10px 0 6px">
+  <span class="badge <%= tenant.status==='active'?'ok':(tenant.status==='suspended'?'held':'flat') %>"><%= tenant.status %></span>
+  <span class="quiet mono" style="margin-left:10px;font-size:12px"><%= memberCount %> member<%= memberCount===1?'':'s' %> · <%= tenant.plan %> plan</span>
+</div>
+<p class="quiet" style="font-size:13px;max-width:56ch">The console manages this institution's standing and plan. It does not open its teaching or records — that stays inside the institution.</p>
+
+<div class="section">
+  <h2>Plan</h2>
+  <form method="post" action="/console/institutions/<%= tenant._id %>/plan" style="display:flex;gap:10px;align-items:center;max-width:360px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <select name="plan">
+      <% plans.forEach(function(p){ %><option value="<%= p %>" <%= p===tenant.plan?'selected':'' %>><%= p %></option><% }); %>
+    </select>
+    <button class="btn ghost small" type="submit">Change plan</button>
+  </form>
+</div>
+
+<div class="section">
+  <h2>Standing</h2>
+  <% if (tenant.status==='suspended') { %>
+    <p class="quiet" style="font-size:14px">This institution is suspended — its people cannot sign in.</p>
+    <form method="post" action="/console/institutions/<%= tenant._id %>/reactivate">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="btn" type="submit">Reactivate institution</button>
+    </form>
+  <% } else if (tenant.status==='closed') { %>
+    <p class="quiet">This institution is closed.</p>
+  <% } else { %>
+    <form method="post" action="/console/institutions/<%= tenant._id %>/suspend" style="max-width:440px">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field"><label for="reason">Reason for suspension</label><input id="reason" name="reason" placeholder="e.g. overdue payment"></div>
+      <button class="btn ghost" type="submit" style="border-color:var(--held);color:var(--held)">Suspend institution</button>
+    </form>
+  <% } %>
+</div>
+<div class="section">
+  <h2>Edit metadata</h2>
+  <p class="hint">System configuration only — this does not touch the institution's teaching or its public listing.</p>
+  <form method="post" action="/console/institutions/<%= tenant._id %>/edit" style="max-width:440px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field"><label for="name">Name</label><input id="name" name="name" value="<%= tenant.name %>"></div>
+    <div class="field"><label for="slug">Address (slug)</label>
+      <div style="display:flex;align-items:center">
+        <input id="slug" name="slug" value="<%= tenant.slug %>" style="border-radius:4px 0 0 4px">
+        <span class="mono quiet" style="padding:9px 11px;border:1px solid var(--rule-2);border-left:none;border-radius:0 4px 4px 0;background:var(--paper);font-size:13px">.<%= locals.rootDomain || 'lintel.africa' %></span>
+      </div>
+      <div class="note">Changing this moves where everyone signs in. Done rarely.</div>
+    </div>
+    <button class="btn ghost small" type="submit">Save metadata</button>
+  </form>
+</div>
+
+<% if (tenant.status !== 'closed') { %>
+<div class="section">
+  <h2>Close institution</h2>
+  <p class="hint">Terminal, unlike suspend. A closed institution is removed from all listings and its people cannot sign in. Data is retained — closing is the decision, not the deletion.</p>
+  <form method="post" action="/console/institutions/<%= tenant._id %>/close" style="max-width:440px" onsubmit="return confirm('Close this institution? This is terminal (though data is retained).');">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field"><label for="closereason">Reason</label><input id="closereason" name="reason" placeholder="e.g. offboarding, lapsed trial"></div>
+    <button class="btn ghost small" type="submit" style="border-color:var(--held);color:var(--held)">Close institution</button>
+  </form>
+</div>
+<% } %>
+
+<%- include("foot") %>

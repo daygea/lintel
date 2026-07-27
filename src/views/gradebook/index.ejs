@@ -1,24 +1,88 @@
-<%- include("../layouts/head") %>
-<h1>Gradebook</h1>
-<p style="color:#6E6B63"><a href="/">← <%= tenant.name %></a> · Every gradable thing is a line item — the same rows LTI will read.</p>
+<% var nav = 'gradebook'; var pageTitle = 'Gradebook'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'ASSESSMENT'; var heading = 'Gradebook'; var lede = 'Every gradable thing is a line item — the same rows an external tool reads and writes. Weighted by category, explainable to any learner who asks why.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+<div class="section" style="margin-top:22px">
+  <h2>Grade schemes</h2>
+  <table class="table">
+    <thead><tr><th>Scheme</th><th>Categories</th><th>Pass mark</th></tr></thead>
+    <tbody>
+    <% schemes.forEach(function (s) { %>
+      <tr><td><%= pick(s.label, locale) %></td><td class="quiet"><%= (s.categories||[]).length %></td><td class="mono">≥ <%= s.passPercent %>%</td></tr>
+    <% }); %>
+    <% if (!schemes.length) { %><tr class="empty"><td colspan="3">No schemes yet.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+<div class="section">
+  <h2>Quizzes</h2>
+  <table class="table">
+    <thead><tr><th>Quiz</th><th>Questions</th><th>Status</th></tr></thead>
+    <tbody>
+    <% quizzes.forEach(function (q) { %>
+      <tr><td><%= pick(q.title, locale) %></td><td class="quiet"><%= (q.questions||[]).length %></td><td><span class="badge <%= q.status==='open'?'ok':'flat' %>"><%= q.status %></span></td></tr>
+    <% }); %>
+    <% if (!quizzes.length) { %><tr class="empty"><td colspan="3">No quizzes yet.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
 
-<h2 style="font-size:16px;margin-top:24px">Grade schemes</h2>
-<table>
-  <tbody>
-  <% schemes.forEach(function (s) { %>
-    <tr><td><%= pick(s.label, locale) %></td><td style="color:#6E6B63"><%= s.categories.length %> categories · pass ≥ <%= s.passPercent %>%</td></tr>
-  <% }); %>
-  <% if (!schemes.length) { %><tr><td style="color:#6E6B63">No schemes yet.</td></tr><% } %>
-  </tbody>
-</table>
+<div class="section" style="margin-top:8px">
+  <h2>New line item</h2>
+  <% if (typeof error !== "undefined" && error) { %><div class="notice err"><%= error %></div><% } %>
+  <p class="hint">A line item is one graded thing in a course — an exam, an essay. Scores are entered against it.</p>
+  <form method="post" action="/gradebook/line-items" class="form-narrow" style="max-width:520px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field"><label for="li_course">Course</label>
+      <% if (courses && courses.length) { %>
+        <select id="li_course" name="courseId" required><% courses.forEach(function(c){ %><option value="<%= c._id %>"><%= pick(c.title, locale) %> · <%= c.code %></option><% }); %></select>
+      <% } else { %><div class="note">No courses yet — <a href="/courses">create one</a> first.</div><% } %>
+    </div>
+    <div class="field"><label for="li_label">Label</label><input id="li_label" name="label" placeholder="e.g. Mid-term oral" required></div>
+    <div class="field"><label for="li_category">Category</label><input id="li_category" name="category" placeholder="matches a scheme category key, e.g. recitation" required></div>
+    <div class="field"><label for="li_max">Max points</label><input id="li_max" name="maxPoints" type="number" value="100" min="1" style="max-width:120px"></div>
+    <button class="btn" type="submit">Create line item</button>
+  </form>
+</div>
 
-<h2 style="font-size:16px;margin-top:26px">Quizzes</h2>
-<table>
-  <tbody>
-  <% quizzes.forEach(function (q) { %>
-    <tr><td><%= pick(q.title, locale) %></td><td style="color:#6E6B63"><%= q.questions.length %> questions · <%= q.status %></td></tr>
-  <% }); %>
-  <% if (!quizzes.length) { %><tr><td style="color:#6E6B63">No quizzes yet.</td></tr><% } %>
-  </tbody>
-</table>
+<div class="section">
+  <h2>Enter a score</h2>
+  <form method="post" action="/gradebook/scores" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;max-width:560px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field" style="margin:0"><label for="sc_li">Line item</label>
+      <select id="sc_li" name="lineItemId" required><option value="">—</option><% (lineItems||[]).forEach(function(li){ %><option value="<%= li._id %>"><%= pick(li.label, locale) %></option><% }); %></select>
+    </div>
+    <div class="field" style="margin:0"><label for="sc_user">Learner ID</label><input id="sc_user" name="userId" required></div>
+    <div class="field" style="margin:0"><label for="sc_pts">Points</label><input id="sc_pts" name="points" type="number" step="any" required style="max-width:100px"></div>
+    <button class="btn" type="submit">Save score</button>
+  </form>
+  <p class="hint" style="margin-top:8px">Line items fed by an assessment or quiz score themselves; this is for hand-entered marks.</p>
+</div>
+
+<div class="section">
+  <h2>New scheme</h2>
+  <p class="hint">A scheme says how a course's categories combine into a final grade, and the bands (thresholds) that final maps to.</p>
+  <form method="post" action="/gradebook/schemes" class="form-narrow" style="max-width:560px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field"><label for="sch_slug">Slug</label><input id="sch_slug" name="slug" placeholder="e.g. diploma-2026" required></div>
+    <div class="field"><label for="sch_label">Label</label><input id="sch_label" name="label" required></div>
+    <h3 style="font-size:14px;margin-top:14px">Categories (weighted buckets)</h3>
+    <% for (var i=0;i<3;i++) { %>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <input name="cat_key" placeholder="key (recitation)" style="max-width:150px">
+        <input name="cat_label" placeholder="label" style="flex:1">
+        <input name="cat_weight" type="number" placeholder="wt" style="max-width:70px">
+      </div>
+    <% } %>
+    <h3 style="font-size:14px;margin-top:14px">Bands (grade thresholds)</h3>
+    <% for (var i=0;i<3;i++) { %>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <input name="band_label" placeholder="label (Distinction)" style="flex:1">
+        <input name="band_min" type="number" placeholder="min %" style="max-width:90px">
+      </div>
+    <% } %>
+    <div class="field" style="margin-top:10px"><label for="sch_pass">Pass percent</label><input id="sch_pass" name="passPercent" type="number" value="50" min="0" max="100" style="max-width:100px"></div>
+    <button class="btn" type="submit">Create scheme</button>
+  </form>
+</div>
 <%- include("../layouts/foot") %>

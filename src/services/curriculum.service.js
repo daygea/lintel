@@ -21,6 +21,17 @@ const listCourses = (filter = {}) =>
   Course.find(filter).sort({ order: 1, code: 1 }).exec();
 
 const getCourse = (id) => Course.findById(id).exec();
+const getLesson = (id) => Lesson.findById(id).exec();
+
+async function setLessonPolicy(lessonId, eligibilityPolicyId) {
+  const lesson = await Lesson.findById(lessonId).exec();
+  if (!lesson) throw new ValidationError('No such lesson');
+  // Empty string clears the policy (the lesson becomes open teaching again).
+  lesson.eligibilityPolicyId = eligibilityPolicyId || undefined;
+  await lesson.save();
+  return lesson;
+}
+const listBlocks = (lessonId) => ContentBlock.find({ lessonId }).sort({ order: 1 }).exec();
 
 async function createCourse({ programId, code, title, summary, session }) {
   if (!code || !title) throw new ValidationError('A course needs a code and a title');
@@ -130,6 +141,9 @@ module.exports = {
   listPrograms,
   createProgram,
   listCourses,
+  getLesson,
+  listBlocks,
+  setLessonPolicy,
   getCourse,
   getCourseTree,
   createCourse,

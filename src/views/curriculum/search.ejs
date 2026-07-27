@@ -1,33 +1,14 @@
-<%- include("../layouts/head") %>
-<h1>Search</h1>
-<p><a href="/courses">← All courses</a></p>
-
-<form method="get" action="/courses/search">
-  <input name="q" value="<%= q %>" placeholder="oriki, ayanmo…">
-  <button type="submit">Search</button>
-</form>
-
-<% if (q) { %>
-  <p style="color:#6E6B63;font-size:14px;margin-top:20px">
-    <%= results.courses.length + results.lessons.length + results.programs.length %> result(s) for “<%= q %>”
-  </p>
-
-  <% if (results.courses.length) { %>
-    <h2 style="font-size:16px;margin-top:22px">Courses</h2>
-    <table><tbody>
+<% var nav = 'courses'; var pageTitle = 'Search'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'TEACHING'; var heading = 'Search results'; var lede = 'Diacritics optional — oriki finds Oríkì.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+<div class="section" style="margin-top:22px">
+  <h2>Courses <span class="quiet mono" style="font-size:13px">(<%= results.courses.length %>)</span></h2>
+  <ul class="rows">
     <% results.courses.forEach(function (c) { %>
-      <tr><td><a href="/courses/<%= c._id %>"><%= pick(c.title, locale) %></a></td><td style="color:#6E6B63"><%= c.code %></td></tr>
+      <li><a href="/courses/<%= c._id %>" class="mono"><%= c.code %></a> <span class="title"><%= pick(c.title, locale) %></span></li>
     <% }); %>
-    </tbody></table>
-  <% } %>
-
-  <% if (results.lessons.length) { %>
-    <h2 style="font-size:16px;margin-top:22px">Lessons</h2>
-    <table><tbody>
-    <% results.lessons.forEach(function (l) { %>
-      <tr><td><a href="/courses/<%= l.courseId %>"><%= pick(l.title, locale) %></a></td></tr>
-    <% }); %>
-    </tbody></table>
-  <% } %>
-<% } %>
+    <% if (!results.courses.length) { %><li class="quiet">No courses matched.</li><% } %>
+  </ul>
+</div>
 <%- include("../layouts/foot") %>

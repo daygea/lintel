@@ -1,0 +1,53 @@
+<% var nav='reports'; var pageTitle='Report'; %>
+<%- include("head", { nav: nav, pageTitle: pageTitle }) %>
+<div class="page-head">
+  <div class="eyebrow">REPORT</div>
+  <h1><%= report.category ? report.category.replace(/_/g,' ') : 'other' %></h1>
+  <p class="lede mono" style="font-size:13px"><%= report.subjectType %><%= report.subjectRef ? ' · '+report.subjectRef : '' %> · filed <%= new Date(report.createdAt).toLocaleString() %></p>
+</div>
+<% if (report.detail) { %><div class="panel" style="margin-bottom:22px"><%= report.detail %></div><% } %>
+
+<div class="section">
+  <h2>Resolve</h2>
+  <form method="post" action="/console/reports/<%= report._id %>/resolve" style="max-width:520px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field"><label for="status">Outcome</label>
+      <select id="status" name="status">
+        <option value="investigating">Investigating</option>
+        <option value="actioned">Actioned</option>
+        <option value="dismissed">Dismissed</option>
+      </select>
+    </div>
+    <div class="field"><label for="resolution">Note</label><textarea id="resolution" name="resolution" rows="2"></textarea></div>
+    <button class="btn" type="submit">Save outcome</button>
+  </form>
+</div>
+
+<% if (report.subjectType === 'user' && report.subjectId) { %>
+<div class="section">
+  <h2>Account actions</h2>
+  <p class="hint">Act on the reported account. None of these read any content — they manage access only.</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <form method="post" action="/console/users/<%= report.subjectId %>/suspend"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="reason" value="abuse report <%= report._id %>"><button class="btn ghost small" type="submit">Suspend account</button></form>
+    <form method="post" action="/console/users/<%= report.subjectId %>/force-logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn ghost small" type="submit">Force logout</button></form>
+    <form method="post" action="/console/users/<%= report.subjectId %>/reset-password"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn ghost small" type="submit">Send password reset</button></form>
+  </div>
+</div>
+<% } %>
+
+<% if (report.tenantId) { %>
+<div class="section">
+  <h2>Break-glass access</h2>
+  <p class="hint">If this report needs you to see the institution's actual content, open a time-boxed grant. The institution's owner is notified immediately, and the grant expires on its own. This is the only way platform staff can read tenant content.</p>
+  <form method="post" action="/console/breakglass" style="max-width:520px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="tenantId" value="<%= report.tenantId %>">
+    <input type="hidden" name="reportId" value="<%= report._id %>">
+    <div class="field"><label for="justification">Justification (required, recorded and shown to the institution)</label>
+      <textarea id="justification" name="justification" rows="2" required minlength="10"></textarea></div>
+    <div class="field"><label for="hours">Window (hours)</label><input id="hours" name="hours" type="number" value="24" min="1" max="72" style="max-width:120px"></div>
+    <button class="btn ghost" type="submit" style="border-color:var(--held);color:var(--held)">Open break-glass access</button>
+  </form>
+</div>
+<% } %>
+<%- include("foot") %>

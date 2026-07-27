@@ -1,4 +1,8 @@
-<%- include("layouts/head") %>
-<h1><%= status %></h1>
-<p style="color:#6E6B63"><%= message %></p>
-<%- include("layouts/foot") %>
+<% var pageTitle = String(status || 'Error'); %>
+<%- include("layouts/public-head") %>
+<div class="pub-card" style="text-align:center">
+  <div class="eyebrow mono" style="color:var(--muted);letter-spacing:.14em"><%= status %></div>
+  <h1 style="font-family:var(--serif);font-size:28px;margin:6px 0 8px"><%= message %></h1>
+  <p style="margin-top:14px"><a class="btn ghost" href="/">Back to safety</a></p>
+</div>
+<%- include("layouts/public-foot") %>

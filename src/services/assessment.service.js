@@ -20,6 +20,8 @@ async function createRubric({ title, criteria }) {
 
 const listAssessments = (filter = {}) => Assessment.find(filter).sort({ createdAt: -1 }).exec();
 const getAssessment = (id) => Assessment.findById(id).exec();
+const getSubmission = (id) => Submission.findById(id).exec();
+const getRubric = (id) => Rubric.findById(id).exec();
 
 async function createAssessment(data) {
   if (!data.title) throw new ValidationError('An assessment needs a title');
@@ -189,6 +191,7 @@ const audit = (action, subjectType, subjectId, meta) =>
 module.exports = {
   listRubrics, createRubric,
   listAssessments, getAssessment, createAssessment,
+  getSubmission, getRubric,
   submit, listSubmissions,
   assignAssessor,
   grade, moderate, gradesFor, finalGrade,

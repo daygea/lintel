@@ -55,10 +55,11 @@ describe('the evaluator (no database)', () => {
     }
   });
 
-  it('assessment_score is registered (Sprint 5a), payment_state is not (Sprint 6)', () => {
-    // Sprint 3 asserted both were absent. Sprint 5a registered assessment_score —
-    // proving ADR-008: a rule was added without touching the evaluator.
+  it('the full MVP rule set is registered (Sprints 3, 5a, 6)', () => {
+    // Sprint 3 asserted assessment_score and payment_state were absent. 5a and 6
+    // registered them, each without touching the evaluator — ADR-008 across three
+    // sprints. The registry is now complete for the MVP.
     expect(registry.get('assessment_score')).toBeTypeOf('function');
-    expect(registry.get('payment_state')).toBeUndefined();
+    expect(registry.get('payment_state')).toBeTypeOf('function');
   });
 });

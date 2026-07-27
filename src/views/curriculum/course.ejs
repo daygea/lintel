@@ -1,39 +1,65 @@
-<%- include("../layouts/head") %>
-<h1><%= pick(tree.course.title, locale) %></h1>
-<p style="color:#6E6B63">
-  <%= tree.course.code %> · <%= tree.course.session || 'no session' %> ·
-  <%= tree.course.status %> ·
-  <%= tree.course.visibility === 'private' ? 'not published' : tree.course.visibility %>
-  <% if (tree.course.copiedFromCourseId) { %> · copied, v<%= tree.course.version %><% } %>
-</p>
-<p><a href="/courses">← All courses</a></p>
+<% var nav = 'courses'; var pageTitle = pick(tree.course.title, locale); %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = tree.course.code; var heading = pick(tree.course.title, locale); var lede = null; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+<div style="margin:-14px 0 8px">
+  <span class="badge <%= tree.course.status==='published'?'ok':'flat' %>"><%= tree.course.status %></span>
+  <% if (tree.course.visibility === 'private') { %><span class="badge held" style="margin-left:6px">held</span>
+  <% } else { %><span class="badge open" style="margin-left:6px"><%= tree.course.visibility %></span><% } %>
+  <span class="quiet mono" style="margin-left:10px;font-size:12px">v<%= tree.course.version || 1 %> · <%= tree.course.session || 'no session' %></span>
+</div>
 
-<% tree.modules.forEach(function (m) { %>
-  <h2 style="margin-top:28px;font-size:18px"><%= pick(m.module.title, locale) %></h2>
-  <table>
-    <tbody>
-    <% m.lessons.forEach(function (l) { %>
-      <tr>
-        <td><%= pick(l.lesson.title, locale) %></td>
-        <td style="color:#6E6B63;font-size:13px">
-          <%= l.blocks.length %> block<%= l.blocks.length === 1 ? '' : 's' %><% if (l.lesson.estimatedMinutes) { %> · <%= l.lesson.estimatedMinutes %> min<% } %>
-        </td>
-      </tr>
-    <% }); %>
-    </tbody>
-  </table>
-<% }); %>
+<div class="section">
+  <h2>Structure</h2>
+  <p class="hint">A lesson bordered in brass is open teaching; one bordered in slate is held until standing is attested. Click a lesson to add its content.</p>
 
-<% if (!tree.modules.length) { %>
-  <p style="color:#6E6B63">No modules yet.</p>
-<% } %>
+  <% tree.modules.forEach(function (m) { %>
+    <div style="margin:22px 0">
+      <div style="font-family:var(--serif);font-size:17px;margin-bottom:8px"><%= pick(m.module.title, locale) %></div>
+      <% (m.lessons||[]).forEach(function (l) { %>
+        <a href="/courses/<%= tree.course._id %>/lessons/<%= l.lesson._id %>" class="thr <%= (l.lesson && l.lesson.eligibilityPolicyId) ? 'is-held' : 'is-open' %>" style="display:block;padding:8px 0 8px 16px;margin:6px 0;color:var(--ink)">
+          <div><%= pick(l.lesson.title, locale) %></div>
+          <div class="quiet mono" style="font-size:12px"><%= (l.blocks||[]).length %> block<%= (l.blocks||[]).length===1?'':'s' %><%= l.lesson.estimatedMinutes ? ' · ' + l.lesson.estimatedMinutes + ' min' : '' %></div>
+        </a>
+      <% }); %>
+      <% if (!(m.lessons||[]).length) { %><div class="quiet" style="font-size:13px;padding-left:16px;margin-bottom:8px">No lessons yet.</div><% } %>
 
-<h2 style="margin-top:36px;font-size:18px">Run this course again</h2>
-<p style="color:#6E6B63;font-size:14px">The copy starts private and unpublished, whatever this one is.</p>
-<form method="post" action="/courses/<%= tree.course._id %>/copy">
-  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-  <label for="session">New session</label>
-  <input id="session" name="session" placeholder="2027/2028" required>
-  <button type="submit">Copy</button>
-</form>
+      <!-- add lesson to this module -->
+      <details style="margin:8px 0 0 16px">
+        <summary class="quiet" style="cursor:pointer;font-size:13px">+ Add lesson</summary>
+        <form method="post" action="/courses/<%= tree.course._id %>/lessons" style="margin-top:10px;max-width:440px">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="moduleId" value="<%= m.module._id %>">
+          <% tenant.locales.forEach(function (loc) { %>
+            <div class="field">
+              <label for="lt_<%= m.module._id %>_<%= loc %>">Lesson title <span class="quiet mono" style="font-size:11px">(<%= loc %>)</span></label>
+              <input id="lt_<%= m.module._id %>_<%= loc %>" name="title_<%= loc %>" <%= loc===tenant.defaultLocale?'required':'' %>>
+            </div>
+          <% }); %>
+          <div class="field">
+            <label for="em_<%= m.module._id %>">Estimated minutes <span class="quiet">(optional)</span></label>
+            <input id="em_<%= m.module._id %>" name="estimatedMinutes" type="number" min="1" style="max-width:120px">
+          </div>
+          <button class="btn small" type="submit">Add lesson</button>
+        </form>
+      </details>
+    </div>
+  <% }); %>
+  <% if (!tree.modules.length) { %><div class="panel quiet" style="margin-bottom:16px">No modules yet — add the first below.</div><% } %>
+
+  <!-- add module -->
+  <details <%= !tree.modules.length ? 'open' : '' %> style="margin-top:20px">
+    <summary style="cursor:pointer;font-weight:500">+ Add module</summary>
+    <form method="post" action="/courses/<%= tree.course._id %>/modules" style="margin-top:12px;max-width:440px">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <% tenant.locales.forEach(function (loc) { %>
+        <div class="field">
+          <label for="mt_<%= loc %>">Module title <span class="quiet mono" style="font-size:11px">(<%= loc %>)</span></label>
+          <input id="mt_<%= loc %>" name="title_<%= loc %>" <%= loc===tenant.defaultLocale?'required':'' %>>
+        </div>
+      <% }); %>
+      <button class="btn" type="submit">Add module</button>
+    </form>
+  </details>
+</div>
 <%- include("../layouts/foot") %>

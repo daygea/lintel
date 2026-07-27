@@ -20,6 +20,17 @@ const apiAssessment = require('../controllers/api/assessment.controller');
 const webAssessment = require('../controllers/web/assessment.controller');
 const apiGradebook = require('../controllers/api/gradebook.controller');
 const webGradebook = require('../controllers/web/gradebook.controller');
+const apiCommerce = require('../controllers/api/commerce.controller');
+const apiCredential = require('../controllers/api/credential.controller');
+const webCredential = require('../controllers/web/credential.controller');
+const webSignup = require('../controllers/web/signup.controller');
+const webDirectoryAdmin = require('../controllers/web/directory-admin.controller');
+const apiSso = require('../controllers/api/sso.controller');
+const apiLti = require('../controllers/api/lti.controller');
+const apiDirectory = require('../controllers/api/directory.controller');
+const webCommerce = require('../controllers/web/commerce.controller');
+const express2 = require('express');
+const commerceService = require('../services/commerce');
 
 const { requireUser, requireMember, requireRole } = require('../middleware/auth');
 const { ROLES } = require('../lib/roles');
@@ -43,8 +54,10 @@ const author = [
 ];
 
 /* ------------------------------------------------------------------- people */
-router.get('/', ...staff, webTenant.dashboard);
+router.get('/', requireUser, requireMember, webTenant.dashboard);
 router.get('/api/v1/members', ...staff, apiMembership.list);
+router.post('/members/:id/admit', ...staff, webTenant.admit);
+router.post('/api/v1/members/:id/admit', ...staff, apiMembership.admit);
 router.patch(
   '/api/v1/members/:id/roles',
   requireUser,
@@ -59,6 +72,11 @@ router.post('/courses', ...author, webCurriculum.createCourse);
 router.get('/courses/search', ...author, webCurriculum.search);
 router.get('/courses/:id', ...author, webCurriculum.showCourse);
 router.post('/courses/:id/copy', ...author, webCurriculum.copyCourse);
+router.post('/courses/:id/modules', ...author, webCurriculum.createModule);
+router.post('/courses/:id/lessons', ...author, webCurriculum.createLesson);
+router.get('/courses/:id/lessons/:lessonId', ...author, webCurriculum.showLesson);
+router.post('/courses/:id/lessons/:lessonId/blocks', ...author, webCurriculum.createBlock);
+router.post('/courses/:id/lessons/:lessonId/policy', ...author, webCurriculum.setLessonPolicy);
 
 router.get('/api/v1/programs', ...author, apiCurriculum.listPrograms);
 router.post('/api/v1/programs', ...author, apiCurriculum.createProgram);
@@ -73,10 +91,13 @@ router.post('/api/v1/courses/:id/copy', ...author, apiCurriculum.copyCourse);
 router.post('/api/v1/modules', ...author, apiCurriculum.createModule);
 router.post('/api/v1/lessons', ...author, apiCurriculum.createLesson);
 router.post('/api/v1/blocks', ...author, apiCurriculum.createBlock);
+router.get('/api/v1/lessons/:lessonId', ...author, apiCurriculum.showLesson);
+router.post('/api/v1/lessons/:lessonId/policy', ...author, apiCurriculum.setLessonPolicy);
 router.post('/api/v1/reorder', ...author, apiCurriculum.reorder);
 
 /* -------------------------------------------------------------------- media */
 router.get('/media', ...author, webMedia.listAssets);
+router.get('/media/upload', ...author, webMedia.uploadPage);
 router.get('/media/:id', ...author, webMedia.getAsset);
 
 router.get('/api/v1/assets', ...author, apiMedia.listAssets);
@@ -90,7 +111,13 @@ router.patch('/api/v1/assets/:id/transcript', ...author, apiMedia.setTranscript)
 /* -------------------------------------------------------------- enrolment */
 router.get('/cohorts', ...staff, webEnrolment.listCohorts);
 router.get('/cohorts/:id', ...staff, webEnrolment.showCohort);
+router.post('/cohorts', ...staff, webEnrolment.createCohort);
+router.post('/cohorts/:id/open', ...staff, webEnrolment.openCohort);
+router.post('/cohorts/:id/close', ...staff, webEnrolment.closeCohort);
+router.post('/cohorts/:id/sessions', ...staff, webEnrolment.createSession);
+router.post('/cohorts/:id/attendance', ...staff, webEnrolment.markAttendance);
 router.post('/applications/:id/decide', ...staff, webEnrolment.decideApplication);
+router.post('/cohorts/:id/enrol', ...staff, webEnrolment.enrolMember);
 
 router.get('/api/v1/cohorts', ...staff, apiEnrolment.listCohorts);
 router.post('/api/v1/cohorts', ...staff, apiEnrolment.createCohort);
@@ -101,6 +128,7 @@ router.post('/api/v1/cohorts/:id/close', ...staff, apiEnrolment.closeCohort);
 router.post('/api/v1/applications', requireUser, requireMember, apiEnrolment.apply);
 router.get('/api/v1/cohorts/:cohortId/applications', ...staff, apiEnrolment.listApplications);
 router.post('/api/v1/applications/:id/decide', ...staff, apiEnrolment.decideApplication);
+router.post('/api/v1/cohorts/:id/enrol', ...staff, apiEnrolment.enrol);
 
 router.get('/api/v1/cohorts/:cohortId/enrollments', ...staff, apiEnrolment.listEnrollments);
 router.patch('/api/v1/enrollments/:id/payment', ...staff, apiEnrolment.setPaymentState);
@@ -119,7 +147,11 @@ router.get('/api/v1/notifications', ...staff, apiEnrolment.notifications);
 const issuer = [requireUser, requireMember, requireRole(ROLES.OWNER, ROLES.ADMIN, ROLES.REGISTRAR, ROLES.INSTRUCTOR, ROLES.ASSESSOR)];
 
 router.get('/register', ...staff, webEligibility.register);
+router.post('/register/standings', ...staff, webEligibility.createStanding);
+router.post('/register/attestations', ...staff, webEligibility.issueAttestation);
+router.post('/register/attestations/:id/revoke', ...staff, webEligibility.revokeAttestation);
 router.get('/policies', ...staff, webEligibility.policies);
+router.post('/policies', ...staff, webEligibility.createPolicy);
 router.get('/access-log', ...staff, webEligibility.accessLog);
 
 router.get('/api/v1/attestation-types', ...staff, apiEligibility.listTypes);
@@ -142,6 +174,8 @@ router.post('/api/v1/archive/consent-revoked', ...staff, apiEligibility.consentR
 /* --------------------------------------------------------- learner (Sprint 4) */
 const asLearner = [requireUser, requireMember];
 
+router.get('/api/v1/me/learning', ...asLearner, apiLearner.myLearning);
+
 router.get('/api/v1/lessons/:lessonId/view', ...asLearner, apiLearner.lesson);
 router.get('/api/v1/lessons/:lessonId/pack', ...asLearner, apiLearner.pack);
 
@@ -153,7 +187,10 @@ const assessor = [requireUser, requireMember, requireRole(ROLES.OWNER, ROLES.ADM
 
 router.get('/assessments', ...assessor, webAssessment.list);
 router.get('/assessments/:id', ...assessor, webAssessment.show);
+router.post('/rubrics', ...assessor, webAssessment.createRubric);
+router.post('/assessments', ...assessor, webAssessment.createAssessment);
 router.get('/submissions/:submissionId/grade', ...assessor, webAssessment.gradeView);
+router.post('/submissions/:submissionId/grade', ...assessor, webAssessment.submitGrade);
 
 router.get('/api/v1/rubrics', ...assessor, apiAssessment.listRubrics);
 router.post('/api/v1/rubrics', ...assessor, apiAssessment.createRubric);
@@ -173,6 +210,9 @@ router.get('/api/v1/submissions/:submissionId/grades', ...assessor, apiAssessmen
 
 /* ------------------------------------------------- gradebook & quiz (Sprint 5b) */
 router.get('/gradebook', ...assessor, webGradebook.gradebook);
+router.post('/gradebook/schemes', ...assessor, webGradebook.createScheme);
+router.post('/gradebook/line-items', ...assessor, webGradebook.createLineItem);
+router.post('/gradebook/scores', ...assessor, webGradebook.putScore);
 
 router.get('/api/v1/grade-schemes', ...assessor, apiGradebook.listSchemes);
 router.post('/api/v1/grade-schemes', ...assessor, apiGradebook.upsertScheme);
@@ -187,5 +227,106 @@ router.get('/api/v1/quizzes', ...assessor, apiGradebook.listQuizzes);
 router.post('/api/v1/quizzes', ...assessor, apiGradebook.createQuiz);
 router.get('/api/v1/quizzes/:id/present', requireUser, requireMember, apiGradebook.presentQuiz);
 router.post('/api/v1/quizzes/:id/submit', requireUser, requireMember, apiGradebook.submitQuiz);
+
+/* ------------------------------------------------------- commerce (Sprint 6) */
+router.get('/fees', ...staff, webCommerce.fees);
+router.post('/fees/schedules', ...staff, webCommerce.createSchedule);
+router.post('/fees/payments', ...staff, webCommerce.recordPayment);
+
+router.get('/api/v1/fee-schedules', ...staff, apiCommerce.listSchedules);
+router.post('/api/v1/fee-schedules', ...staff, apiCommerce.createSchedule);
+router.post('/api/v1/invoices', ...staff, apiCommerce.raiseInvoice);
+router.get('/api/v1/enrollments/:enrollmentId/invoice', ...staff, apiCommerce.invoice);
+router.post('/api/v1/payments/begin', requireUser, requireMember, apiCommerce.beginPayment);
+router.post('/api/v1/payments/confirm-transfer', ...staff, apiCommerce.confirmTransfer);
+router.post('/api/v1/invoices/waive', ...staff, apiCommerce.waive);
+router.get('/api/v1/invoices/:invoiceId/payments', ...staff, apiCommerce.payments);
+
+/*
+ * Paystack webhook. Public (no session), signature-verified, and needs the RAW
+ * body — so it mounts its own raw parser BEFORE the JSON body is consumed. The
+ * signature check is the auth; do not add requireUser here.
+ */
+router.post(
+  '/api/v1/webhooks/paystack',
+  express2.raw({ type: '*/*' }),
+  async (req, res, next) => {
+    try {
+      const rawBody = req.body instanceof Buffer ? req.body.toString('utf8') : JSON.stringify(req.body);
+      const parsed = JSON.parse(rawBody);
+      // A webhook has no tenant context from a session; the reference carries the
+      // tenantId, and recordPayment resolves the invoice within that tenant.
+      const { runWithTenant } = require('../lib/context');
+      const tenantId = String(parsed.data?.reference || '').split('_')[0];
+      if (!tenantId) return res.status(400).json({ error: 'bad reference' });
+      const result = await runWithTenant(tenantId, null, () =>
+        commerceService.handleWebhook({
+          providerKey: 'paystack',
+          rawBody,
+          signature: req.get('x-paystack-signature'),
+          body: parsed,
+        })
+      );
+      res.json({ ok: true, ...result, payment: undefined, invoice: undefined });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/* ----------------------------------------------------- credentials (Sprint 7) */
+router.get('/credentials', ...staff, webCredential.index);
+router.post('/credentials/templates', ...staff, webCredential.createTemplate);
+router.post('/credentials/issue', ...staff, webCredential.issue);
+router.post('/credentials/:id/revoke', ...staff, webCredential.revoke);
+router.get('/api/v1/credential-templates', ...staff, apiCredential.listTemplates);
+router.post('/api/v1/credential-templates', ...staff, apiCredential.createTemplate);
+router.post('/api/v1/credentials', ...staff, apiCredential.issue);
+router.post('/api/v1/credentials/:id/revoke', ...staff, apiCredential.revoke);
+router.get('/api/v1/users/:userId/credentials', ...staff, apiCredential.listFor);
+
+// Full tenant data export — "can we leave with our material?" answered yes.
+router.get('/api/v1/export', ...staff, apiCredential.exportTenant);
+
+/* --------------------------------------- institutional integration (Sprint 8) */
+router.get('/api/v1/sso/connections', ...staff, apiSso.listConnections);
+router.post('/api/v1/sso/connections', ...staff, apiSso.createConnection);
+// begin + callback are public-ish: the user is not yet logged in. They resolve a
+// connection by id and rely on the adapter's verification, not a session.
+router.get('/api/v1/sso/:id/begin', apiSso.begin);
+router.post('/api/v1/sso/:id/callback', apiSso.callback);
+
+router.post('/api/v1/sis/import', ...staff, apiSso.sisImport);
+
+/* ------------------------------------------------ LTI 1.3 Advantage (Sprint 9) */
+router.get('/api/v1/lti/tools', ...staff, apiLti.listTools);
+router.post('/api/v1/lti/tools', ...staff, apiLti.registerTool);
+router.post('/api/v1/lti/:toolId/launch', requireUser, requireMember, apiLti.launch);
+
+// Advantage service callbacks — the TOOL calls these, authed by its bearer token
+// (verify.js checks it), not by a session. Public at the route layer by design.
+router.post('/api/v1/lti/:toolId/lineitems/:lineItemId/scores', apiLti.receiveScore);
+router.get('/api/v1/lti/:toolId/lineitems/:lineItemId/results', apiLti.readResults);
+router.get('/api/v1/lti/:toolId/courses/:courseId/members', apiLti.membership);
+
+/* ------------------------------------------------ institution directory (Sprint 10) */
+router.get('/api/v1/directory-listing', ...staff, apiDirectory.get);
+router.put('/api/v1/directory-listing', ...staff, apiDirectory.upsert);
+router.post('/api/v1/directory-listing/publish', ...staff, apiDirectory.publish);
+router.post('/api/v1/directory-listing/unpublish', ...staff, apiDirectory.unpublish);
+
+/* ---- Directory listing management (the institution's own public presence) ---- */
+router.get('/directory-listing', ...staff, webDirectoryAdmin.show);
+router.post('/directory-listing', ...staff, webDirectoryAdmin.save);
+router.post('/directory-listing/publish', ...staff, webDirectoryAdmin.publish);
+router.post('/directory-listing/unpublish', ...staff, webDirectoryAdmin.unpublish);
+
+/* ---- Learner self-registration into this institution (Sprint 12) ---- */
+router.get('/join', webSignup.registerForm);
+router.post('/join', webSignup.registerSubmit);
+
+/* A signed-in user whose membership is still pending admission lands here —
+   a truthful "awaiting admission" page, not a 403 that says they aren't a member. */
+router.get('/pending', requireUser, webAuth.pending);
 
 module.exports = router;

@@ -1,0 +1,22 @@
+<% var nav='institutions'; var pageTitle='Institutions'; %>
+<%- include("head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<div class="page-head">
+  <div class="eyebrow">PLATFORM</div>
+  <h1>Institutions</h1>
+  <p class="lede">Every institution on Lintel. Open one to manage its plan or standing.</p>
+</div>
+<table class="table">
+  <thead><tr><th>Institution</th><th>Address</th><th>Plan</th><th>Status</th></tr></thead>
+  <tbody>
+  <% tenants.forEach(function(t){ %>
+    <tr>
+      <td><a href="/console/institutions/<%= t._id %>"><%= t.name %></a></td>
+      <td class="mono quiet" style="font-size:12.5px"><%= t.slug %></td>
+      <td class="quiet"><%= t.plan %></td>
+      <td><span class="badge <%= t.status==='active'?'ok':(t.status==='suspended'?'held':'flat') %>"><%= t.status %></span></td>
+    </tr>
+  <% }); %>
+  <% if(!tenants.length){ %><tr class="empty"><td colspan="4">No institutions yet.</td></tr><% } %>
+  </tbody>
+</table>
+<%- include("foot") %>

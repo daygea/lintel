@@ -1,0 +1,97 @@
+<% var nav = 'courses'; var pageTitle = pick(lesson.title, locale); %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<div style="margin-bottom:8px"><a href="/courses/<%= courseId %>" class="quiet mono" style="font-size:12px">← back to course</a></div>
+<% var eyebrow = 'LESSON'; var heading = pick(lesson.title, locale); var lede = null; %>
+<%- include("../layouts/page-head", { eyebrow: eyebrow, heading: heading, lede: null }) %>
+<% if (lesson.estimatedMinutes) { %><div class="quiet mono" style="font-size:12px;margin:-10px 0 8px"><%= lesson.estimatedMinutes %> min</div><% } %>
+
+<% if (error) { %><div class="notice err"><%= error %></div><% } %>
+
+
+<div class="section">
+  <h2>Eligibility</h2>
+  <p class="hint">With no policy, this lesson is open teaching for any enrolled learner. Attach a policy to hold it until standing is attested.</p>
+  <form method="post" action="/courses/<%= courseId %>/lessons/<%= lesson._id %>/policy" style="display:flex;gap:10px;align-items:center;max-width:520px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <select name="eligibilityPolicyId" style="flex:1">
+      <option value="">Open — no policy</option>
+      <% (policies||[]).forEach(function (p) { %>
+        <option value="<%= p._id %>" <%= (lesson.eligibilityPolicyId && String(lesson.eligibilityPolicyId)===String(p._id)) ? 'selected' : '' %>><%= p.slug %></option>
+      <% }); %>
+    </select>
+    <button class="btn ghost small" type="submit">Set</button>
+  </form>
+  <% var held = lesson.eligibilityPolicyId; %>
+  <div class="thr <%= held ? 'is-held' : 'is-open' %>" style="margin-top:12px;padding:8px 0 8px 16px">
+    <span class="badge <%= held ? 'held' : 'open' %>"><%= held ? 'held' : 'open' %></span>
+    <span class="quiet" style="font-size:13px;margin-left:8px"><%= held ? 'This lesson is held until the policy passes.' : 'This lesson is open to enrolled learners.' %></span>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Content</h2>
+  <% if (!blocks.length) { %>
+    <div class="panel quiet" style="margin-bottom:16px">No content yet — add the first block below.</div>
+  <% } %>
+  <% blocks.forEach(function (b, i) { %>
+    <div class="panel" style="margin-bottom:10px">
+      <div class="mono quiet" style="font-size:11px;letter-spacing:.08em;text-transform:uppercase"><%= b.type ? b.type.replace('_',' ') : 'unknown' %></div>
+      <% if (!b.type) { %>
+        <div class="quiet" style="font-size:13px;margin-top:6px;color:var(--warn,#8A6D3B)">This block has no type — it was likely created by an earlier version. It can be safely ignored or re-created.</div>
+      <% } else if (b.type === 'rich_text' && b.body) { %>
+        <div style="margin-top:6px"><%= pick(b.body, locale) %></div>
+      <% } else if (b.type === 'embed' && b.embedUrl) { %>
+        <div class="mono" style="font-size:13px;margin-top:6px"><%= b.embedUrl %></div>
+      <% } else if (b.assetId) { %>
+        <div class="quiet" style="font-size:13px;margin-top:6px">📎 Media asset attached</div>
+      <% } %>
+    </div>
+  <% }); %>
+</div>
+
+<div class="section">
+  <h2>Add content block</h2>
+  <form method="post" action="/courses/<%= courseId %>/lessons/<%= lesson._id %>/blocks" class="form-narrow" style="max-width:520px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="type">Type</label>
+      <select id="type" name="type" onchange="(function(v){document.getElementById('textfields').style.display=v==='rich_text'?'block':'none';document.getElementById('embedfield').style.display=v==='embed'?'block':'none';document.getElementById('assetfield').style.display=['audio','video','pdf','image'].indexOf(v)>=0?'block':'none';})(this.value)">
+        <option value="rich_text">Text</option>
+        <option value="video">Video (uploaded)</option>
+        <option value="audio">Audio (uploaded)</option>
+        <option value="pdf">Document (uploaded)</option>
+        <option value="image">Image (uploaded)</option>
+        <option value="embed">Embed (external URL)</option>
+      </select>
+    </div>
+    <div id="textfields">
+      <% tenant.locales.forEach(function (loc) { %>
+        <div class="field">
+          <label for="body_<%= loc %>">Text <span class="quiet mono" style="font-size:11px">(<%= loc %>)</span></label>
+          <textarea id="body_<%= loc %>" name="body_<%= loc %>" rows="3"></textarea>
+        </div>
+      <% }); %>
+    </div>
+    <div id="assetfield" style="display:none">
+      <div class="field">
+        <label for="assetId">Uploaded file</label>
+        <% if (assets && assets.length) { %>
+          <select id="assetId" name="assetId">
+            <% assets.forEach(function (a) { %><option value="<%= a._id %>"><%= a.filename %> <%= '('+a.kind+')' %></option><% }); %>
+          </select>
+          <div class="note">Not listed? <a href="/media/upload">Upload it first</a>, then come back.</div>
+        <% } else { %>
+          <div class="note">No ready media yet. <a href="/media/upload">Upload a file first</a>, then attach it here.</div>
+        <% } %>
+      </div>
+    </div>
+    <div id="embedfield" style="display:none">
+      <div class="field">
+        <label for="embedUrl">Embed URL</label>
+        <input id="embedUrl" name="embedUrl" placeholder="https://...">
+      </div>
+    </div>
+    <button class="btn" type="submit">Add block</button>
+  </form>
+</div>
+<%- include("../layouts/foot") %>

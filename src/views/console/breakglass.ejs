@@ -1,0 +1,32 @@
+<% var nav='breakglass'; var pageTitle='Break-glass'; %>
+<%- include("head", { nav: nav, pageTitle: pageTitle }) %>
+<div class="page-head">
+  <div class="eyebrow">PLATFORM</div>
+  <h1>Break-glass access</h1>
+  <p class="lede">Every time platform staff have reached into an institution's content — with the reason, the operator, and when. Append-only. This is the ledger that lets you tell an institution exactly when its door was opened, and why.</p>
+</div>
+<table class="table">
+  <thead><tr><th>When</th><th>Operator</th><th>Justification</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  <% grants.forEach(function(g){
+       var active = !g.revokedAt && new Date(g.expiresAt) > new Date(); %>
+    <tr>
+      <td class="mono quiet" style="font-size:12.5px"><%= new Date(g.grantedAt).toLocaleString() %></td>
+      <td class="quiet"><%= g.operatorUserId && g.operatorUserId.email ? g.operatorUserId.email : '—' %></td>
+      <td style="max-width:320px"><%= g.justification %></td>
+      <td>
+        <% if (g.revokedAt) { %><span class="badge flat">revoked</span>
+        <% } else if (active) { %><span class="badge held">active</span>
+        <% } else { %><span class="badge flat">expired</span><% } %>
+      </td>
+      <td style="text-align:right">
+        <% if (active) { %>
+          <form method="post" action="/console/breakglass/<%= g._id %>/revoke" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn ghost small" type="submit">Revoke</button></form>
+        <% } %>
+      </td>
+    </tr>
+  <% }); %>
+  <% if(!grants.length){ %><tr class="empty"><td colspan="5">No break-glass access has ever been opened.</td></tr><% } %>
+  </tbody>
+</table>
+<%- include("foot") %>

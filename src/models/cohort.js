@@ -12,6 +12,12 @@ const CohortSchema = new Schema(
     courseId: { type: Schema.Types.ObjectId, ref: 'Course', index: true },
 
     title: { ...LocaleMapType, required: true },
+    /**
+     * A human-facing code a registrar references when importing a roster
+     * ('2026-INTAKE'). Optional, but unique per tenant when present, so a SIS
+     * import can resolve a cohort by something memorable rather than an ObjectId.
+     */
+    code: { type: String, trim: true }, // @admin-string — registrar-facing cohort code, not learner content
     session: { type: String, required: true, trim: true }, // '2026/2027'
 
     mode: { type: String, enum: ['online', 'hybrid', 'residency'], default: 'online' },
@@ -34,6 +40,7 @@ const CohortSchema = new Schema(
 
 CohortSchema.plugin(tenantGuard);
 CohortSchema.plugin(localeMap, { paths: ['title'] });
+CohortSchema.index({ tenantId: 1, code: 1 }, { unique: true, sparse: true });
 
 CohortSchema.index({ tenantId: 1, session: 1 });
 CohortSchema.index({ tenantId: 1, status: 1 });

@@ -4,18 +4,64 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-  <title><%= typeof tenant !== 'undefined' && tenant ? tenant.name : 'Lintel' %></title>
-  <style>
-    body{font-family:system-ui,sans-serif;margin:0;background:#FBFAF8;color:#14192B;line-height:1.6}
-    .wrap{max-width:720px;margin:0 auto;padding:48px 24px}
-    h1{font-weight:600;letter-spacing:-.01em}
-    label{display:block;font-size:14px;margin:14px 0 4px}
-    input{width:100%;padding:9px 11px;border:1px solid #D8D5CD;border-radius:3px;font-size:15px}
-    button{margin-top:18px;padding:9px 16px;background:#14192B;color:#fff;border:0;border-radius:3px;font-size:14px;cursor:pointer}
-    .err{background:#EEEBF2;border-left:3px solid #4A4560;padding:12px 14px;margin-bottom:18px;font-size:14px}
-    table{width:100%;border-collapse:collapse;margin-top:20px;font-size:14px}
-    th,td{text-align:left;padding:9px 0;border-bottom:1px solid #E3E0D9}
-  </style>
+  <title><%= (typeof pageTitle !== 'undefined' ? pageTitle + ' · ' : '') + (typeof tenant !== 'undefined' && tenant ? tenant.name : 'Lintel') %></title>
+  <link rel="stylesheet" href="/css/lintel.css">
 </head>
 <body>
-  <div class="wrap">
+<%
+  /* Navigation model, grouped the way an administrator thinks.
+     Each item is [key, href, label]; `nav` (set by the view) marks the active one. */
+  var active = typeof nav !== 'undefined' ? nav : '';
+  var groups = [
+    ['Teaching', [
+      ['courses',   '/courses',    'Courses'],
+      ['media',     '/media',      'Media'],
+      ['cohorts',   '/cohorts',    'Cohorts'],
+    ]],
+    ['People', [
+      ['members',   '/',           'Members'],
+      ['register',  '/register',   'Attestations'],
+    ]],
+    ['Access', [
+      ['policies',  '/policies',   'Eligibility'],
+      ['accesslog', '/access-log', 'Access log'],
+    ]],
+    ['Assessment', [
+      ['assessments','/assessments','Assessments'],
+      ['gradebook', '/gradebook',  'Gradebook'],
+    ]],
+    ['Records', [
+      ['fees',      '/fees',        'Fees'],
+      ['credentials','/credentials','Credentials'],
+      ['directory', '/directory-listing', 'Public listing'],
+    ]],
+  ];
+%>
+<div class="app">
+  <aside class="rail">
+    <div class="brand"><span class="mark"></span> Lintel</div>
+    <div class="inst"><%= tenant.name %></div>
+    <nav>
+      <% groups.forEach(function (g) { %>
+        <div class="group"><%= g[0] %></div>
+        <% g[1].forEach(function (item) { %>
+          <a href="<%= item[1] %>" class="<%= active === item[0] ? 'active' : '' %>"><%= item[2] %></a>
+        <% }); %>
+      <% }); %>
+    </nav>
+    <div class="foot">
+      <a href="/api/v1/export" style="color:#8A8DA0">Export data</a>
+    </div>
+  </aside>
+  <div class="content">
+    <div class="topbar">
+      <div class="crumbs">
+        <a href="/"><%= tenant.name %></a>
+        <% if (typeof pageTitle !== 'undefined' && pageTitle) { %><span class="sep">/</span><%= pageTitle %><% } %>
+      </div>
+      <div class="who">
+        <% if (typeof user !== "undefined" && user) { %><%= user.name %><% } %>
+        <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">Sign out</button></form>
+      </div>
+    </div>
+    <main class="main">

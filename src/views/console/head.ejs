@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+  <title><%= (typeof pageTitle !== 'undefined' ? pageTitle + ' · ' : '') %>Lintel Console</title>
+  <link rel="stylesheet" href="/css/lintel.css">
+  <style>
+    /* The console wears the platform's own mark: brass on ink, so an operator
+       never mistakes it for an institution's admin. */
+    .console { display:grid; grid-template-columns:230px 1fr; min-height:100vh; }
+    .c-rail { background:#12162a; color:#C9CAD4; padding:22px 0; position:sticky; top:0; height:100vh; overflow-y:auto; }
+    .c-rail .brand { display:flex; align-items:baseline; gap:9px; padding:0 22px 3px; font-family:var(--serif); font-size:20px; font-weight:600; color:#fff; }
+    .c-rail .brand .mark { display:inline-block; width:14px; height:14px; position:relative; }
+    .c-rail .brand .mark::before { content:""; position:absolute; left:2px; top:0; width:10px; height:3px; background:var(--brass); }
+    .c-rail .brand .mark::after { content:""; position:absolute; left:4px; top:3px; width:3px; height:11px; background:#6E7189; }
+    .c-rail .tagline { padding:2px 22px 18px; font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:#C9A567; border-bottom:1px solid #242a44; margin-bottom:12px; }
+    .c-rail nav { display:flex; flex-direction:column; gap:2px; padding:0 12px; }
+    .c-rail nav a { color:#C9CAD4; padding:8px 12px; border-radius:4px; font-size:14px; }
+    .c-rail nav a:hover { background:#20263e; color:#fff; text-decoration:none; }
+    .c-rail nav a.active { background:#262c48; color:#fff; }
+    .c-rail nav a.active::before { content:""; display:inline-block; width:3px; height:14px; background:var(--brass); border-radius:2px; margin-right:8px; vertical-align:-2px; }
+    .c-content { min-width:0; }
+    .c-top { display:flex; align-items:center; justify-content:space-between; padding:0 40px; height:60px; border-bottom:1px solid var(--rule); }
+    .c-top .who { font-size:13px; color:var(--muted); }
+    .c-top .who form { display:inline; }
+    .c-top .who button { background:none; border:0; color:var(--muted); font:inherit; cursor:pointer; margin-left:14px; }
+    .c-top .who button:hover { color:var(--ink); text-decoration:underline; }
+    .c-main { max-width:1000px; padding:32px 40px 80px; }
+    @media (max-width:820px){ .console{grid-template-columns:1fr} .c-rail{position:static;height:auto} .c-rail nav{display:grid;grid-template-columns:repeat(3,1fr)} }
+  </style>
+</head>
+<body>
+<% var active = typeof nav !== 'undefined' ? nav : ''; %>
+<div class="console">
+  <aside class="c-rail">
+    <div class="brand"><span class="mark"></span> Lintel</div>
+    <div class="tagline">Platform Console</div>
+    <nav>
+      <a href="/console" class="<%= active==='overview'?'active':'' %>">Overview</a>
+      <a href="/console/institutions" class="<%= active==='institutions'?'active':'' %>">Institutions</a>
+      <a href="/console/applications" class="<%= active==='applications'?'active':'' %>">Applications</a>
+      <a href="/console/operators" class="<%= active==='operators'?'active':'' %>">Operators</a>
+      <a href="/console/reports" class="<%= active==='reports'?'active':'' %>">Reports</a>
+      <a href="/console/breakglass" class="<%= active==='breakglass'?'active':'' %>">Break-glass</a>
+      <a href="/console/audit" class="<%= active==='audit'?'active':'' %>">Audit</a>
+    </nav>
+  </aside>
+  <div class="c-content">
+    <div class="c-top">
+      <div class="mono quiet" style="font-size:12px;letter-spacing:.06em">PLATFORM<% if (typeof pageTitle!=='undefined'){ %> / <%= pageTitle %><% } %></div>
+      <div class="who">
+        <% if (typeof user !== 'undefined' && user) { %><%= user.email %><% } %>
+        <form method="post" action="/console/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">Sign out</button></form>
+      </div>
+    </div>
+    <main class="c-main">

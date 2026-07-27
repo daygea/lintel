@@ -1,22 +1,51 @@
-<%- include("../layouts/head") %>
-<h1>Grades</h1>
-<p style="color:#6E6B63">Every mark is kept. A moderator's grade is added beside the first, never over it.</p>
-
+<% var nav = 'assessments'; var pageTitle = 'Grade'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'ASSESSMENT'; var heading = 'Grades'; var lede = 'Every mark is kept. A moderator\'s grade is added beside the first, never over it — when a senior voice overrules a junior, both survive.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
 <% if (final) { %>
-  <div class="card" style="border:1px solid #C9C5BC;border-radius:3px;padding:14px 16px;background:#fff">
-    <strong>Counts:</strong> <%= final.totalPoints %> points
-    <%= final.isFinal ? '(moderated)' : '(provisional — awaiting moderation)' %>
+  <div class="thr <%= final.isFinal ? 'is-open' : 'is-held' %>" style="margin:18px 0">
+    <div class="mono" style="font-size:13px;color:var(--muted)">COUNTS TOWARD RESULT</div>
+    <div style="font-family:var(--serif);font-size:24px;margin-top:4px"><%= final.totalPoints %> points</div>
+    <div class="quiet" style="font-size:13px"><%= final.isFinal ? 'moderated' : 'provisional — awaiting moderation' %></div>
   </div>
 <% } %>
+<div class="section">
+  <h2>Enter a mark</h2>
+  <% if (rubric && rubric.criteria && rubric.criteria.length) { %>
+    <form method="post" action="/submissions/<%= submissionId %>/grade" style="max-width:600px">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="assessmentId" value="<%= assessmentId %>">
+      <% rubric.criteria.forEach(function (c, ci) { %>
+        <div class="panel" style="margin-bottom:12px">
+          <div style="font-weight:500;margin-bottom:8px"><%= pick(c.label, locale) %></div>
+          <input type="hidden" name="criterionId" value="<%= c._id %>">
+          <% (c.levels||[]).forEach(function (lv, li) { %>
+            <label style="display:flex;gap:8px;align-items:center;font-weight:400;margin-bottom:4px">
+              <input type="radio" name="levelId" value="<%= lv._id %>" style="width:auto" onclick="this.closest('.panel').querySelector('input[name=points]').value='<%= lv.points %>'" <%= li===0?'required':'' %>>
+              <span><%= pick(lv.label, locale) %> <span class="quiet mono" style="font-size:12px">· <%= lv.points %> pts</span></span>
+            </label>
+          <% }); %>
+          <input type="hidden" name="points" value="">
+        </div>
+      <% }); %>
+      <div class="field"><label for="feedback">Feedback <span class="quiet">(optional)</span></label><textarea id="feedback" name="feedback" rows="2"></textarea></div>
+      <button class="btn" type="submit">Record mark</button>
+    </form>
+  <% } else { %>
+    <div class="panel quiet">This assessment has no rubric attached, so marks can't be entered against described levels. Attach a rubric to the assessment first.</div>
+  <% } %>
+</div>
 
-<h2 style="font-size:16px;margin-top:22px">All marks recorded</h2>
-<% grades.forEach(function (g) { %>
-  <div style="border:1px solid #E3E0D9;border-radius:3px;padding:12px 14px;margin:10px 0">
-    <div><%= g.totalPoints %> points <%= g.isFinal ? '· final (moderated)' : '· provisional' %></div>
-    <% if (g.moderatedFromGradeId) { %><div style="color:#6E6B63;font-size:13px">moderates an earlier mark</div><% } %>
-    <% if (g.feedbackAssetId) { %><div style="color:#8C6E33;font-size:13px">▸ spoken feedback attached</div><% } %>
-    <% if (g.feedback) { %><p style="font-family:Georgia,serif;color:#3E3952;margin:6px 0 0"><%= pick(g.feedback, locale) %></p><% } %>
-  </div>
-<% }); %>
-<% if (!grades.length) { %><p style="color:#6E6B63">Not yet marked.</p><% } %>
+<div class="section">
+  <h2>All marks recorded</h2>
+  <% grades.forEach(function (g) { %>
+    <div class="panel" style="margin-bottom:10px">
+      <div><strong><%= g.totalPoints %></strong> points <span class="quiet">· <%= g.isFinal ? 'final (moderated)' : 'provisional' %></span></div>
+      <% if (g.moderatedFromGradeId) { %><div class="quiet" style="font-size:13px">moderates an earlier mark</div><% } %>
+      <% if (g.feedbackAssetId) { %><div style="color:var(--brass);font-size:13px">▸ spoken feedback attached</div><% } %>
+      <% if (g.feedback) { %><p style="font-family:var(--serif);color:var(--ink-soft);margin:6px 0 0"><%= pick(g.feedback, locale) %></p><% } %>
+    </div>
+  <% }); %>
+  <% if (!grades.length) { %><div class="panel quiet">Not yet marked.</div><% } %>
+</div>
 <%- include("../layouts/foot") %>

@@ -1,13 +1,78 @@
 'use strict';
 
 const { Lesson, ContentBlock, ContentPolicy, Asset } = require('../models');
-const { canAccessLesson } = require('./eligibility.service');
+const { Course, Module, Enrollment, Cohort, LessonProgress } = require('../models');
+const { canAccessLesson, previewAccess } = require('./eligibility.service');
 const storage = require('../lib/storage');
 const { accessUrl } = require('./archive.service');
 const { pick } = require('../plugins/locale-map');
 const { AccessLog } = require('../models');
 const { currentUserId } = require('../lib/context');
 const { NotAuthorisedError, ValidationError } = require('../lib/errors');
+
+/**
+ * The learner's home: every course they're actively enrolled in, its lessons
+ * grouped by module, each lesson marked open or held — the door state, legible
+ * at a glance. This is a PREVIEW: it runs the engine to decide open/held but
+ * writes NO access log (browsing is not accessing). The moment a learner opens a
+ * lesson, lessonFor() runs the engine again and logs that real access.
+ */
+async function myLearning({ userId, locale = 'en' }) {
+  const uid = userId || currentUserId();
+
+  const enrollments = await Enrollment.find({ userId: uid, status: 'active' }).exec();
+  const courses = [];
+
+  for (const enr of enrollments) {
+    if (!enr.courseId) continue; // a cohort with no course carries nothing to learn yet
+    const course = await Course.findById(enr.courseId).exec();
+    if (!course || course.status === 'archived') continue;
+
+    const cohort = enr.cohortId ? await Cohort.findById(enr.cohortId).exec() : null;
+    const modules = await Module.find({ courseId: course._id }).sort({ order: 1 }).exec();
+    const lessons = await Lesson.find({ courseId: course._id }).sort({ order: 1 }).exec();
+
+    const progressRows = await LessonProgress.find({ enrollmentId: enr._id }).exec();
+    const progressByLesson = new Map(progressRows.map((p) => [String(p.lessonId), p.state]));
+
+    const buckets = new Map(
+      modules.map((m) => [String(m._id), { id: m._id, title: m.title, lessons: [] }])
+    );
+    const ungrouped = { id: null, title: { en: 'Lessons' }, lessons: [] };
+    let openCount = 0;
+
+    for (const lesson of lessons) {
+      const { verdict } = await previewAccess({ lesson, userId: uid, locale });
+      if (verdict.allowed) openCount += 1;
+      const item = {
+        id: lesson._id,
+        title: lesson.title,
+        estimatedMinutes: lesson.estimatedMinutes || null,
+        held: !verdict.allowed,
+        message: verdict.allowed ? null : verdict.message,
+        progress: progressByLesson.get(String(lesson._id)) || 'not_started',
+      };
+      const bucket = buckets.get(String(lesson.moduleId)) || ungrouped;
+      bucket.lessons.push(item);
+    }
+
+    const moduleList = [...buckets.values()].filter((m) => m.lessons.length);
+    if (ungrouped.lessons.length) moduleList.push(ungrouped);
+
+    courses.push({
+      id: course._id,
+      enrollmentId: enr._id,
+      code: course.code,
+      title: course.title,
+      cohortTitle: cohort ? cohort.title : null,
+      lessonCount: lessons.length,
+      openCount,
+      modules: moduleList,
+    });
+  }
+
+  return { courses };
+}
 
 /**
  * Assemble a lesson for a learner — but ONLY after the eligibility engine has
@@ -27,6 +92,11 @@ async function lessonFor({ lessonId, userId, locale = 'en', request = {} }) {
   }
 
   const lesson = await Lesson.findById(lessonId).exec();
+  const enrollment = await Enrollment.findOne({
+    userId: uid,
+    courseId: lesson.courseId,
+    status: 'active',
+  }).exec();
   const blocks = await ContentBlock.find({ lessonId }).sort({ order: 1 }).exec();
 
   const rendered = [];
@@ -34,7 +104,12 @@ async function lessonFor({ lessonId, userId, locale = 'en', request = {} }) {
     rendered.push(await renderBlock(block, uid, locale, request));
   }
 
-  return { held: false, lesson: { id: lesson._id, title: lesson.title }, blocks: rendered };
+  return {
+    held: false,
+    lesson: { id: lesson._id, title: lesson.title },
+    enrollmentId: enrollment ? enrollment._id : null,
+    blocks: rendered,
+  };
 }
 
 async function renderBlock(block, uid, locale, request) {
@@ -68,7 +143,14 @@ async function renderBlock(block, uid, locale, request) {
   // audio / video / pdf / image → signed URL from our own storage
   if (block.assetId) {
     const asset = await Asset.findById(block.assetId).exec();
-    if (!asset || asset.status !== 'ready') return { ...base, unavailable: true };
+    if (!asset || asset.status === 'failed') {
+      return { ...base, unavailable: true, reason: 'This media could not be prepared.' };
+    }
+    if (asset.status !== 'ready') {
+      // uploading / uploaded / processing — the transcode worker hasn't finished.
+      // This is transient: tell the learner it's coming, not that it's gone.
+      return { ...base, preparing: true, reason: 'This lesson is still being prepared — check back shortly.' };
+    }
 
     const streamOnly = policy?.streamOnly ?? false;
     const key = streamOnly
@@ -161,4 +243,4 @@ const logView = (block, uid, request, accessionNumber) =>
     sessionId: request.sessionId,
   });
 
-module.exports = { lessonFor, packFor };
+module.exports = { myLearning, lessonFor, packFor };

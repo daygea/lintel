@@ -18,7 +18,10 @@ const MembershipSchema = new Schema(
         message: 'Unknown role',
       },
     },
-    status: { type: String, enum: ['invited', 'active', 'suspended', 'left'], default: 'invited' },
+    /* 'pending' = self-registered, awaiting a registrar's admission (Sprint 12).
+       Only 'active' members can access anything — see requireMember — so a pending
+       or invited member is locked out by default until explicitly admitted. */
+    status: { type: String, enum: ['pending', 'invited', 'active', 'suspended', 'left'], default: 'invited' },
     invitedByUserId: { type: Schema.Types.ObjectId, ref: 'User' },
     invitedAt: Date,
     joinedAt: Date,

@@ -2,7 +2,7 @@
 const { walk, read, rel } = require('./lib');
 
 /** Nobody may mutate the record that IS the audit trail. */
-const IMMUTABLE = ['AuditLog', 'Attestation', 'Grade', 'AccessLog'];
+const IMMUTABLE = ['AuditLog', 'Attestation', 'Grade', 'AccessLog', 'Payment'];
 const MUTATORS = ['updateOne', 'updateMany', 'deleteOne', 'deleteMany', 'findOneAndUpdate', 'findByIdAndUpdate', 'findByIdAndDelete', 'findOneAndDelete', 'replaceOne'];
 
 module.exports = function checkAppendOnly() {

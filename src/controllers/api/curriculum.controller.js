@@ -69,6 +69,22 @@ exports.createBlock = async (req, res, next) => {
   }
 };
 
+exports.setLessonPolicy = async (req, res, next) => {
+  try {
+    const lesson = await curriculumService.setLessonPolicy(req.params.lessonId, req.body.eligibilityPolicyId);
+    res.json({ lesson });
+  } catch (err) { next(err); }
+};
+
+exports.showLesson = async (req, res, next) => {
+  try {
+    const lesson = await curriculumService.getLesson(req.params.lessonId);
+    if (!lesson) return res.status(404).json({ error: { message: 'Lesson not found' } });
+    const blocks = await curriculumService.listBlocks(req.params.lessonId);
+    res.json({ lesson, blocks });
+  } catch (err) { next(err); }
+};
+
 exports.reorder = async (req, res, next) => {
   try {
     await curriculumService.reorder(req.body.model, req.body.ids);

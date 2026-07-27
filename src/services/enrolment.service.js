@@ -18,6 +18,8 @@ const { currentUserId } = require('../lib/context');
 
 const listCohorts = (filter = {}) => Cohort.find(filter).sort({ startsAt: -1 }).exec();
 
+const getCohort = (id) => Cohort.findById(id).exec();
+
 async function createCohort(data) {
   if (!data.title || !data.session) throw new ValidationError('A cohort needs a title and a session');
   const cohort = await Cohort.create(data);
@@ -117,6 +119,33 @@ async function decideApplication({ applicationId, decision, note, locale = 'en' 
 
 /* -------------------------------------------------------------- enrolments */
 
+/**
+ * Place a member directly into a cohort — the registrar-initiated counterpart to
+ * apply()+decideApplication(). This is what the empty learner home points at:
+ * "when a registrar enrols you, your courses appear." Idempotent — a second call
+ * for the same person and cohort returns the existing place rather than tripping
+ * the unique index. The place starts unpaid; fees compose in the engine, they
+ * don't gate here.
+ */
+async function enrol({ cohortId, userId }) {
+  const cohort = await Cohort.findById(cohortId).exec();
+  if (!cohort) throw new ValidationError('No such cohort');
+  if (!userId) throw new ValidationError('Choose a member to enrol');
+
+  const existing = await Enrollment.findOne({ userId, cohortId }).exec();
+  if (existing) return existing;
+
+  const enrollment = await Enrollment.create({
+    userId,
+    cohortId,
+    courseId: cohort.courseId,
+    status: 'active',
+    paymentState: 'unpaid',
+  });
+  await audit('enrollment.created', 'Enrollment', enrollment._id, { cohortId, by: 'registrar' });
+  return enrollment;
+}
+
 const listEnrollments = (cohortId) =>
   Enrollment.find({ cohortId }).populate('userId', 'name email').sort({ enrolledAt: 1 }).exec();
 
@@ -182,12 +211,14 @@ const audit = (action, subjectType, subjectId, meta) =>
 
 module.exports = {
   listCohorts,
+  getCohort,
   createCohort,
   openCohort,
   closeCohort,
   apply,
   listApplications,
   decideApplication,
+  enrol,
   listEnrollments,
   setPaymentState,
   markLesson,

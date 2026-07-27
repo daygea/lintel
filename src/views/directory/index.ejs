@@ -1,0 +1,20 @@
+<% var pageTitle = 'Institutions'; %>
+<%- include("../layouts/public-head") %>
+<div class="pub-wide">
+  <div class="page-head">
+    <div class="eyebrow">DIRECTORY</div>
+    <h1>Institutions</h1>
+    <p class="lede">Institutions that have chosen to list publicly.</p>
+  </div>
+  <ul class="rows">
+    <% listings.forEach(function (l) { %>
+      <li>
+        <a href="/directory/<%= l.handle %>" class="title" style="font-size:16px"><%= l.displayName %></a>
+        <% if (l.tagline) { %><div class="meta"><%= pick(l.tagline, 'en') %></div><% } %>
+        <% if (l.city || l.country) { %><div class="meta mono" style="font-size:12px"><%= [l.city, l.country].filter(Boolean).join(' · ') %></div><% } %>
+      </li>
+    <% }); %>
+    <% if (!listings.length) { %><li class="quiet">No institutions listed yet.</li><% } %>
+  </ul>
+</div>
+<%- include("../layouts/public-foot") %>

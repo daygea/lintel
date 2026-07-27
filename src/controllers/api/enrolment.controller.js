@@ -29,6 +29,9 @@ exports.decideApplication = h(async (req, res) =>
 exports.listEnrollments = h(async (req, res) =>
   res.json({ enrollments: await svc.listEnrollments(req.params.cohortId) })
 );
+exports.enrol = h(async (req, res) =>
+  res.status(201).json({ enrollment: await svc.enrol({ cohortId: req.params.id, userId: req.body.userId }) })
+);
 exports.setPaymentState = h(async (req, res) =>
   res.json({ enrollment: await svc.setPaymentState(req.params.id, req.body.paymentState) })
 );

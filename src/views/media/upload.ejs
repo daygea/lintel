@@ -1,0 +1,103 @@
+<% var nav = 'media'; var pageTitle = 'Upload media'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<div style="margin-bottom:8px"><a href="/media" class="quiet mono" style="font-size:12px">← back to media</a></div>
+<% var eyebrow = 'TEACHING'; var heading = 'Upload media'; var lede = 'Audio and video are transcoded after upload; documents and images are ready at once. The file goes straight from your browser to storage.'; %>
+<%- include("../layouts/page-head", { eyebrow: eyebrow, heading: heading, lede: lede }) %>
+
+<div class="section">
+  <div class="field" style="max-width:520px">
+    <label for="file">Choose a file</label>
+    <input id="file" type="file">
+  </div>
+  <button class="btn" id="startBtn" type="button">Upload</button>
+
+  <div id="progress" style="display:none;margin-top:20px;max-width:520px">
+    <div class="mono quiet" style="font-size:12px" id="statusText">Preparing…</div>
+    <div style="height:6px;background:var(--rule);border-radius:3px;margin-top:8px;overflow:hidden">
+      <div id="bar" style="height:100%;width:0;background:var(--brass);transition:width .2s"></div>
+    </div>
+  </div>
+  <div id="done" style="display:none;margin-top:20px" class="thr is-open">
+    <div class="badge open">uploaded</div>
+    <span class="quiet" style="font-size:13px;margin-left:8px" id="doneText"></span>
+    <div style="margin-top:10px"><a href="/media" class="btn ghost small">Back to media</a></div>
+  </div>
+  <div id="err" style="display:none;margin-top:16px" class="notice err"></div>
+</div>
+
+<script>
+(function () {
+  var csrf = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : '<%= csrfToken %>';
+  var fileInput = document.getElementById('file');
+  var startBtn = document.getElementById('startBtn');
+  var progress = document.getElementById('progress');
+  var bar = document.getElementById('bar');
+  var statusText = document.getElementById('statusText');
+  var doneEl = document.getElementById('done');
+  var errEl = document.getElementById('err');
+
+  function showErr(msg) { errEl.style.display = 'block'; errEl.textContent = msg; startBtn.disabled = false; }
+  function setBar(pct, text) { progress.style.display = 'block'; bar.style.width = pct + '%'; if (text) statusText.textContent = text; }
+
+  async function api(url, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign({ 'Content-Type': 'application/json', 'x-csrf-token': csrf }, opts.headers || {});
+    var r = await fetch(url, opts);
+    if (!r.ok) { var b = await r.json().catch(function(){return {};}); throw new Error((b.error && b.error.message) || ('Request failed: ' + r.status)); }
+    return r.json();
+  }
+
+  startBtn.addEventListener('click', async function () {
+    errEl.style.display = 'none';
+    var file = fileInput.files[0];
+    if (!file) { showErr('Choose a file first.'); return; }
+    startBtn.disabled = true;
+    try {
+      // 1) begin — get presigned part URLs
+      setBar(5, 'Preparing upload…');
+      var begin = await api('/api/v1/assets/upload', {
+        method: 'POST',
+        body: JSON.stringify({ filename: file.name, mime: file.type || 'application/octet-stream', bytes: file.size })
+      });
+
+      // 2) upload each part straight to storage
+      var partSize = begin.partSize;
+      var parts = [];
+      for (var i = 0; i < begin.parts.length; i++) {
+        var p = begin.parts[i];
+        var start = (p.partNumber - 1) * partSize;
+        var chunk = file.slice(start, start + partSize);
+        setBar(10 + Math.round((i / begin.parts.length) * 75), 'Uploading part ' + p.partNumber + ' of ' + begin.parts.length + '…');
+        var put;
+        try {
+          put = await fetch(p.url, { method: 'PUT', body: chunk });
+        } catch (netErr) {
+          // A thrown fetch (not an HTTP error) means the browser blocked the
+          // request before sending it — almost always the storage bucket's CORS
+          // policy not allowing a PUT from this origin. See scripts/set-r2-cors.js.
+          throw new Error('Could not reach storage (the upload was blocked before sending). This is usually the storage bucket CORS policy — an administrator needs to run the R2 CORS setup. Technical detail: ' + netErr.message);
+        }
+        if (!put.ok) throw new Error('Storage rejected part ' + p.partNumber + ' (HTTP ' + put.status + ').');
+        var etag = put.headers.get('ETag') || put.headers.get('etag');
+        if (!etag) throw new Error('Storage did not return an ETag for part ' + p.partNumber + '. The bucket CORS policy must expose the ETag header (see the R2 CORS setup).');
+        parts.push({ partNumber: p.partNumber, etag: etag });
+      }
+
+      // 3) complete
+      setBar(90, 'Finalising…');
+      var done = await api('/api/v1/assets/' + begin.assetId + '/complete', {
+        method: 'POST',
+        body: JSON.stringify({ parts: parts })
+      });
+
+      setBar(100, 'Done');
+      progress.style.display = 'none';
+      doneEl.style.display = 'block';
+      document.getElementById('doneText').textContent = file.name + (done.status === 'processing' ? ' — transcoding now' : ' — ready');
+    } catch (e) {
+      showErr(e.message || 'Upload failed.');
+    }
+  });
+})();
+</script>
+<%- include("../layouts/foot") %>

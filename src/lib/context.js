@@ -43,9 +43,9 @@ function runWithTenant(tenantId, userId, fn) {
   );
 }
 
-function runAsPlatform(reason, fn) {
+function runAsPlatform(reason, fn, actingUserId = null) {
   if (!reason) throw new Error('runAsPlatform requires a reason for the audit trail');
-  return als.run({ tenantId: PLATFORM, userId: null, reason }, () =>
+  return als.run({ tenantId: PLATFORM, userId: actingUserId ? String(actingUserId) : null, reason }, () =>
     assertExecuted(fn(), 'runAsPlatform')
   );
 }

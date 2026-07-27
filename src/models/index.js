@@ -53,4 +53,35 @@ module.exports = {
   Score: require('./score'),
   Quiz: require('./quiz'),
   QuizAttempt: require('./quiz-attempt'),
+
+  // Commerce (Sprint 6)
+  FeeSchedule: require('./fee-schedule'),
+  Invoice: require('./invoice'),
+  Payment: require('./payment'),
+
+  // Credentials (Sprint 7)
+  CredentialTemplate: require('./credential-template'),
+  Credential: require('./credential'),
+
+  // Institutional integration (Sprint 8)
+  SsoConnection: require('./sso-connection'),
+  ExternalIdentity: require('./external-identity'),
+
+  // LTI 1.3 Advantage (Sprint 9)
+  LtiTool: require('./lti-tool'),
+  LtiLaunch: require('./lti-launch'),
+
+  // Institution directory (Sprint 10)
+  DirectoryListing: require('./directory-listing'),
+
+  // Self-service onboarding (Sprint 12)
+  OnboardingToken: require('./onboarding-token'),
+  TenantApplication: require('./tenant-application'),
+
+  // Platform console (Sprint 13)
+  PlatformAuditLog: require('./platform-audit-log'),
+
+  // Abuse response + break-glass (Sprint 14)
+  AbuseReport: require('./abuse-report'),
+  BreakglassGrant: require('./breakglass-grant'),
 };

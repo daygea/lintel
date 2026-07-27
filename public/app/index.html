@@ -10,11 +10,15 @@
   <link rel="stylesheet" href="/app/app.css">
 </head>
 <body>
-  <header>
+  <a href="#root" class="skip-link">Skip to content</a>
+  <header role="banner">
     <span class="brand">Lintel</span>
-    <button id="notify" class="btn ghost" style="color:#fff;border-color:#5C6483;font-size:12px;padding:5px 10px">Reminders</button>
+    <span style="display:flex;gap:8px">
+      <button id="notify" class="btn ghost" style="color:#fff;border-color:#5C6483;font-size:12px;padding:5px 10px">Reminders</button>
+      <button id="signout" class="btn ghost" style="color:#fff;border-color:#5C6483;font-size:12px;padding:5px 10px">Sign out</button>
+    </span>
   </header>
-  <main id="root">
+  <main id="root" tabindex="-1">
     <p class="muted">Loading…</p>
   </main>
   <script src="/app/pack.js"></script>

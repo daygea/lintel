@@ -11,6 +11,9 @@ const CHECKERS = [
   ['api-parity', require('./check-api-parity')],
   ['route-handlers', require('./check-route-handlers')],
   ['ejs-syntax', require('./check-ejs-syntax')],
+  ['a11y', require('./check-a11y')],
+  ['csrf-forms', require('./check-csrf-forms')],
+  ['view-fragility', require('./check-view-fragility')],
 ];
 
 let failed = 0;

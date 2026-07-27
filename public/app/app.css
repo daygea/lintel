@@ -22,3 +22,49 @@ h1{font-family:var(--serif);font-size:24px;letter-spacing:-.01em}
 .tk{display:inline-block;background:#F3EDE0;color:#6B5325;font-size:11px;padding:2px 7px;border-radius:2px;margin:2px 4px 2px 0}
 .offline-ok{color:#25473A;font-size:12px}
 .err{background:var(--held-soft);border-left:3px solid var(--held);padding:12px 14px;font-size:14px;margin:10px 0}
+
+
+/* --- Accessibility (Sprint 8 WCAG pass) --- */
+.skip-link{position:absolute;left:-9999px;top:0;background:var(--ink);color:#fff;padding:8px 14px;z-index:100}
+.skip-link:focus{left:8px;top:8px}
+:focus-visible{outline:3px solid #8C6E33;outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+/* honour reduced-motion */
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+/* --- Learner home: course browser (threshold language: brass=open, slate=held) --- */
+.course{margin:20px 0 8px}
+.course-head{border-bottom:1px solid var(--rule);padding-bottom:10px;margin-bottom:12px}
+.course-head .code{display:inline-block;font-size:11px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.course-head h2{font-family:var(--serif);font-size:20px;margin:2px 0 0}
+.meter{height:4px;background:var(--rule);border-radius:2px;overflow:hidden}
+.meter span{display:block;height:100%;background:var(--brass)}
+.module{margin:16px 0}
+.module h3{font-size:13px;letter-spacing:.02em;color:var(--muted);text-transform:uppercase;margin:0 0 6px;font-weight:600}
+ul.lessons{list-style:none;margin:0;padding:0}
+.lesson{border:1px solid var(--rule);border-left:3px solid var(--rule);border-radius:0 3px 3px 0;margin:6px 0;background:var(--paper)}
+.lesson.is-open{border-left-color:var(--brass)}
+.lesson.is-held{border-left-color:var(--held)}
+.lesson-open{display:flex;align-items:center;gap:10px;width:100%;text-align:left;text-decoration:none;color:var(--ink);background:transparent;border:0;font:inherit;padding:12px 14px;cursor:pointer}
+.lesson-title{flex:1;font-size:15px}
+.lesson-meta{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.thr-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.thr-dot.open{background:var(--brass)}
+.thr-dot.held{background:var(--held)}
+.chip{font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.open-chip{background:#F3EAD8;color:#6B5325}
+.held-chip{background:var(--held-soft);color:var(--held)}
+.done-chip{background:#E1EFE6;color:#25473A}
+.prog-chip{background:#EDEBF4;color:var(--accent)}
+.held-note{padding:0 14px 14px 32px;font-family:var(--serif);font-size:15px;color:#3E3952}
+.complete-card{display:flex;justify-content:center}
+.back{color:var(--muted);font-size:13px;text-decoration:none}
+.back:hover{color:var(--ink)}
+
+/* A block whose media is still transcoding — transient, not an error. */
+.card.preparing{border-left:3px solid var(--brass);background:#FBF7EE}
+
+/* Image and document (PDF) media blocks render inline, watermarked. */
+.player img{width:100%;display:block}
+.player.pdf{background:var(--paper)}
+.player.pdf iframe{width:100%;height:72vh;border:0;display:block;background:#fff}

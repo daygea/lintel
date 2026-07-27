@@ -23,3 +23,12 @@ exports.setRoles = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.admit = async (req, res, next) => {
+  try {
+    const membership = await membershipService.activate(req.params.id, req.user._id);
+    res.json({ membership });
+  } catch (err) {
+    next(err);
+  }
+};

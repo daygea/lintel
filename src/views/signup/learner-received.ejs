@@ -1,0 +1,11 @@
+<% var pageTitle = 'Registered'; %>
+<%- include("../layouts/public-head") %>
+<div class="pub-card" style="text-align:center">
+  <div class="thr is-held" style="text-align:left">
+    <div class="eyebrow mono" style="color:var(--held)">PENDING ADMISSION</div>
+    <h1 style="font-family:var(--serif);font-size:24px;margin:6px 0 10px">You're registered</h1>
+    <p class="quiet">Check your email for a link to set your password. A registrar at <%= tenant.name %> will review your registration and admit you.</p>
+  </div>
+  <p style="margin-top:20px"><a class="btn ghost" href="/login">Sign in</a></p>
+</div>
+<%- include("../layouts/public-foot") %>

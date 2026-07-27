@@ -1,19 +1,60 @@
-<%- include("../layouts/head") %>
-<h1>Cohorts</h1>
-<p style="color:#6E6B63"><a href="/">← <%= tenant.name %></a></p>
+<% var nav = 'cohorts'; var pageTitle = 'Cohorts'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'TEACHING'; var heading = 'Cohorts'; var lede = 'A dated run of a course, with its own application window and roster.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
 
-<table>
-  <thead><tr><th>Title</th><th>Session</th><th>Mode</th><th>Status</th></tr></thead>
-  <tbody>
-  <% cohorts.forEach(function (c) { %>
-    <tr>
-      <td><a href="/cohorts/<%= c._id %>"><%= pick(c.title, locale) %></a></td>
-      <td><%= c.session %></td>
-      <td><%= c.mode %></td>
-      <td><%= c.status %></td>
-    </tr>
-  <% }); %>
-  <% if (!cohorts.length) { %><tr><td colspan="4" style="color:#6E6B63">No cohorts yet.</td></tr><% } %>
-  </tbody>
-</table>
+<div class="section" style="margin-top:22px">
+  <table class="table">
+    <thead><tr><th>Cohort</th><th>Session</th><th>Mode</th><th>Status</th></tr></thead>
+    <tbody>
+    <% cohorts.forEach(function (c) { %>
+      <tr>
+        <td><a href="/cohorts/<%= c._id %>"><%= pick(c.title, locale) %></a></td>
+        <td class="mono quiet"><%= c.session || '—' %></td>
+        <td class="quiet"><%= c.mode || 'online' %></td>
+        <td><span class="badge <%= c.status === 'open' ? 'ok' : 'flat' %>"><%= c.status %></span></td>
+      </tr>
+    <% }); %>
+    <% if (!cohorts.length) { %><tr class="empty"><td colspan="4">No cohorts yet.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+
+<div class="section" style="margin-top:8px">
+  <h2>New cohort</h2>
+  <% if (typeof error !== "undefined" && error) { %><div class="notice err"><%= error %></div><% } %>
+  <form method="post" action="/cohorts" class="form-narrow" style="max-width:520px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <% tenant.locales.forEach(function (loc) { %>
+      <div class="field">
+        <label for="title_<%= loc %>">Title <span class="quiet mono" style="font-size:11px">(<%= loc %>)</span></label>
+        <input id="title_<%= loc %>" name="title_<%= loc %>" <%= loc===tenant.defaultLocale?'required':'' %>>
+      </div>
+    <% }); %>
+    <div class="field">
+      <label for="session">Session</label>
+      <input id="session" name="session" placeholder="2026/2027" required>
+    </div>
+    <div class="field">
+      <label for="courseId">Course</label>
+      <% if (courses && courses.length) { %>
+        <select id="courseId" name="courseId" required>
+          <% courses.forEach(function (c) { %><option value="<%= c._id %>"><%= pick(c.title, locale) %> · <%= c.code %></option><% }); %>
+        </select>
+        <div class="note">A cohort runs a course. Create the course first if it isn't listed.</div>
+      <% } else { %>
+        <div class="note">No courses yet — <a href="/courses">create a course</a> before adding a cohort.</div>
+      <% } %>
+    </div>
+    <div class="field">
+      <label for="mode">Mode</label>
+      <select id="mode" name="mode"><option value="online">Online</option><option value="hybrid">Hybrid</option><option value="residency">Residency</option></select>
+    </div>
+    <div class="field">
+      <label for="capacity">Capacity <span class="quiet">(optional)</span></label>
+      <input id="capacity" name="capacity" type="number" min="0" style="max-width:120px">
+    </div>
+    <button class="btn" type="submit">Create cohort</button>
+  </form>
+</div>
 <%- include("../layouts/foot") %>

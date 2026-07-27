@@ -3,6 +3,12 @@
 const mediaService = require('../../services/media.service');
 const { isConfigured } = require('../../lib/storage');
 
+exports.uploadPage = async (req, res, next) => {
+  try {
+    res.render('media/upload', { error: null });
+  } catch (err) { next(err); }
+};
+
 exports.listAssets = async (req, res, next) => {
   try {
     const assets = await mediaService.listAssets();

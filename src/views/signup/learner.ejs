@@ -1,0 +1,25 @@
+<% var pageTitle = 'Register'; var hideNav = true; %>
+<%- include("../layouts/public-head") %>
+<div class="pub-card">
+  <div class="page-head">
+    <div class="eyebrow"><%= tenant.name ? tenant.name.toUpperCase() : 'LINTEL' %></div>
+    <h1 style="font-size:26px">Register as a learner</h1>
+    <p class="lede" style="font-size:14px">Create your account to apply. A registrar will admit you — until then you'll see the institution's open material.</p>
+  </div>
+  <% if (error) { %><div class="notice err"><%= error %></div><% } %>
+  <form method="post" action="/join">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="name">Your name</label>
+      <input id="name" name="name" value="<%= values.name || '' %>" required autofocus>
+    </div>
+    <div class="field">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" value="<%= values.email || '' %>" required>
+      <div class="note">We'll email you a link to set your password.</div>
+    </div>
+    <button class="btn" type="submit" style="width:100%;justify-content:center">Register</button>
+  </form>
+  <p class="quiet" style="font-size:13px;margin-top:16px">Already have an account? <a href="/login">Sign in</a>.</p>
+</div>
+<%- include("../layouts/public-foot") %>

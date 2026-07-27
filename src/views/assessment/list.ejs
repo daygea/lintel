@@ -1,18 +1,66 @@
-<%- include("../layouts/head") %>
-<h1>Assessments</h1>
-<p style="color:#6E6B63"><a href="/">← <%= tenant.name %></a></p>
-<table>
-  <thead><tr><th>Title</th><th>Type</th><th>Moderation</th><th>Status</th></tr></thead>
-  <tbody>
-  <% assessments.forEach(function (a) { %>
-    <tr>
-      <td><a href="/assessments/<%= a._id %>"><%= pick(a.title, locale) %></a></td>
-      <td><%= a.type %></td>
-      <td><%= a.requiresModeration ? 'by ' + a.moderatorRole : 'none' %></td>
-      <td><%= a.status %></td>
-    </tr>
-  <% }); %>
-  <% if (!assessments.length) { %><tr><td colspan="4" style="color:#6E6B63">No assessments yet.</td></tr><% } %>
-  </tbody>
-</table>
+<% var nav = 'assessments'; var pageTitle = 'Assessments'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'ASSESSMENT'; var heading = 'Assessments'; var lede = 'Performance assessed by named people, not a form. Oral and video submissions, rubric-graded, moderated where a senior voice must confirm a junior one.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+<div class="section" style="margin-top:22px">
+  <table class="table">
+    <thead><tr><th>Title</th><th>Type</th><th>Moderation</th><th>Status</th></tr></thead>
+    <tbody>
+    <% assessments.forEach(function (a) { %>
+      <tr>
+        <td><a href="/assessments/<%= a._id %>"><%= pick(a.title, locale) %></a></td>
+        <td class="quiet"><%= a.type %></td>
+        <td><% if (a.requiresModeration) { %><span class="badge held">by <%= a.moderatorRole || 'elder' %></span><% } else { %><span class="badge flat">none</span><% } %></td>
+        <td><span class="badge <%= a.status === 'open' ? 'ok' : 'flat' %>"><%= a.status %></span></td>
+      </tr>
+    <% }); %>
+    <% if (!assessments.length) { %><tr class="empty"><td colspan="4">No assessments yet.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+
+<div class="section" style="margin-top:8px">
+  <h2>New assessment</h2>
+  <% if (typeof error !== "undefined" && error) { %><div class="notice err"><%= error %></div><% } %>
+  <form method="post" action="/assessments" class="form-narrow" style="max-width:520px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <% tenant.locales.forEach(function (loc) { %>
+      <div class="field"><label for="at_<%= loc %>">Title <span class="quiet mono" style="font-size:11px">(<%= loc %>)</span></label><input id="at_<%= loc %>" name="title_<%= loc %>" <%= loc===tenant.defaultLocale?'required':'' %>></div>
+    <% }); %>
+    <div class="field"><label for="courseId">Course <span class="quiet">(optional)</span></label>
+      <select id="courseId" name="courseId"><option value="">— none —</option><% (courses||[]).forEach(function(c){ %><option value="<%= c._id %>"><%= pick(c.title, locale) %> · <%= c.code %></option><% }); %></select>
+    </div>
+    <div class="field"><label for="type">Type</label>
+      <select id="type" name="type"><option value="oral">Oral</option><option value="written">Written</option><option value="practical">Practical</option><option value="quiz">Quiz</option></select>
+    </div>
+    <div class="field"><label for="rubricId">Rubric <span class="quiet">(optional)</span></label>
+      <select id="rubricId" name="rubricId"><option value="">— none —</option><% (rubrics||[]).forEach(function(r){ %><option value="<%= r._id %>"><%= pick(r.title, locale) %></option><% }); %></select>
+    </div>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:400;margin:8px 0"><input type="checkbox" name="requiresModeration" style="width:auto"> Requires moderation</label>
+    <button class="btn" type="submit">Create assessment</button>
+  </form>
+</div>
+
+<div class="section">
+  <h2>New rubric</h2>
+  <p class="hint">A rubric marks work against described levels, not a number pulled from the air. Give each criterion two or three levels with point values.</p>
+  <form method="post" action="/rubrics" class="form-narrow" style="max-width:560px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field"><label for="rtitle">Rubric title</label><input id="rtitle" name="title" required></div>
+    <% for (var i=0;i<3;i++) { %>
+    <div class="panel" style="margin-bottom:10px">
+      <div class="field"><label for="cl_<%= i %>">Criterion <%= i+1 %> <span class="quiet">(leave blank to skip)</span></label><input id="cl_<%= i %>" name="criterion_label" placeholder="e.g. Tonal accuracy"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <% for (var j=0;j<3;j++) { %>
+        <div style="display:flex;gap:4px">
+          <input name="level_label_<%= i %>" placeholder="level" style="max-width:110px">
+          <input name="level_points_<%= i %>" type="number" placeholder="pts" style="max-width:70px">
+        </div>
+        <% } %>
+      </div>
+    </div>
+    <% } %>
+    <button class="btn" type="submit">Create rubric</button>
+  </form>
+</div>
 <%- include("../layouts/foot") %>

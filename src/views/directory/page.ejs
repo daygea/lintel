@@ -1,0 +1,40 @@
+<% var pageTitle = listing.displayName; %>
+<%- include("../layouts/public-head") %>
+<article class="pub-wide">
+  <div class="page-head">
+    <div class="eyebrow">INSTITUTION</div>
+    <h1><%= listing.displayName %></h1>
+    <% if (listing.tagline) { %><p class="lede"><%= pick(listing.tagline, 'en') %></p><% } %>
+  </div>
+  <% if (listing.contact && (listing.contact.city || listing.contact.country)) { %>
+    <p class="mono quiet" style="font-size:13px"><%= [listing.contact.city, listing.contact.country].filter(Boolean).join(' · ') %></p>
+  <% } %>
+  <% if (listing.about) { %><div style="margin-top:18px;max-width:60ch"><%= pick(listing.about, 'en') %></div><% } %>
+
+  <% if (listing.courses && listing.courses.length) { %>
+    <div class="section">
+      <h2>Programmes</h2>
+      <ul class="rows">
+        <% listing.courses.forEach(function (c) { %>
+          <li><span class="title"><%= pick(c.title, 'en') %></span><% if (c.code) { %> <span class="mono quiet" style="font-size:12px">· <%= c.code %></span><% } %></li>
+        <% }); %>
+      </ul>
+      <p class="quiet" style="font-size:13px">Titles are shown for information. Enrolment and access are arranged with the institution.</p>
+    </div>
+  <% } %>
+
+  <% if (typeof instBase !== 'undefined' && instBase) { %>
+  <p style="margin-top:24px">
+    <a class="btn" href="<%= instBase %>/login">Sign in to <%= listing.displayName %></a>
+    <a class="btn ghost" href="<%= instBase %>/join" style="margin-left:8px">Register as a learner</a>
+  </p>
+  <% } %>
+
+  <% if (listing.contact && (listing.contact.email || listing.contact.website)) { %>
+    <p style="margin-top:22px;font-size:14px">
+      <% if (listing.contact.website) { %><a href="<%= listing.contact.website %>">Website</a><% } %>
+      <% if (listing.contact.email) { %> <span class="quiet">·</span> <span class="mono"><%= listing.contact.email %></span><% } %>
+    </p>
+  <% } %>
+</article>
+<%- include("../layouts/public-foot") %>

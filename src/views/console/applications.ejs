@@ -1,0 +1,26 @@
+<% var nav='applications'; var pageTitle='Applications'; %>
+<%- include("head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<div class="page-head">
+  <div class="eyebrow">PLATFORM</div>
+  <h1>Applications</h1>
+  <p class="lede">Institutions requesting a space. Approving one provisions it and emails the owner their account details.</p>
+</div>
+<ul class="rows">
+  <% applications.forEach(function(a){ %>
+    <li>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
+        <div>
+          <div class="title" style="font-size:16px"><%= a.institutionName %> <span class="mono quiet" style="font-size:12px">· <%= a.requestedSlug %></span></div>
+          <div class="meta"><%= a.contactName %> · <span class="mono"><%= a.contactEmail %></span><%= a.country ? ' · '+a.country : '' %></div>
+          <% if (a.about) { %><div class="meta" style="margin-top:6px"><%= a.about %></div><% } %>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <form method="post" action="/console/applications/<%= a._id %>/approve"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn small" type="submit">Approve</button></form>
+          <form method="post" action="/console/applications/<%= a._id %>/decline"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn ghost small" type="submit">Decline</button></form>
+        </div>
+      </div>
+    </li>
+  <% }); %>
+  <% if(!applications.length){ %><li class="quiet">No pending applications.</li><% } %>
+</ul>
+<%- include("foot") %>

@@ -1,25 +1,46 @@
-<%- include("../layouts/head") %>
-<h1><%= tenant.name %></h1>
-<p style="color:#6E6B63"><%= members.length %> member<%= members.length === 1 ? '' : 's' %> · plan: <%= tenant.plan %></p>
+<% var nav = 'members'; var pageTitle = 'Overview'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<%
+  var eyebrow = tenant.plan ? tenant.plan.toUpperCase() + ' PLAN' : 'INSTITUTION';
+  var heading = tenant.name;
+  var lede = 'Everyone who holds a place at this institution, and what they may do.';
+%>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
 
-<table>
-  <thead><tr><th>Name</th><th>Email</th><th>Roles</th><th>Status</th></tr></thead>
-  <tbody>
-  <% members.forEach(function (m) { %>
-    <tr>
-      <td><%= m.userId ? m.userId.name : '—' %></td>
-      <td><%= m.userId ? m.userId.email : '—' %></td>
-      <td><%= m.roles.join(', ') %></td>
-      <td><%= m.status %></td>
-    </tr>
-  <% }); %>
-  </tbody>
-</table>
+<div class="stats">
+  <div class="stat"><div class="n"><%= members.length %></div><div class="l">Members</div></div>
+  <div class="stat"><div class="n"><%= (members.filter(function(m){return m.roles.indexOf('learner')>=0;})).length %></div><div class="l">Learners</div></div>
+  <div class="stat"><div class="n"><%= (members.filter(function(m){return m.roles.indexOf('elder')>=0;})).length %></div><div class="l">Elders</div></div>
+  <div class="stat"><div class="n"><%= (members.filter(function(m){return m.status==='active';})).length %></div><div class="l">Active</div></div>
+</div>
 
-<p style="margin-top:26px"><a href="/courses">Courses</a> · <a href="/media">Media</a> · <a href="/cohorts">Cohorts</a> · <a href="/register">Attestations</a> · <a href="/policies">Policies</a> · <a href="/access-log">Access log</a> · <a href="/assessments">Assessments</a> · <a href="/gradebook">Gradebook</a></p>
-
-<form method="post" action="/logout" style="margin-top:28px">
-  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-  <button type="submit">Sign out</button>
-</form>
+<div class="section">
+  <h2>Members</h2>
+  <p class="hint">Roles are held within this institution — the same person may hold different roles elsewhere.</p>
+  <table class="table">
+    <thead><tr><th>Name</th><th>Email</th><th>Roles</th><th>Standing</th><th></th></tr></thead>
+    <tbody>
+    <% members.forEach(function (m) { %>
+      <tr>
+        <td><%= m.userId ? m.userId.name : '—' %></td>
+        <td class="mono"><%= m.userId ? m.userId.email : '—' %></td>
+        <td><% (m.roles||[]).forEach(function(r){ %><span class="badge flat" style="margin-right:5px"><%= r %></span><% }); %></td>
+        <td>
+          <% if (m.status === 'active') { %><span class="badge ok">active</span>
+          <% } else { %><span class="badge held"><%= m.status %></span><% } %>
+        </td>
+        <td style="text-align:right">
+          <% if (m.status === 'pending') { %>
+            <form method="post" action="/members/<%= m._id %>/admit" style="display:inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn ghost small" type="submit">Admit</button>
+            </form>
+          <% } %>
+        </td>
+      </tr>
+    <% }); %>
+    <% if (!members.length) { %><tr class="empty"><td colspan="5">No members yet. Invite the first from the People section.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
 <%- include("../layouts/foot") %>

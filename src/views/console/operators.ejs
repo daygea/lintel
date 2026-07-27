@@ -1,0 +1,34 @@
+<% var nav='operators'; var pageTitle='Operators'; %>
+<%- include("head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<div class="page-head">
+  <div class="eyebrow">PLATFORM</div>
+  <h1>Operators</h1>
+  <p class="lede">People who can reach this console. Grant sparingly — an operator manages the whole platform.</p>
+</div>
+<% if (error) { %><div class="notice err"><%= error %></div><% } %>
+<table class="table" style="max-width:520px">
+  <thead><tr><th>Operator</th><th></th></tr></thead>
+  <tbody>
+  <% operators.forEach(function(o){ %>
+    <tr>
+      <td><%= o.name %> <span class="mono quiet" style="font-size:12.5px">· <%= o.email %></span></td>
+      <td style="text-align:right">
+        <% if (String(o._id) === currentUserId) { %><span class="quiet" style="font-size:12px">you</span>
+        <% } else { %>
+          <form method="post" action="/console/operators/<%= o._id %>/revoke" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn ghost small" type="submit">Revoke</button></form>
+        <% } %>
+      </td>
+    </tr>
+  <% }); %>
+  </tbody>
+</table>
+<div class="section">
+  <h2>Grant access</h2>
+  <p class="hint">The person must already have a Lintel account.</p>
+  <form method="post" action="/console/operators/grant" style="display:flex;gap:10px;max-width:440px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input name="email" type="email" placeholder="operator@example.com" required>
+    <button class="btn" type="submit">Grant</button>
+  </form>
+</div>
+<%- include("foot") %>

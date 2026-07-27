@@ -22,8 +22,10 @@ function csrf(req, res, next) {
     crypto.timingSafeEqual(Buffer.from(sent), Buffer.from(expected));
 
   if (!ok) {
-    res.status(403);
-    return next(new Error('That form has expired. Reload the page and try again.'));
+    const err = new Error('That form has expired. Reload the page and try again.');
+    err.status = 403;
+    err.expose = true; // safe, user-facing message
+    return next(err);
   }
   return next();
 }

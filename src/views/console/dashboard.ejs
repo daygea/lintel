@@ -1,0 +1,26 @@
+<% var nav='overview'; var pageTitle='Overview'; %>
+<%- include("head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<div class="page-head">
+  <div class="eyebrow">PLATFORM</div>
+  <h1>Overview</h1>
+  <p class="lede">The whole system at a glance — every institution, operator, and pending request.</p>
+</div>
+<div class="stats">
+  <div class="stat"><div class="n"><%= overview.tenants %></div><div class="l">Institutions</div></div>
+  <div class="stat"><div class="n"><%= overview.users %></div><div class="l">People</div></div>
+  <div class="stat"><div class="n"><%= overview.pendingApps %></div><div class="l">Pending applications</div></div>
+  <div class="stat"><div class="n"><%= overview.superadmins %></div><div class="l">Operators</div></div>
+</div>
+<div class="section">
+  <h2>Institutions by status</h2>
+  <table class="table" style="max-width:360px">
+    <thead><tr><th>Status</th><th>Count</th></tr></thead>
+    <tbody>
+    <% overview.byStatus.forEach(function(s){ %>
+      <tr><td><span class="badge <%= s._id==='active'?'ok':(s._id==='suspended'?'held':'flat') %>"><%= s._id %></span></td><td class="mono"><%= s.n %></td></tr>
+    <% }); %>
+    <% if(!overview.byStatus.length){ %><tr class="empty"><td colspan="2">No institutions yet.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+<%- include("foot") %>

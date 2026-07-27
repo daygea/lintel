@@ -1,17 +1,32 @@
-<%- include("../layouts/head") %>
-<h1><%= tenant.name %></h1>
-<p style="color:#6E6B63">Sign in to continue.</p>
-
-<% if (error) { %><div class="err"><%= error %></div><% } %>
-
-<form method="post" action="/login">
-  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-  <label for="email">Email</label>
-  <input id="email" name="email" type="email" autocomplete="email" required>
-  <label for="password">Password</label>
-  <input id="password" name="password" type="password" autocomplete="current-password" required>
-  <label for="totp">Authenticator code <span style="color:#6E6B63">(if you use one)</span></label>
-  <input id="totp" name="totp" inputmode="numeric" autocomplete="one-time-code">
-  <button type="submit">Sign in</button>
-</form>
-<%- include("../layouts/foot") %>
+<% var pageTitle = 'Sign in'; %>
+<%- include("../layouts/public-head") %>
+<div class="pub-card">
+  <div class="page-head">
+    <div class="eyebrow"><%= typeof tenant !== 'undefined' && tenant ? tenant.name.toUpperCase() : 'LINTEL' %></div>
+    <h1 id="signin-heading" style="font-size:26px">Sign in</h1>
+    <p class="lede" style="font-size:14px">Enter your credentials to continue to the institution.</p>
+  </div>
+  <% if (typeof error !== 'undefined' && error) { %><div class="notice err" role="alert"><%= error %></div><% } %>
+  <form method="post" action="/login" aria-labelledby="signin-heading">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <% if (typeof returnTo !== 'undefined' && returnTo) { %><input type="hidden" name="returnTo" value="<%= returnTo %>"><% } %>
+    <div class="field">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="username" required autofocus>
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+    </div>
+    <% if (typeof mfaRequired !== 'undefined' && mfaRequired) { %>
+      <div class="field">
+        <label for="totp">Authentication code</label>
+        <input id="totp" name="totp" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" aria-describedby="totp-note">
+        <div class="note" id="totp-note">From your authenticator app.</div>
+      </div>
+    <% } %>
+    <button class="btn" type="submit" style="width:100%; justify-content:center; margin-top:6px">Sign in</button>
+  </form>
+  <p class="quiet" style="font-size:13px;margin-top:16px;text-align:center">New here? <a href="/join">Register as a learner</a>.</p>
+</div>
+<%- include("../layouts/public-foot") %>

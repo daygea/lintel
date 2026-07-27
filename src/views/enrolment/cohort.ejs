@@ -1,55 +1,103 @@
-<%- include("../layouts/head") %>
-<h1>Cohort</h1>
-<p><a href="/cohorts">← All cohorts</a></p>
+<% var nav = 'cohorts'; var pageTitle = 'Cohort'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'COHORT'; var heading = 'Roster'; var lede = 'Applications awaiting a decision, and the enrolled roster. Admission is a person\'s act — it creates a place; declining does not.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+<div class="section" style="margin-top:22px">
+  <h2>Applications</h2>
+  <table class="table">
+    <thead><tr><th>Applicant</th><th>Status</th></tr></thead>
+    <tbody>
+    <% (applications||[]).forEach(function (a) { %>
+      <tr><td><%= a.userId && a.userId.name ? a.userId.name : '—' %></td><td><span class="badge flat"><%= a.status %></span></td></tr>
+    <% }); %>
+    <% if (!(applications||[]).length) { %><tr class="empty"><td colspan="2">No applications.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+<div class="section">
+  <h2>Enrolled <span class="quiet mono" style="font-size:13px">(<%= (enrollments||[]).length %>)</span></h2>
+  <table class="table">
+    <thead><tr><th>Learner</th><th>Status</th><th>Fees</th></tr></thead>
+    <tbody>
+    <% (enrollments||[]).forEach(function (e) { %>
+      <tr>
+        <td><%= e.userId && e.userId.name ? e.userId.name : '—' %></td>
+        <td><span class="badge <%= e.status==='active'?'ok':'flat' %>"><%= e.status %></span></td>
+        <td>
+          <% if (e.paymentState==='full'||e.paymentState==='waived') { %><span class="badge open"><%= e.paymentState %></span>
+          <% } else { %><span class="badge held"><%= e.paymentState || 'unpaid' %></span><% } %>
+        </td>
+      </tr>
+    <% }); %>
+    <% if (!(enrollments||[]).length) { %><tr class="empty"><td colspan="3">No one enrolled yet.</td></tr><% } %>
+    </tbody>
+  </table>
 
-<h2 style="font-size:16px;margin-top:26px">Applications awaiting a decision</h2>
-<table>
-  <tbody>
-  <% applications.forEach(function (a) { %>
-    <tr>
-      <td><%= a.userId ? a.userId.name : '—' %><br><span style="color:#6E6B63;font-size:13px"><%= a.userId ? a.userId.email : '' %></span></td>
-      <td style="text-align:right">
-        <form method="post" action="/applications/<%= a._id %>/decide" style="display:inline">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <input type="hidden" name="cohortId" value="<%= cohortId %>">
-          <input type="hidden" name="decision" value="admitted">
-          <button type="submit">Admit</button>
-        </form>
-        <form method="post" action="/applications/<%= a._id %>/decide" style="display:inline">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <input type="hidden" name="cohortId" value="<%= cohortId %>">
-          <input type="hidden" name="decision" value="declined">
-          <button type="submit" style="background:#EEEBF2;color:#3E3952">Decline</button>
-        </form>
-      </td>
-    </tr>
-  <% }); %>
-  <% if (!applications.length) { %><tr><td style="color:#6E6B63">Nothing awaiting a decision.</td></tr><% } %>
-  </tbody>
-</table>
+  <% if ((enrollable||[]).length) { %>
+    <form method="post" action="/cohorts/<%= cohortId %>/enrol" style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label for="enrol-user" class="quiet" style="font-size:13px">Enrol a member</label>
+      <select id="enrol-user" name="userId" required>
+        <% enrollable.forEach(function (m) { %>
+          <option value="<%= m.userId._id %>"><%= m.userId.name %><%= m.userId.email ? ' — ' + m.userId.email : '' %></option>
+        <% }); %>
+      </select>
+      <button class="btn small" type="submit">Enrol</button>
+    </form>
+    <p class="quiet" style="font-size:12px;margin-top:6px">Places them directly in this cohort — their courses open immediately (subject to eligibility).</p>
+  <% } else { %>
+    <p class="quiet" style="font-size:13px;margin-top:12px">No admitted learners left to enrol. Admit members on the dashboard first.</p>
+  <% } %>
+</div>
 
-<h2 style="font-size:16px;margin-top:32px">Enrolled — <%= enrollments.length %></h2>
-<table>
-  <thead><tr><th>Name</th><th>Status</th><th>Fees</th></tr></thead>
-  <tbody>
-  <% enrollments.forEach(function (e) { %>
-    <tr>
-      <td><%= e.userId ? e.userId.name : '—' %></td>
-      <td><%= e.status %></td>
-      <td><%= e.paymentState %></td>
-    </tr>
-  <% }); %>
-  <% if (!enrollments.length) { %><tr><td colspan="3" style="color:#6E6B63">No one enrolled yet.</td></tr><% } %>
-  </tbody>
-</table>
+<div class="section">
+  <h2>Status</h2>
+  <% if (cohort) { %>
+    <div style="margin-bottom:10px"><span class="badge <%= cohort.status==='open'?'ok':'flat' %>"><%= cohort.status %></span></div>
+    <% if (cohort.status === 'draft' || cohort.status === 'closed') { %>
+      <form method="post" action="/cohorts/<%= cohortId %>/open" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn small" type="submit">Open for applications</button></form>
+    <% } %>
+    <% if (cohort.status === 'open' || cohort.status === 'running') { %>
+      <form method="post" action="/cohorts/<%= cohortId %>/close" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn ghost small" type="submit">Close cohort</button></form>
+    <% } %>
+  <% } %>
+</div>
 
-<h2 style="font-size:16px;margin-top:32px">Sessions</h2>
-<table>
-  <tbody>
-  <% sessions.forEach(function (s) { %>
-    <tr><td><%= pick(s.title, locale) %></td><td style="color:#6E6B63"><%= s.startsAt ? new Date(s.startsAt).toLocaleString() : '' %></td></tr>
+<div class="section">
+  <h2>Sessions</h2>
+  <% (sessions||[]).forEach(function (sn) { %>
+    <div class="panel" style="margin-bottom:10px">
+      <div style="font-weight:500"><%= pick(sn.title, locale) %></div>
+      <% if (sn.startsAt) { %><div class="quiet mono" style="font-size:12px"><%= new Date(sn.startsAt).toLocaleString() %></div><% } %>
+      <% if (enrollments && enrollments.length) { %>
+        <details style="margin-top:8px">
+          <summary class="quiet" style="cursor:pointer;font-size:13px">Mark attendance</summary>
+          <% enrollments.forEach(function (en) { %>
+            <form method="post" action="/cohorts/<%= cohortId %>/attendance" style="display:flex;gap:8px;align-items:center;margin-top:6px">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="sessionId" value="<%= sn._id %>">
+              <input type="hidden" name="userId" value="<%= en.userId %>">
+              <span style="min-width:160px;font-size:13px"><%= en.userName || en.userId %></span>
+              <select name="state"><option value="present">present</option><option value="absent">absent</option><option value="excused">excused</option></select>
+              <button class="btn ghost small" type="submit">Save</button>
+            </form>
+          <% }); %>
+        </details>
+      <% } %>
+    </div>
   <% }); %>
-  <% if (!sessions.length) { %><tr><td style="color:#6E6B63">No sessions scheduled.</td></tr><% } %>
-  </tbody>
-</table>
+  <% if (!(sessions||[]).length) { %><div class="quiet" style="font-size:13px;margin-bottom:10px">No sessions yet.</div><% } %>
+
+  <details style="margin-top:8px">
+    <summary style="cursor:pointer;font-weight:500">+ Add session</summary>
+    <form method="post" action="/cohorts/<%= cohortId %>/sessions" style="margin-top:12px;max-width:440px">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <% tenant.locales.forEach(function (loc) { %>
+        <div class="field"><label for="st_<%= loc %>">Session title <span class="quiet mono" style="font-size:11px">(<%= loc %>)</span></label><input id="st_<%= loc %>" name="title_<%= loc %>" <%= loc===tenant.defaultLocale?'required':'' %>></div>
+      <% }); %>
+      <div class="field"><label for="startsAt">Starts at</label><input id="startsAt" name="startsAt" type="datetime-local" required></div>
+      <button class="btn small" type="submit">Add session</button>
+    </form>
+  </details>
+</div>
 <%- include("../layouts/foot") %>

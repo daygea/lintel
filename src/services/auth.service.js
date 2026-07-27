@@ -91,4 +91,65 @@ async function invite({ email, name, roles, invitedByUserId }) {
   return { user, membership };
 }
 
-module.exports = { register, authenticate, beginMfaSetup, confirmMfa, invite };
+/**
+ * Self-registration: a person signs up into an institution FROM its own page.
+ *
+ * SECURITY: this can only ever create a LEARNER membership in status 'pending'.
+ * A self-registrant cannot choose a role — allowing that would let a stranger
+ * self-grant 'elder' or 'admin' and walk straight through the eligibility engine.
+ * The institution's registrar admits them; until then they hold no standing and
+ * see only open material. Runs inside the institution's tenant context.
+ */
+async function selfRegister({ email, name }) {
+  const { currentTenantId } = require('../lib/context');
+  const { sendAccountDetails } = require('./onboarding.service');
+  const clean = String(email || '').toLowerCase().trim();
+  if (!clean || !name) throw new ValidationError('We need your name and email to register.');
+
+  let user = await User.findOne({ email: clean });
+  let created = false;
+  if (!user) {
+    user = await User.create({
+      email: clean,
+      name,
+      passwordHash: await User.hashPassword(require('node:crypto').randomBytes(24).toString('hex')),
+      status: 'pending',
+    });
+    created = true;
+  }
+
+  // Refuse if they already hold ANY membership here — they should sign in, not
+  // re-register (and we must never re-scope an existing member to learner).
+  const existing = await Membership.findOne({ userId: user._id }).exec();
+  if (existing) throw new ValidationError('An account with this email already exists here. Please sign in.');
+
+  await Membership.create({
+    userId: user._id,
+    roles: [ROLES.LEARNER],          // LOCKED — never anything else
+    status: 'pending',               // awaits registrar admission
+    joinedAt: null,
+  });
+
+  await AuditLog.create({
+    actorUserId: user._id,
+    action: 'membership.self_registered',
+    subjectType: 'User',
+    subjectId: user._id,
+    meta: { role: ROLES.LEARNER },
+  });
+
+  // New accounts get a set-password link so they can sign in once admitted.
+  if (created) {
+    await sendAccountDetails({
+      userId: user._id,
+      tenantId: currentTenantId(),
+      institutionName: undefined,
+      roleLabel: 'learner',
+      withTempPassword: false, // link only for self-serve; no phone fallback needed
+    });
+  }
+
+  return { user, pending: true };
+}
+
+module.exports = { register, authenticate, beginMfaSetup, confirmMfa, invite, selfRegister };

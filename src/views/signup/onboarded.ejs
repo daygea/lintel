@@ -1,0 +1,11 @@
+<% var pageTitle = 'Welcome'; %>
+<%- include("../layouts/public-head") %>
+<div class="pub-card" style="text-align:center">
+  <div class="thr is-open" style="text-align:left">
+    <div class="eyebrow mono" style="color:var(--brass)">SIGNED IN</div>
+    <h1 style="font-family:var(--serif);font-size:26px;margin:6px 0 8px">Welcome, <%= name %></h1>
+    <p class="quiet">Your account is ready.</p>
+  </div>
+  <p style="margin-top:20px"><a class="btn" href="/">Continue</a></p>
+</div>
+<%- include("../layouts/public-foot") %>

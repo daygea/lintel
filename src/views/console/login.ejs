@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+  <title>Console · Lintel</title>
+  <link rel="stylesheet" href="/css/lintel.css">
+  <style>
+    body{background:#12162a;color:#C9CAD4;display:grid;place-items:center;min-height:100vh;margin:0}
+    .box{width:100%;max-width:380px;padding:0 24px}
+    .box .brand{display:flex;align-items:baseline;gap:9px;font-family:var(--serif);font-size:22px;font-weight:600;color:#fff;justify-content:center;margin-bottom:6px}
+    .box .brand .mark{display:inline-block;width:15px;height:15px;position:relative}
+    .box .brand .mark::before{content:"";position:absolute;left:2px;top:0;width:11px;height:3px;background:var(--brass)}
+    .box .brand .mark::after{content:"";position:absolute;left:4px;top:3px;width:3px;height:12px;background:#6E7189}
+    .box .tag{text-align:center;font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:#C9A567;margin-bottom:28px}
+    .box label{display:block;font-size:13px;margin-bottom:5px;color:#C9CAD4}
+    .box input{width:100%;padding:9px 11px;border:1px solid #2c3350;border-radius:4px;background:#1a1f38;color:#fff;font-size:14.5px;margin-bottom:14px}
+    .box input:focus{border-color:var(--brass);outline:none}
+    .box button{width:100%;padding:10px;background:var(--brass);color:#fff;border:0;border-radius:4px;font-size:14px;font-weight:500;cursor:pointer}
+    .box .err{background:#3a2740;border-left:3px solid var(--held);padding:10px 12px;border-radius:4px;font-size:13px;margin-bottom:16px;color:#e8d9e8}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="brand"><span class="mark"></span> Lintel</div>
+    <div class="tag">Platform Console</div>
+    <% if (error) { %><div class="err" role="alert"><%= error %></div><% } %>
+    <form method="post" action="/console/login" aria-label="Sign in to the platform console">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="username" required autofocus>
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <label for="totp" style="font-size:12px;color:#8A8DA0">Authentication code <span style="color:#9DA0B4">(if enabled)</span></label>
+      <input id="totp" name="totp" inputmode="numeric" autocomplete="one-time-code" placeholder="123456">
+      <button type="submit">Sign in to console</button>
+    </form>
+  </div>
+</body>
+</html>

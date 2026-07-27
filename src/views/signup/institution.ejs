@@ -1,0 +1,57 @@
+<% var pageTitle = 'Open your institution'; %>
+<%- include("../layouts/public-head") %>
+<div class="pub-wide">
+  <div class="page-head">
+    <div class="eyebrow">FOR INSTITUTIONS</div>
+    <h1>Open your institution on Lintel</h1>
+    <p class="lede">Tell us who you are and the address you'd like. You'll receive an email to set your password and sign in.</p>
+  </div>
+  <% if (error) { %><div class="notice err"><%= error %></div><% } %>
+  <form method="post" action="/signup" class="form-narrow" style="max-width:520px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="institutionName">Institution name</label>
+      <input id="institutionName" name="institutionName" value="<%= values.institutionName || '' %>" required autofocus>
+    </div>
+    <div class="field">
+      <label for="slug">Address</label>
+      <div style="display:flex;align-items:center;gap:0">
+        <input id="slug" name="slug" value="<%= values.slug || '' %>" placeholder="your-institution" style="border-radius:4px 0 0 4px" required>
+        <span class="mono quiet" style="padding:9px 11px;border:1px solid var(--rule-2);border-left:none;border-radius:0 4px 4px 0;background:var(--paper);font-size:13px">.<%= rootDomain %></span>
+      </div>
+      <div class="note" id="slugnote">Letters, numbers and hyphens. This is where your people will sign in.</div>
+    </div>
+    <div class="field">
+      <label for="contactName">Your name</label>
+      <input id="contactName" name="contactName" value="<%= values.contactName || '' %>" required>
+    </div>
+    <div class="field">
+      <label for="contactEmail">Your email</label>
+      <input id="contactEmail" name="contactEmail" type="email" value="<%= values.contactEmail || '' %>" required>
+      <div class="note">Your owner account and password link go here.</div>
+    </div>
+    <div class="field">
+      <label for="about">What does your institution teach? <span class="quiet">(optional)</span></label>
+      <textarea id="about" name="about" rows="3"><%= values.about || '' %></textarea>
+    </div>
+    <button class="btn brass" type="submit" style="background:var(--brass);border-color:var(--brass)">Request your space</button>
+  </form>
+  <p class="quiet" style="font-size:13px;margin-top:20px">
+    Not an institution? If your school is already on Lintel, <a href="/directory">find it in the directory</a> to sign in or register as a learner.
+  </p>
+</div>
+<script>
+  // Live address availability — a small courtesy, not a gate.
+  var slug = document.getElementById('slug'), note = document.getElementById('slugnote'), t;
+  slug && slug.addEventListener('input', function () {
+    clearTimeout(t); var v = slug.value.trim();
+    if (v.length < 4) { note.textContent = 'Letters, numbers and hyphens.'; note.style.color = ''; return; }
+    t = setTimeout(function () {
+      fetch('/signup/check?slug=' + encodeURIComponent(v)).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.available) { note.textContent = v + '.' + '<%= rootDomain %>' + ' is available'; note.style.color = 'var(--ok)'; }
+        else { note.textContent = d.reason || 'That address is taken'; note.style.color = 'var(--held)'; }
+      });
+    }, 350);
+  });
+</script>
+<%- include("../layouts/public-foot") %>

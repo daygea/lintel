@@ -59,6 +59,42 @@ const TEMPLATES = {
     subject: { en: 'You are enrolled' },
     text: { en: (d) => `You are now enrolled in ${d.cohortTitle}.` },
   },
+  'breakglass_notice': {
+    subject: { en: 'Platform staff accessed your institution\'s content' },
+    text: {
+      en: (d) => [
+        'This is a required notice.',
+        '',
+        `A Lintel platform operator opened time-boxed access to your institution's content for up to ${d.hours} hours.`,
+        '',
+        `Reason given: ${d.justification}`,
+        '',
+        'This access is logged and expires automatically. If you believe this was not warranted, reply to this email.',
+      ].join('\n'),
+    },
+  },
+  'account_created': {
+    subject: { en: (d) => `Your ${d.institutionName || 'Lintel'} account` },
+    text: {
+      en: (d) => {
+        const lines = [
+          `An account has been created for you${d.institutionName ? ' at ' + d.institutionName : ''}${d.roleLabel ? ' as ' + d.roleLabel : ''}.`,
+          '',
+          'Set your password to sign in:',
+          d.setPasswordUrl,
+          `This link expires in ${d.expiresInHours} hours.`,
+        ];
+        if (d.tempPassword) {
+          lines.push(
+            '',
+            'If you cannot use the link, you can sign in with this temporary password and change it immediately:',
+            `  ${d.tempPassword}`
+          );
+        }
+        return lines.join('\n');
+      },
+    },
+  },
 };
 
 /**

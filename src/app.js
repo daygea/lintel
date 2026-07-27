@@ -13,6 +13,7 @@ const { loadSession } = require('./middleware/auth');
 const csrf = require('./middleware/csrf');
 const errorHandler = require('./middleware/error-handler');
 const routes = require('./routes');
+const { pick } = require('./plugins/locale-map');
 
 function createApp() {
   const app = express();
@@ -21,6 +22,14 @@ function createApp() {
   app.set('views', path.join(__dirname, 'views'));
   app.set('trust proxy', 1);
 
+  // `pick(localeMap, locale)` is a pure, request-independent view helper used by
+  // 16 templates. It was passed per-render, so any render that forgot it made the
+  // view throw `pick is not defined` (a 500). Registering it as an app-level local
+  // means every view has it unconditionally — the omission can't recur. Per-render
+  // `pick` in controllers still works (identical function; render locals just
+  // shadow this one).
+  app.locals.pick = pick;
+
   app.use(pinoHttp({ logger }));
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
@@ -28,7 +37,10 @@ function createApp() {
 
   app.use(
     session({
-      name: 'lintel.sid',  
+      // A distinct cookie name so Lintel's session never collides with another app
+      // on the same host (e.g. during local dev alongside other projects on
+      // localhost). Without this, express-session's default 'connect.sid' can clash.
+      name: 'lintel.sid',
       secret: sessionSecret,
       resave: false,
       saveUninitialized: false,
@@ -36,6 +48,17 @@ function createApp() {
       cookie: { httpOnly: true, sameSite: 'lax', secure: isProd, maxAge: 1000 * 60 * 60 * 12 },
     })
   );
+
+  // Platform console — apex-only, superadmin-gated, no tenant context. Mounted
+  // above the resolver with CSRF (which is tenant-independent). Its own router
+  // loads the platform session and enforces the superadmin gate.
+  app.use(csrf, require('./routes/console'));
+
+  // Public routes that must work WITHOUT a tenant context — a stranger scanning a
+  // QR has no institution subdomain. These sit above the resolver deliberately.
+  // CSRF is applied explicitly here (public forms POST too — signup, register,
+  // set-password) rather than relying on the console mount above.
+  app.use(csrf, require('./routes/public'));
 
   // Order matters. Nothing below this line may query tenant data before the
   // resolver has established a context.

@@ -16,8 +16,8 @@ describe('ADR-008 — the evaluator is written once', () => {
     expect(registry.get('assessment_score')).toBeTypeOf('function');
   });
 
-  it('payment_state is still NOT registered (Sprint 6)', () => {
-    expect(registry.get('payment_state')).toBeUndefined();
+  it('payment_state is registered (Sprint 6) — the rule set is now complete', () => {
+    expect(registry.get('payment_state')).toBeTypeOf('function');
   });
 
   it('the evaluator names no specific rule type', () => {

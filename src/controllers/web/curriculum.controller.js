@@ -1,6 +1,8 @@
 'use strict';
 
 const curriculumService = require('../../services/curriculum.service');
+const eligibilityService = require('../../services/eligibility.service');
+const mediaService = require('../../services/media.service');
 const courseCopyService = require('../../services/course-copy.service');
 const searchService = require('../../services/search.service');
 const { pick } = require('../../plugins/locale-map');
@@ -48,6 +50,68 @@ exports.copyCourse = async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+};
+
+exports.createModule = async (req, res, next) => {
+  try {
+    await curriculumService.createModule({
+      courseId: req.params.id,
+      title: localeFromForm(req.body, 'title', req.tenant.locales),
+    });
+    res.redirect(`/courses/${req.params.id}`);
+  } catch (err) { next(err); }
+};
+
+exports.createLesson = async (req, res, next) => {
+  try {
+    await curriculumService.createLesson({
+      moduleId: req.body.moduleId,
+      title: localeFromForm(req.body, 'title', req.tenant.locales),
+      estimatedMinutes: req.body.estimatedMinutes ? Number(req.body.estimatedMinutes) : undefined,
+    });
+    res.redirect(`/courses/${req.params.id}`);
+  } catch (err) { next(err); }
+};
+
+// @parity-exempt eligibilityService.listPolicies — this is a web-view concern:
+// the lesson page renders a policy <select>, so it reads the policy list to build
+// the dropdown. The JSON API returns the lesson as data; an API client fetches the
+// policy list from GET /api/v1/policies (which exists) rather than having it inlined.
+exports.showLesson = async (req, res, next) => {
+  try {
+    const lesson = await curriculumService.getLesson(req.params.lessonId);
+    if (!lesson) return res.status(404).render('error', { status: 404, message: 'Lesson not found' });
+    const blocks = await curriculumService.listBlocks(req.params.lessonId);
+    const policies = await eligibilityService.listPolicies();
+    const assets = await mediaService.listAssets({ status: 'ready' }).catch(() => []);
+    res.render('curriculum/lesson', {
+      lesson, blocks, courseId: req.params.id, policies, assets, pick,
+      locale: req.tenant.defaultLocale, error: null,
+    });
+  } catch (err) { next(err); }
+};
+
+exports.createBlock = async (req, res, next) => {
+  try {
+    const type = req.body.type;
+    const block = { lessonId: req.params.lessonId, type };
+    if (type === 'rich_text') {
+      block.body = localeFromForm(req.body, 'body', req.tenant.locales);
+    } else if (type === 'embed') {
+      block.embedUrl = req.body.embedUrl || undefined;
+    } else if (['audio', 'video', 'pdf', 'image'].includes(type)) {
+      block.assetId = req.body.assetId || undefined; // a chosen uploaded asset
+    }
+    await curriculumService.createBlock(block);
+    res.redirect(`/courses/${req.params.id}/lessons/${req.params.lessonId}`);
+  } catch (err) { next(err); }
+};
+
+exports.setLessonPolicy = async (req, res, next) => {
+  try {
+    await curriculumService.setLessonPolicy(req.params.lessonId, req.body.eligibilityPolicyId);
+    res.redirect(`/courses/${req.params.id}/lessons/${req.params.lessonId}`);
+  } catch (err) { next(err); }
 };
 
 exports.search = async (req, res, next) => {

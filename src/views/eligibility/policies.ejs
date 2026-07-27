@@ -1,15 +1,76 @@
-<%- include("../layouts/head") %>
-<h1>Who may receive a teaching</h1>
-<p><a href="/">← <%= tenant.name %></a></p>
-<% policies.forEach(function (p) { %>
-  <div style="border:1px solid #E3E0D9;border-radius:3px;padding:16px 18px;margin:14px 0">
-    <div class="mono" style="font-size:14px"><%= p.slug %></div>
-    <p style="font-size:14px;margin:6px 0"><%= pick(p.label, locale) %> · a learner must meet <%= p.combinator === 'all' ? 'all' : 'any' %></p>
-    <% p.rules.forEach(function (r) { %>
-      <div style="background:#FBFAF8;border:1px solid #E3E0D9;border-radius:3px;padding:8px 10px;margin:6px 0" class="mono" style="font-size:12px"><%= r.type %><%= r.params ? ' · ' + JSON.stringify(r.params) : '' %></div>
+<% var nav = 'policies'; var pageTitle = 'Eligibility'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'ACCESS'; var heading = 'Eligibility'; var lede = 'A policy decides who may receive a teaching. It composes rules — a standing held, fees part-paid, a course completed — and fails closed: if a rule is unknown or errors, the door stays shut.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+
+<div class="section" style="margin-top:22px">
+  <% if (!policies.length) { %>
+    <div class="panel quiet">No policies yet. A course with no policy shows its open material to any enrolled learner; a policy is what holds the rest.</div>
+  <% } %>
+  <% policies.forEach(function (p) { %>
+    <div class="thr is-held" style="margin-bottom:20px">
+      <div class="mono" style="font-size:13px"><%= p.slug %></div>
+      <div class="quiet" style="font-size:13px;margin:4px 0 10px">match: <%= p.combinator === 'all' ? 'all rules' : 'any rule' %></div>
+      <table class="table" style="max-width:520px">
+        <thead><tr><th>Rule</th><th>Parameters</th></tr></thead>
+        <tbody>
+        <% (p.rules||[]).forEach(function (r) { %>
+          <tr>
+            <td class="mono"><%= r.type %></td>
+            <td class="mono quiet" style="font-size:12px"><%= r.params ? JSON.stringify(r.params) : '—' %></td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% }); %>
+</div>
+
+<div class="section" style="margin-top:8px">
+  <h2>New policy</h2>
+  <% if (typeof error !== 'undefined' && error) { %><div class="notice err"><%= error %></div><% } %>
+  <form method="post" action="/policies" class="form-narrow" style="max-width:560px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="slug">Slug</label>
+      <input id="slug" name="slug" placeholder="e.g. initiated-only" required>
+      <div class="note">A stable identifier. Lowercase, hyphens.</div>
+    </div>
+    <% tenant.locales.forEach(function (loc) { %>
+      <div class="field">
+        <label for="label_<%= loc %>">Label <span class="quiet mono" style="font-size:11px">(<%= loc %>)</span></label>
+        <input id="label_<%= loc %>" name="label_<%= loc %>" <%= loc===tenant.defaultLocale?'required':'' %>>
+      </div>
     <% }); %>
-    <p style="font-family:Georgia,serif;color:#3E3952;margin-top:10px">“<%= pick(p.denialMessage, locale) %>”</p>
-  </div>
-<% }); %>
-<% if (!policies.length) { %><p style="color:#6E6B63">No policies yet.</p><% } %>
+    <% tenant.locales.forEach(function (loc) { %>
+      <div class="field">
+        <label for="denialMessage_<%= loc %>">Denial message <span class="quiet mono" style="font-size:11px">(<%= loc %>)</span></label>
+        <textarea id="denialMessage_<%= loc %>" name="denialMessage_<%= loc %>" rows="2" <%= loc===tenant.defaultLocale?'required':'' %>></textarea>
+        <div class="note">What a learner sees when the door is held. The institution's own words, not an error.</div>
+      </div>
+    <% }); %>
+    <div class="field">
+      <label for="combinator">Match</label>
+      <select id="combinator" name="combinator">
+        <option value="all">All rules must pass</option>
+        <option value="any">Any rule may pass</option>
+      </select>
+    </div>
+
+    <h3 style="font-size:15px;margin-top:18px">Rules</h3>
+    <p class="hint">Each rule is a condition. Parameters are JSON — e.g. <span class="mono">{"typeSlug":"initiated"}</span> for an attestation rule. Leave parameters empty for rules that need none.</p>
+    <div id="rules">
+      <% for (var i=0;i<3;i++) { %>
+      <div style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start">
+        <select name="rule_type" style="max-width:200px">
+          <option value="">— none —</option>
+          <% ruleTypes.forEach(function (t) { %><option value="<%= t %>"><%= t %></option><% }); %>
+        </select>
+        <input name="rule_params" placeholder='{} (JSON params)' class="mono" style="font-size:12px;flex:1">
+      </div>
+      <% } %>
+    </div>
+    <button class="btn" type="submit" style="margin-top:8px">Create policy</button>
+  </form>
+</div>
 <%- include("../layouts/foot") %>

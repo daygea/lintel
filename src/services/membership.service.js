@@ -23,12 +23,23 @@ async function setRoles({ membershipId, roles, actorUserId }) {
   return membership;
 }
 
-async function activate(membershipId) {
-  return Membership.findByIdAndUpdate(
-    membershipId,
-    { status: 'active', joinedAt: new Date() },
-    { new: true }
-  );
+async function activate(membershipId, actorUserId) {
+  const membership = await Membership.findById(membershipId).exec();
+  if (!membership) throw new ValidationError('No such member of this institution');
+  if (membership.status === 'active') return membership; // already admitted — idempotent
+
+  membership.status = 'active';
+  membership.joinedAt = new Date();
+  await membership.save();
+
+  await AuditLog.create({
+    actorUserId,
+    action: 'membership.admitted',
+    subjectType: 'Membership',
+    subjectId: membership._id,
+    meta: { roles: membership.roles },
+  });
+  return membership;
 }
 
 module.exports = { list, setRoles, activate };

@@ -45,6 +45,23 @@ async function policyForLesson(lesson) {
 }
 
 /**
+ * Evaluate the verdict for a lesson WITHOUT logging it. Used by the learner
+ * home to show the door state (open/held) across a whole course at a glance —
+ * browsing is not accessing, so it must not write an AccessLog entry per lesson.
+ * canAccessLesson() is this plus the log, so the two can never drift.
+ */
+async function previewAccess({ lesson, userId, locale = 'en' }) {
+  const policy = await policyForLesson(lesson);
+  const enrollment = await Enrollment.findOne({
+    userId,
+    courseId: lesson.courseId,
+    status: 'active',
+  }).exec();
+  const verdict = await evaluate(policy, { userId, enrollment, locale });
+  return { verdict, policy };
+}
+
+/**
  * May this learner receive this lesson? Evaluates, then WRITES the verdict to the
  * access log — granted or withheld, both recorded, because "the door held" is
  * itself the evidence the policy worked.
@@ -56,15 +73,7 @@ async function canAccessLesson({ lessonId, userId, locale = 'en', request = {} }
   const lesson = await Lesson.findById(lessonId).exec();
   if (!lesson) return { allowed: false, message: 'No such lesson', failedRules: ['not_found'] };
 
-  const policy = await policyForLesson(lesson);
-
-  const enrollment = await Enrollment.findOne({
-    userId: uid,
-    courseId: lesson.courseId,
-    status: 'active',
-  }).exec();
-
-  const verdict = await evaluate(policy, { userId: uid, enrollment, locale });
+  const { verdict, policy } = await previewAccess({ lesson, userId: uid, locale });
 
   await AccessLog.create({
     userId: uid,
@@ -89,6 +98,7 @@ module.exports = {
   getPolicy,
   upsertPolicy,
   policyForLesson,
+  previewAccess,
   canAccessLesson,
   accessLog,
 };

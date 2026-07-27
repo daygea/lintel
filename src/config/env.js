@@ -33,6 +33,7 @@ module.exports = {
   sessionSecret: process.env.SESSION_SECRET || 'test-secret-test-secret-test-secret',
   logLevel: process.env.LOG_LEVEL || 'info',
 
+
   media: {
     configured: mediaMissing.length === 0,
     missing: mediaMissing,
@@ -53,3 +54,19 @@ module.exports = {
   ffmpegPath: process.env.FFMPEG_PATH || 'ffmpeg',
   ffprobePath: process.env.FFPROBE_PATH || 'ffprobe',
 };
+
+// Self-service onboarding flags (Sprint 12) are read from process.env at ACCESS
+// time, not frozen at import — so they can be toggled at runtime (and in tests)
+// without cache-busting. AUTO_PROVISION_TENANTS: institution signups go live
+// instantly (default false = review first). ALLOW_SELF_REGISTRATION: learners may
+// register from an institution page (default true).
+Object.defineProperties(module.exports, {
+  autoProvisionTenants: {
+    enumerable: true,
+    get() { return String(process.env.AUTO_PROVISION_TENANTS || 'false') === 'true'; },
+  },
+  allowSelfRegistration: {
+    enumerable: true,
+    get() { return String(process.env.ALLOW_SELF_REGISTRATION || 'true') === 'true'; },
+  },
+});

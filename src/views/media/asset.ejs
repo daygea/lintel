@@ -1,34 +1,50 @@
-<%- include("../layouts/head") %>
-<h1><%= asset.filename %></h1>
-<p style="color:#6E6B63">
-  <%= asset.kind %> · <%= asset.status %>
-  <% if (asset.durationMs) { %> · <%= Math.round(asset.durationMs / 1000) %>s<% } %>
-  <% if (asset.bytes) { %> · <%= (asset.bytes / 1048576).toFixed(1) %> MB<% } %>
-</p>
-<p><a href="/media">← All media</a></p>
+<% var nav = 'media'; var pageTitle = asset.filename; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<div style="margin-bottom:8px"><a href="/media" class="quiet mono" style="font-size:12px">← back to media</a></div>
+<% var eyebrow = 'MEDIA'; var heading = asset.filename; var lede = null; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+<div style="margin:-14px 0 8px">
+  <span class="badge <%= asset.status==='ready'?'ok':(asset.status==='error'?'held':'flat') %>"><%= asset.status %></span>
+  <span class="quiet" style="margin-left:8px"><%= asset.kind %></span>
+  <% if (asset.bytes) { %><span class="quiet mono" style="margin-left:10px;font-size:12px"><%= (asset.bytes/1024/1024).toFixed(1) %> MB</span><% } %>
+</div>
+<% if (asset.error) { %><div class="notice err"><%= asset.error %></div><% } %>
 
-<% if (asset.error) { %><div class="err"><%= asset.error %></div><% } %>
+<% var streamable = (asset.kind === 'audio' || asset.kind === 'video'); %>
 
-<h2 style="margin-top:28px;font-size:16px">Renditions</h2>
-<table>
-  <tbody>
-  <% asset.derivatives.forEach(function (d) { %>
-    <tr>
-      <td><%= d.rung %></td>
-      <td style="color:#6E6B63;font-size:13px">
-        <% if (d.bitrateKbps) { %><%= d.bitrateKbps %> kbps<% } %>
-        <% if (d.bytes) { %> · <%= (d.bytes / 1048576).toFixed(1) %> MB<% } %>
-      </td>
-    </tr>
-  <% }); %>
-  <% if (!asset.derivatives.length) { %>
-    <tr><td style="color:#6E6B63">None yet. Is the worker running? <code>npm run worker</code></td></tr>
-  <% } %>
-  </tbody>
-</table>
-
-<p style="color:#6E6B63;font-size:13px;margin-top:24px">
-  Playback is only ever served through a signed URL that expires in five minutes.
-  There is no public link to this file, and there never will be.
-</p>
+<% if (streamable) { %>
+  <div class="section">
+    <h2>Renditions</h2>
+    <p class="hint">Audio and video are transcoded into a ladder of bitrates so a learner on a slow connection still gets the lesson. These are produced by the transcode worker after upload.</p>
+    <table class="table">
+      <thead><tr><th>Rung</th><th>Bitrate</th></tr></thead>
+      <tbody>
+      <% (asset.derivatives||[]).forEach(function (d) { %>
+        <tr><td class="mono"><%= d.rung %></td><td class="mono quiet"><%= d.bitrateKbps ? d.bitrateKbps + ' kbps' : '—' %></td></tr>
+      <% }); %>
+      <% if (!(asset.derivatives||[]).length) { %>
+        <% if (asset.status === 'processing') { %>
+          <tr class="empty"><td colspan="2">Transcoding now — renditions will appear here when the worker finishes. Refresh in a moment.</td></tr>
+        <% } else if (asset.status === 'error') { %>
+          <tr class="empty"><td colspan="2">Transcode failed. Check the worker logs; re-uploading will retry.</td></tr>
+        <% } else { %>
+          <tr class="empty"><td colspan="2">No renditions. If this asset is stuck without any, the transcode worker may not be running (it is a separate process — see <span class="mono">npm run worker</span>).</td></tr>
+        <% } %>
+      <% } %>
+      </tbody>
+    </table>
+  </div>
+<% } else { %>
+  <div class="section">
+    <h2>File</h2>
+    <% if (asset.status === 'ready') { %>
+      <div class="thr is-open" style="padding:8px 0 8px 16px">
+        <span class="badge open">ready</span>
+        <span class="quiet" style="font-size:13px;margin-left:8px">This <%= asset.kind %> needs no transcoding — it is stored as uploaded and ready to attach to a lesson.</span>
+      </div>
+    <% } else { %>
+      <div class="panel quiet">Status: <%= asset.status %>.</div>
+    <% } %>
+  </div>
+<% } %>
 <%- include("../layouts/foot") %>

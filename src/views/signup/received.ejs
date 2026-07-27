@@ -1,0 +1,16 @@
+<% var pageTitle = 'Received'; %>
+<%- include("../layouts/public-head") %>
+<div class="pub-card" style="text-align:center">
+  <div class="thr is-open" style="text-align:left">
+    <div class="eyebrow mono" style="color:var(--brass);letter-spacing:.12em">RECEIVED</div>
+    <% if (instant) { %>
+      <h1 style="font-family:var(--serif);font-size:26px;margin:6px 0 10px">Your institution is ready</h1>
+      <p class="quiet">We've sent an email to <strong><%= email %></strong> with a link to set your password. Once you have, sign in at <span class="mono"><%= slug %>.<%= rootDomain %></span>.</p>
+    <% } else { %>
+      <h1 style="font-family:var(--serif);font-size:26px;margin:6px 0 10px">Thank you — we'll be in touch</h1>
+      <p class="quiet">We've received your request for <span class="mono"><%= slug %>.<%= rootDomain %></span>. We review new institutions before they go live; you'll get an email at <strong><%= email %></strong> with your account details once approved.</p>
+    <% } %>
+  </div>
+  <p style="margin-top:20px"><a class="btn ghost" href="/">Back to home</a></p>
+</div>
+<%- include("../layouts/public-foot") %>

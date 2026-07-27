@@ -24,10 +24,21 @@ function hostToSlug(host) {
   return null;
 }
 
+/** True when the host is the bare root domain or www — the marketing apex. */
+function isApex(host) {
+  const bare = String(host || '').split(':')[0].toLowerCase();
+  return bare === rootDomain || bare === `www.${rootDomain}` || bare === 'localhost';
+}
+
 module.exports = async function tenantResolver(req, res, next) {
   const host = req.headers.host;
-  const slug = hostToSlug(host);
 
+  // The apex has no tenant. Let the request through WITHOUT a tenant context so the
+  // home page and public routes (directory, verify) can handle it. Downstream code
+  // that needs a tenant still throws if it queries — apex routes simply don't.
+  if (isApex(host)) return next();
+
+  const slug = hostToSlug(host);
   let tenant = null;
   try {
     tenant = slug

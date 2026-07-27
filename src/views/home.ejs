@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lintel — teaching, held and opened by those with the standing to decide</title>
+  <meta name="description" content="A learning platform for institutions whose access to teaching depends on who the learner is — verified standing, not merely a paid enrolment.">
+  <link rel="stylesheet" href="/css/lintel.css">
+  <style>
+    /* Home-only layout. Extends the app's tokens; adds the threshold hero. */
+    .home { --gutter: 40px; }
+    .home-nav { display:flex; align-items:center; justify-content:space-between; padding:22px var(--gutter); max-width:1120px; margin:0 auto; }
+    .home-nav .brand { display:inline-flex; align-items:baseline; gap:9px; font-family:var(--serif); font-size:21px; font-weight:600; }
+    .home-nav .brand .mark { display:inline-block; width:15px; height:15px; position:relative; }
+    .home-nav .brand .mark::before { content:""; position:absolute; left:2px; top:0; width:11px; height:3px; background:var(--brass); }
+    .home-nav .brand .mark::after  { content:""; position:absolute; left:4px; top:3px; width:3px; height:12px; background:var(--ink-soft); }
+    .home-nav .links { display:flex; gap:26px; align-items:center; font-size:14px; }
+    .home-nav .links a { color:var(--ink-soft); }
+
+    .wrapc { max-width:1120px; margin:0 auto; padding:0 var(--gutter); }
+
+    /* Hero — the threshold. A held door and an opened door, side by side. */
+    .hero { padding:76px 0 64px; display:grid; grid-template-columns:1.15fr .85fr; gap:56px; align-items:center; }
+    .hero .eyebrow { font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--brass); margin-bottom:20px; }
+    .hero h1 { font-family:var(--serif); font-size:52px; line-height:1.06; letter-spacing:-.015em; font-weight:600; margin:0 0 22px; }
+    .hero h1 .held { color:var(--held); }
+    .hero h1 .open { color:var(--brass); }
+    .hero .sub { font-size:18px; line-height:1.6; color:var(--ink-soft); max-width:46ch; margin:0 0 30px; }
+    .hero .cta { display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+
+    /* The doors figure — two thresholds, one held, one opened. Pure CSS/SVG. */
+    .doors { display:flex; gap:22px; justify-content:center; }
+    .door { width:130px; }
+    .door .frame { border:2px solid var(--ink); border-bottom:none; height:210px; border-radius:4px 4px 0 0; position:relative; overflow:hidden; background:var(--paper-2); }
+    .door .lintel-stone { position:absolute; top:-2px; left:-2px; right:-2px; height:16px; }
+    .door.held .lintel-stone { background:var(--held); }
+    .door.open .lintel-stone { background:var(--brass); }
+    .door .leaf { position:absolute; bottom:0; width:100%; background:var(--ink); transition:none; }
+    .door.held .leaf { height:100%; }
+    .door.open .leaf { height:100%; transform:perspective(600px) rotateY(38deg); transform-origin:left; background:linear-gradient(90deg,#20263F,#161A2E); box-shadow:14px 0 26px -8px rgba(0,0,0,.25); }
+    .door.open .glow { position:absolute; inset:0; background:radial-gradient(120% 90% at 100% 50%, var(--brass-soft), transparent 60%); }
+    .door .tag { text-align:center; font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; margin-top:10px; }
+    .door.held .tag { color:var(--held); }
+    .door.open .tag { color:var(--brass); }
+
+    /* Belief strip */
+    .belief { border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); padding:44px 0; margin-top:20px; }
+    .belief p { font-family:var(--serif); font-size:23px; line-height:1.5; max-width:30ch; margin:0 auto; text-align:center; color:var(--ink); }
+    .belief p em { color:var(--brass); font-style:normal; }
+
+    /* Capabilities — three, because the product genuinely has three primitives */
+    .caps { padding:70px 0; display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:8px; overflow:hidden; }
+    .cap { background:var(--paper-2); padding:32px 30px; }
+    .cap .n { font-family:var(--mono); font-size:12px; color:var(--brass); letter-spacing:.1em; }
+    .cap h3 { font-family:var(--serif); font-size:21px; font-weight:600; margin:14px 0 10px; }
+    .cap p { font-size:14.5px; color:var(--ink-soft); line-height:1.6; margin:0; }
+
+    /* Who it's for */
+    .forwhom { padding:20px 0 76px; }
+    .forwhom h2 { font-family:var(--serif); font-size:30px; font-weight:600; text-align:center; margin:0 0 8px; }
+    .forwhom .lede { text-align:center; color:var(--muted); max-width:52ch; margin:0 auto 40px; }
+    .whom-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+    .whom { border:1px solid var(--rule); border-left:3px solid var(--held); border-radius:0 6px 6px 0; padding:22px 24px; background:var(--paper-2); }
+    .whom h4 { font-family:var(--serif); font-size:17px; margin:0 0 8px; }
+    .whom p { font-size:14px; color:var(--ink-soft); margin:0; line-height:1.55; }
+
+    /* CTA band */
+    .band { background:var(--ink); color:#EDECE9; border-radius:10px; padding:52px 48px; margin:0 0 80px; display:grid; grid-template-columns:1.3fr .7fr; gap:30px; align-items:center; }
+    .band h2 { font-family:var(--serif); font-size:29px; font-weight:600; margin:0 0 10px; color:#fff; }
+    .band p { margin:0; color:#B9BAC6; font-size:15px; max-width:44ch; }
+    .band .actions { display:flex; flex-direction:column; gap:12px; }
+    .btn.brass { background:var(--brass); border-color:var(--brass); color:#fff; }
+    .btn.brass:hover { background:#7A5F30; }
+    .btn.onink { background:transparent; border-color:#3A3F58; color:#EDECE9; }
+    .btn.onink:hover { background:#20263F; }
+
+    .home-foot { border-top:1px solid var(--rule); padding:30px var(--gutter); }
+    .home-foot .in { max-width:1120px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--muted); }
+    .home-foot .in .mono { font-family:var(--mono); font-size:12px; }
+
+    @media (max-width:900px) {
+      .hero { grid-template-columns:1fr; gap:40px; padding:48px 0 40px; }
+      .hero h1 { font-size:40px; }
+      .caps, .whom-grid { grid-template-columns:1fr; }
+      .band { grid-template-columns:1fr; }
+      .home-nav .links a:not(.btn) { display:none; }
+    }
+    @media (prefers-reduced-motion: reduce) { .door.open .leaf { transform:none; } }
+  </style>
+</head>
+<body class="home">
+  <header class="home-nav">
+    <span class="brand"><span class="mark"></span> Lintel</span>
+    <nav class="links">
+      <a href="/directory">Directory</a>
+      <a href="#capabilities">How it works</a>
+      <a href="#institutions">Who it's for</a>
+      <a href="/directory" class="nav-signin">Find your institution</a>
+      <a class="btn ghost small" href="/signup">Request access</a>
+    </nav>
+  </header>
+
+  <section class="wrapc hero">
+    <div>
+      <div class="eyebrow">A platform for institutions that guard their teaching</div>
+      <h1>Some teaching is <span class="held">held</span><br>until you have the standing<br>to be <span class="open">let in</span>.</h1>
+      <p class="sub">Lintel is a learning platform for institutions whose access to teaching depends on <em>who</em> a learner is — a verified, revocable standing conferred by a named authority — not merely on who has paid.</p>
+      <div class="cta">
+        <a class="btn brass" href="/signup">Request access</a>
+        <a class="btn ghost" href="/directory">Browse institutions</a>
+      </div>
+    </div>
+    <div class="doors" aria-hidden="true">
+      <div class="door held">
+        <div class="frame"><span class="lintel-stone"></span><span class="leaf"></span></div>
+        <div class="tag">Held</div>
+      </div>
+      <div class="door open">
+        <div class="frame"><span class="lintel-stone"></span><span class="glow"></span><span class="leaf"></span></div>
+        <div class="tag">Opened</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="belief">
+    <div class="wrapc">
+      <p>A door is not a paywall. It opens for the person who was meant to pass through — and for no one else, no matter what they paid.</p>
+    </div>
+  </section>
+
+  <section class="wrapc caps" id="capabilities">
+    <div class="cap">
+      <div class="n">01 · STANDING</div>
+      <h3>Access by attestation</h3>
+      <p>A named authority — an elder, an examiner, a registrar — confers a verified standing on a person. Teaching opens against that standing, and closes the moment it is revoked. Never granted by the software, never by a payment.</p>
+    </div>
+    <div class="cap">
+      <div class="n">02 · CONTENT</div>
+      <h3>Delivery follows sensitivity</h3>
+      <p>Restricted material is streamed, watermarked, and logged — never downloadable. Open teaching is free to save. The content's own policy decides how it may travel, per item.</p>
+    </div>
+    <div class="cap">
+      <div class="n">03 · JUDGEMENT</div>
+      <h3>Assessment by people</h3>
+      <p>Oral and video performance, graded against a rubric by named assessors, moderated where a senior voice must confirm a junior one. When a mark is overruled, both survive in the record.</p>
+    </div>
+  </section>
+
+  <section class="wrapc forwhom" id="institutions">
+    <h2>Built for institutions a generic LMS can't serve</h2>
+    <p class="lede">If your teaching is conditional on who the learner is — not just whether they enrolled — the primitives you need are the ones most platforms treat as an afterthought.</p>
+    <div class="whom-grid">
+      <div class="whom">
+        <h4>Traditions with initiation</h4>
+        <p>Sacred and cultural schools where certain teaching is held until a person is initiated, and an elder is the only one who can attest that they are.</p>
+      </div>
+      <div class="whom">
+        <h4>Licensing and professional bodies</h4>
+        <p>Colleges where a module on drug administration or clinical practice opens only to a learner holding a current, verified professional standing.</p>
+      </div>
+      <div class="whom">
+        <h4>Institutions of record</h4>
+        <p>Any body that must prove — years later — who was admitted to what, who conferred a standing, and who awarded a credential. Every decision is logged, nothing is erased.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrapc">
+    <div class="band">
+      <div>
+        <h2>Bring your institution's own rules.</h2>
+        <p>Lintel holds no opinion about who deserves to learn what. It gives your authorities the means to decide, enforces their decision faithfully, and keeps the record. You write the rules; the platform keeps the door.</p>
+      </div>
+      <div class="actions">
+        <a class="btn brass" href="/signup">Request access</a>
+        <a class="btn onink" href="/verify">Verify a credential</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="home-foot">
+    <div class="in">
+      <span>Lintel — access to teaching, held and opened by those with the standing to decide.</span>
+      <span class="mono">hello@lintel.africa</span>
+    </div>
+  </footer>
+</body>
+</html>

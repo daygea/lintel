@@ -1,0 +1,22 @@
+<% var nav='audit'; var pageTitle='Audit'; %>
+<%- include("head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<div class="page-head">
+  <div class="eyebrow">PLATFORM</div>
+  <h1>Audit</h1>
+  <p class="lede">Every platform-level action, newest first. Append-only — nothing here is ever edited or removed.</p>
+</div>
+<table class="table">
+  <thead><tr><th>When</th><th>Operator</th><th>Action</th><th>Detail</th></tr></thead>
+  <tbody>
+  <% entries.forEach(function(e){ %>
+    <tr>
+      <td class="mono quiet" style="font-size:12.5px"><%= new Date(e.at).toLocaleString() %></td>
+      <td class="quiet"><%= e.actorUserId && e.actorUserId.email ? e.actorUserId.email : '—' %></td>
+      <td class="mono" style="font-size:13px"><%= e.action %></td>
+      <td class="mono quiet" style="font-size:12px"><%= e.meta ? JSON.stringify(e.meta) : '' %></td>
+    </tr>
+  <% }); %>
+  <% if(!entries.length){ %><tr class="empty"><td colspan="4">No platform actions recorded yet.</td></tr><% } %>
+  </tbody>
+</table>
+<%- include("foot") %>

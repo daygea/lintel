@@ -1,39 +1,54 @@
-<%- include("../layouts/head") %>
-<h1>Courses</h1>
-<p style="color:#6E6B63"><a href="/">← <%= tenant.name %></a></p>
+<% var nav = 'courses'; var pageTitle = 'Courses'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'TEACHING'; var heading = 'Courses'; var lede = 'The programmes of study. A course is held private until an eligibility policy and a publishing act open it.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
 
-<form method="get" action="/courses/search" style="margin:22px 0">
-  <label for="q">Search — tone marks optional</label>
-  <input id="q" name="q" placeholder="oriki, ayanmo, cosmology…">
-  <button type="submit">Search</button>
+<form method="get" action="/courses/search" style="margin-bottom:8px; max-width:440px; display:flex; gap:8px">
+  <input id="q" name="q" placeholder="Search — oríkì, àyànmọ́, cosmology…" aria-label="Search courses">
+  <button class="btn ghost" type="submit">Search</button>
 </form>
 
-<table>
-  <thead><tr><th>Code</th><th>Title</th><th>Session</th><th>Status</th><th>Public</th></tr></thead>
-  <tbody>
-  <% courses.forEach(function (c) { %>
-    <tr>
-      <td><a href="/courses/<%= c._id %>"><%= c.code %></a></td>
-      <td><%= pick(c.title, locale) %></td>
-      <td><%= c.session || '—' %></td>
-      <td><%= c.status %></td>
-      <td><%= c.visibility === 'private' ? 'held' : c.visibility %></td>
-    </tr>
-  <% }); %>
-  </tbody>
-</table>
+<div class="section" style="margin-top:24px">
+  <table class="table">
+    <thead><tr><th>Code</th><th>Title</th><th>Session</th><th>Status</th><th>Door</th></tr></thead>
+    <tbody>
+    <% courses.forEach(function (c) { %>
+      <tr>
+        <td class="mono"><a href="/courses/<%= c._id %>"><%= c.code %></a></td>
+        <td><%= pick(c.title, locale) %></td>
+        <td class="quiet"><%= c.session || '—' %></td>
+        <td><span class="badge <%= c.status === 'published' ? 'ok' : 'flat' %>"><%= c.status %></span></td>
+        <td>
+          <% if (c.visibility === 'private') { %><span class="badge held">held</span>
+          <% } else { %><span class="badge open"><%= c.visibility %></span><% } %>
+        </td>
+      </tr>
+    <% }); %>
+    <% if (!courses.length) { %><tr class="empty"><td colspan="5">No courses yet. Create the first below.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
 
-<h2 style="margin-top:36px;font-size:18px">New course</h2>
-<form method="post" action="/courses">
-  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-  <label for="code">Code</label>
-  <input id="code" name="code" placeholder="YIS 214" required>
-  <% tenant.locales.forEach(function (loc) { %>
-    <label for="title_<%= loc %>">Title (<%= loc %>)</label>
-    <input id="title_<%= loc %>" name="title_<%= loc %>" <%= loc === tenant.defaultLocale ? 'required' : '' %>>
-  <% }); %>
-  <label for="session">Session</label>
-  <input id="session" name="session" placeholder="2026/2027">
-  <button type="submit">Create</button>
-</form>
+<div class="section">
+  <h2>New course</h2>
+  <p class="hint">A new course starts held — private by default, until you set its access and publish it.</p>
+  <form method="post" action="/courses" class="form-narrow">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="code">Code</label>
+      <input id="code" name="code" placeholder="YIS 214" required>
+    </div>
+    <% tenant.locales.forEach(function (loc) { %>
+      <div class="field">
+        <label for="title_<%= loc %>">Title <span class="quiet mono" style="font-size:11px">(<%= loc %>)</span></label>
+        <input id="title_<%= loc %>" name="title_<%= loc %>" <%= loc === tenant.defaultLocale ? 'required' : '' %>>
+      </div>
+    <% }); %>
+    <div class="field">
+      <label for="session">Session</label>
+      <input id="session" name="session" placeholder="2026/2027">
+    </div>
+    <button class="btn" type="submit">Create course</button>
+  </form>
+</div>
 <%- include("../layouts/foot") %>

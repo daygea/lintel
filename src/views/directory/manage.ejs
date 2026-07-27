@@ -1,0 +1,80 @@
+<% var nav = 'directory'; var pageTitle = 'Public listing'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: pageTitle }) %>
+<% var eyebrow = 'RECORDS'; var heading = 'Public listing'; var lede = 'Your institution\'s public presence in the Lintel directory. Nothing here is visible until you publish it — and publishing shows your name, tagline, and the titles of courses you choose to feature. Never learners, prices, or content.'; %>
+<%- include("../layouts/page-head", { eyebrow: eyebrow, heading: heading, lede: lede }) %>
+
+<% var published = listing && listing.publishedAt; %>
+<div class="thr <%= published ? 'is-open' : 'is-held' %>" style="margin:-8px 0 26px">
+  <% if (published) { %>
+    <div><span class="badge open">published</span> <span class="quiet" style="font-size:13px">since <%= new Date(listing.publishedAt).toLocaleDateString() %> — live at <span class="mono"><%= listing.handle %>.<%= rootDomain %></span> and in the directory</span></div>
+    <form method="post" action="/directory-listing/unpublish" style="margin-top:10px">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="btn ghost small" type="submit">Unpublish</button>
+    </form>
+  <% } else { %>
+    <div><span class="badge held">not published</span> <span class="quiet" style="font-size:13px">Your institution does not appear in the directory yet.</span></div>
+    <% if (listing && listing.handle && listing.displayName) { %>
+      <form method="post" action="/directory-listing/publish" style="margin-top:10px">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn" type="submit">Publish listing</button>
+      </form>
+    <% } else { %>
+      <div class="quiet" style="font-size:13px;margin-top:6px">Fill in a handle and display name below, save, then publish.</div>
+    <% } %>
+  <% } %>
+</div>
+
+<% if (error) { %><div class="notice err"><%= error %></div><% } %>
+
+<form method="post" action="/directory-listing" class="form-narrow" style="max-width:560px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="field">
+    <label for="handle">Directory address</label>
+    <div style="display:flex;align-items:center">
+      <input id="handle" name="handle" value="<%= listing ? listing.handle : '' %>" placeholder="your-institution" style="border-radius:4px 0 0 4px" required>
+      <span class="mono quiet" style="padding:9px 11px;border:1px solid var(--rule-2);border-left:none;border-radius:0 4px 4px 0;background:var(--paper);font-size:13px">.<%= rootDomain %></span>
+    </div>
+    <div class="note">Where your public page lives. Letters, numbers, hyphens.</div>
+  </div>
+  <div class="field">
+    <label for="displayName">Public name</label>
+    <input id="displayName" name="displayName" value="<%= listing ? listing.displayName : (tenant.name || '') %>" required>
+  </div>
+  <% tenant.locales.forEach(function (loc) { %>
+    <div class="field">
+      <label for="tagline_<%= loc %>">Tagline <span class="quiet mono" style="font-size:11px">(<%= loc %>)</span></label>
+      <input id="tagline_<%= loc %>" name="tagline_<%= loc %>" value="<%= listing && listing.tagline ? (listing.tagline[loc] || '') : '' %>" placeholder="One line about your institution">
+    </div>
+  <% }); %>
+  <% tenant.locales.forEach(function (loc) { %>
+    <div class="field">
+      <label for="about_<%= loc %>">About <span class="quiet mono" style="font-size:11px">(<%= loc %>)</span></label>
+      <textarea id="about_<%= loc %>" name="about_<%= loc %>" rows="3"><%= listing && listing.about ? (listing.about[loc] || '') : '' %></textarea>
+    </div>
+  <% }); %>
+
+  <div class="section" style="margin-top:8px">
+    <h2 style="font-size:16px">Contact</h2>
+    <div class="field"><label for="contact_email">Email</label><input id="contact_email" name="contact_email" type="email" value="<%= listing && listing.contact ? (listing.contact.email || '') : '' %>"></div>
+    <div class="field"><label for="contact_website">Website</label><input id="contact_website" name="contact_website" value="<%= listing && listing.contact ? (listing.contact.website || '') : '' %>"></div>
+    <div class="field"><label for="contact_city">City</label><input id="contact_city" name="contact_city" value="<%= listing && listing.contact ? (listing.contact.city || '') : '' %>"></div>
+    <div class="field"><label for="contact_country">Country</label><input id="contact_country" name="contact_country" value="<%= listing && listing.contact ? (listing.contact.country || '') : '' %>"></div>
+  </div>
+
+  <% if (courses && courses.length) { %>
+  <div class="section" style="margin-top:8px">
+    <h2 style="font-size:16px">Featured courses</h2>
+    <p class="hint">Only the TITLES of the courses you tick are shown publicly. A course also has to be visible in the directory in its own settings.</p>
+    <% var featured = (listing && listing.featuredCourseIds || []).map(String); %>
+    <% courses.forEach(function (c) { %>
+      <label style="display:flex;align-items:center;gap:8px;font-weight:400;margin-bottom:6px">
+        <input type="checkbox" name="featuredCourseIds" value="<%= c._id %>" style="width:auto" <%= featured.indexOf(String(c._id)) >= 0 ? 'checked' : '' %>>
+        <span><%= pick(c.title, locale) %> <span class="mono quiet" style="font-size:12px">· <%= c.code %></span></span>
+      </label>
+    <% }); %>
+  </div>
+  <% } %>
+
+  <button class="btn" type="submit" style="margin-top:18px">Save listing</button>
+</form>
+<%- include("../layouts/foot") %>

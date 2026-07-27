@@ -1,30 +1,90 @@
-<%- include("../layouts/head") %>
-<h1>Attestation register</h1>
-<p style="color:#6E6B63"><a href="/">← <%= tenant.name %></a> · Every standing the institution recognises. Nothing here is ever deleted — a withdrawal is written down.</p>
+<% var nav = 'register'; var pageTitle = 'Attestations'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'PEOPLE'; var heading = 'Attestations'; var lede = 'A standing is a verified statement about a person, issued by a named authority — never by the software, never by a payment. These are the standings this institution recognises.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
 
-<h2 style="font-size:16px;margin-top:26px">Standings recognised</h2>
-<table>
-  <tbody>
-  <% types.forEach(function (t) { %>
-    <tr><td><%= pick(t.label, locale) %><br><span class="mono" style="font-size:12px;color:#6E6B63"><%= t.slug %></span></td>
-    <td style="color:#6E6B63">granted by: <%= t.requiresIssuerRole %><%= t.isSensitive ? ' · sensitive' : '' %></td></tr>
-  <% }); %>
-  <% if (!types.length) { %><tr><td style="color:#6E6B63">No standings defined yet.</td></tr><% } %>
-  </tbody>
-</table>
+<div class="section" style="margin-top:22px">
+  <h2>Recognised standings</h2>
+  <table class="table">
+    <thead><tr><th>Standing</th><th>Conferred by</th><th>Sensitivity</th></tr></thead>
+    <tbody>
+    <% types.forEach(function (t) { %>
+      <tr>
+        <td class="mono"><%= t.slug %></td>
+        <td><%= t.requiresIssuerRole || 'any staff' %></td>
+        <td>
+          <% if (t.isSensitive) { %><span class="badge held">sensitive</span>
+          <% } else { %><span class="badge flat">standard</span><% } %>
+        </td>
+      </tr>
+    <% }); %>
+    <% if (!types.length) { %><tr class="empty"><td colspan="3">No standings configured yet.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
 
-<h2 style="font-size:16px;margin-top:32px">Issued</h2>
-<table>
-  <thead><tr><th>Standing</th><th>Status</th><th>Issued</th></tr></thead>
-  <tbody>
-  <% attestations.forEach(function (a) { %>
-    <tr>
-      <td><%= a.typeSlug %></td>
-      <td><%= a.status === 'revoked' ? 'withdrawn — reason recorded' : 'current' %></td>
-      <td style="color:#6E6B63"><%= new Date(a.createdAt).toLocaleDateString() %></td>
-    </tr>
-  <% }); %>
-  <% if (!attestations.length) { %><tr><td colspan="3" style="color:#6E6B63">Nothing issued yet.</td></tr><% } %>
-  </tbody>
-</table>
+<div class="section">
+  <h2>Recent attestations</h2>
+  <p class="hint">Each issuance and revocation is a permanent record — a revocation is a new entry, never an erasure.</p>
+  <table class="table">
+    <thead><tr><th>Standing</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    <% attestations.forEach(function (a) { %>
+      <tr>
+        <td class="mono"><%= a.typeSlug %></td>
+        <td>
+          <% if (a.status === 'active') { %><span class="badge open">held</span>
+          <% } else { %><span class="badge held"><%= a.status %></span><% } %>
+        </td>
+        <td style="text-align:right"><% if (a.status === 'active') { %>
+          <form method="post" action="/register/attestations/<%= a._id %>/revoke" style="display:inline" onsubmit="return confirm('Revoke this standing? A revocation is a permanent new record.');">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button class="btn ghost small" type="submit">Revoke</button>
+          </form>
+        <% } %></td>
+      </tr>
+    <% }); %>
+    <% if (!attestations.length) { %><tr class="empty"><td colspan="3">No attestations issued yet.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+
+<div class="section" style="margin-top:8px">
+  <h2>Attest a standing</h2>
+  <% if (typeof error !== "undefined" && error) { %><div class="notice err"><%= error %></div><% } %>
+  <p class="hint">Attesting names a person as holding a standing — the thing a held lesson checks. Only a member with the standing's required role may grant it.</p>
+  <% if (types.length && members.length) { %>
+    <form method="post" action="/register/attestations" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;max-width:600px">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field" style="margin:0"><label for="at_type">Standing</label>
+        <select id="at_type" name="typeSlug" required><% types.forEach(function(t){ %><option value="<%= t.slug %>"><%= pick(t.label, locale) %> (<%= t.slug %>)</option><% }); %></select>
+      </div>
+      <div class="field" style="margin:0"><label for="at_subject">Person</label>
+        <select id="at_subject" name="subjectUserId" required><% members.forEach(function(m){ %><% if (m.userId) { %><option value="<%= m.userId._id %>"><%= m.userId.name || m.userId.email %></option><% } %><% }); %></select>
+      </div>
+      <div class="field" style="margin:0"><label for="at_note">Note</label><input id="at_note" name="note" placeholder="optional"></div>
+      <button class="btn" type="submit">Attest</button>
+    </form>
+  <% } else { %>
+    <p class="quiet" style="font-size:13px">You need at least one standing and one active member to attest.</p>
+  <% } %>
+</div>
+
+<div class="section">
+  <h2>New standing</h2>
+  <p class="hint">A standing is a recognised status — "initiated", "examined", "elder-approved". A policy can then hold a lesson until a person is attested to it.</p>
+  <form method="post" action="/register/standings" class="form-narrow" style="max-width:520px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field"><label for="st_slug">Slug</label><input id="st_slug" name="slug" placeholder="e.g. initiated" required></div>
+    <% tenant.locales.forEach(function (loc) { %>
+      <div class="field"><label for="st_label_<%= loc %>">Label <span class="quiet mono" style="font-size:11px">(<%= loc %>)</span></label><input id="st_label_<%= loc %>" name="label_<%= loc %>" <%= loc===tenant.defaultLocale?'required':'' %>></div>
+    <% }); %>
+    <div class="field"><label for="st_role">Who may grant it</label>
+      <select id="st_role" name="requiresIssuerRole"><% roles.forEach(function(r){ %><option value="<%= r %>" <%= r==='assessor'?'selected':'' %>><%= r %></option><% }); %></select>
+      <div class="note">Only a member with this role can attest or revoke this standing.</div>
+    </div>
+    <div class="field"><label for="st_validity">Validity (days) <span class="quiet">(optional — blank = never expires)</span></label><input id="st_validity" name="defaultValidityDays" type="number" min="1" style="max-width:120px"></div>
+    <button class="btn" type="submit">Create standing</button>
+  </form>
+</div>
 <%- include("../layouts/foot") %>

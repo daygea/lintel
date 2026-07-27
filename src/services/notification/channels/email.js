@@ -19,7 +19,13 @@ class EmailChannel extends Channel {
     return true; // the log transport is always "configured"
   }
   async send({ to, subject, text }) {
-    logger.info({ channel: 'email', to, subject, preview: (text || '').slice(0, 80) }, 'email (dev transport)');
+    // Dev transport: log the FULL body, not a preview — otherwise anything past
+    // the first line (set-password links, temp passwords) is invisible, which
+    // defeats the point of a dev transport. Swap for a real provider to send.
+    logger.info(
+      { channel: 'email', to, subject },
+      `email (dev transport)\n--- to: ${to} | ${subject} ---\n${text || ''}\n---`
+    );
     return { providerRef: `dev-${Date.now()}` };
   }
 }
