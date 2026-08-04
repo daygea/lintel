@@ -59,6 +59,12 @@ async function confirmMfa(user, token) {
   return true;
 }
 
+/** Turn two-factor off and forget the secret. */
+async function disableMfa(user) {
+  await User.updateOne({ _id: user._id }, { $set: { 'mfa.enabled': false }, $unset: { 'mfa.secret': '' } });
+  return true;
+}
+
 /** Tenant-scoped: runs inside a tenant context. */
 async function invite({ email, name, roles, invitedByUserId }) {
   let user = await User.findOne({ email: String(email).toLowerCase() });
@@ -152,4 +158,4 @@ async function selfRegister({ email, name }) {
   return { user, pending: true };
 }
 
-module.exports = { register, authenticate, beginMfaSetup, confirmMfa, invite, selfRegister };
+module.exports = { register, authenticate, beginMfaSetup, confirmMfa, disableMfa, invite, selfRegister };

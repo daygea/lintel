@@ -130,7 +130,7 @@ async function recordPayment({ invoiceId, amount, method, provider = 'manual', p
       note,
     });
   } catch (err) {
-    if (err.code === 11000) {
+    if (err.code === 11000 && providerRef) {
       const seen = await Payment.findOne({ providerRef }).exec();
       return { invoice, payment: seen, replay: true };
     }
@@ -238,9 +238,20 @@ async function syncEnrollmentState(enrollmentId, state) {
 const invoiceFor = (enrollmentId) => Invoice.findOne({ enrollmentId }).exec();
 const paymentsFor = (invoiceId) => Payment.find({ invoiceId }).sort({ at: -1 }).exec();
 
+/** Everything the invoice detail page needs, composed once. */
+async function invoiceView(id) {
+  const invoice = await Invoice.findById(id).exec();
+  if (!invoice) return null;
+  const [user, payments] = await Promise.all([
+    User.findById(invoice.userId).exec(),
+    paymentsFor(invoice._id),
+  ]);
+  return { invoice, user, payments, outstanding: money.subtract(invoice.amountDue, invoice.amountPaid) };
+}
+
 module.exports = {
   listSchedules, createSchedule,
-  raiseInvoice, invoiceFor,
+  raiseInvoice, invoiceFor, invoiceView,
   beginPayment, recordPayment, confirmBankTransfer, waive, paymentsFor,
   handleWebhook,
   PROVIDERS,

@@ -1,0 +1,32 @@
+<% var nav = 'settings'; var pageTitle = 'Branding'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'SETTINGS'; var heading = 'Branding'; var lede = 'How this institution presents itself — its name, mark, and accent colour.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+
+<% if (saved) { %><div class="ok-note" style="margin:12px 0"><span class="badge ok">saved</span> Branding updated.</div><% } %>
+<% if (error) { %><div class="err" role="alert" style="margin:12px 0"><%= error %></div><% } %>
+
+<form method="post" action="/settings/branding" class="card" style="max-width:520px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <label for="b-name">Institution name</label>
+  <input id="b-name" name="name" type="text" value="<%= t.name %>" required>
+
+  <label for="b-wordmark" style="margin-top:12px">Wordmark <span class="quiet">(shown if no logo)</span></label>
+  <input id="b-wordmark" name="wordmark" type="text" value="<%= (t.branding && t.branding.wordmark) || '' %>" placeholder="e.g. OISS">
+
+  <label for="b-logo" style="margin-top:12px">Logo URL <span class="quiet">(optional)</span></label>
+  <input id="b-logo" name="logoUrl" type="url" value="<%= (t.branding && t.branding.logoUrl) || '' %>" placeholder="https://…/logo.png">
+
+  <label for="b-color" style="margin-top:12px">Accent colour</label>
+  <div style="display:flex;gap:10px;align-items:center">
+    <input id="b-color" name="primaryColor" type="color" value="<%= (t.branding && t.branding.primaryColor) || '#26314F' %>" style="width:52px;height:36px;padding:2px">
+    <span class="mono quiet"><%= (t.branding && t.branding.primaryColor) || '#26314F' %></span>
+  </div>
+
+  <label for="b-locales" style="margin-top:12px">Languages <span class="quiet">(comma-separated codes)</span></label>
+  <input id="b-locales" name="locales" type="text" value="<%= (t.locales || []).join(', ') %>" placeholder="en, yo">
+
+  <div style="margin-top:18px"><button class="btn" type="submit">Save branding</button></div>
+</form>
+<%- include("../layouts/foot") %>

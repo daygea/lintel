@@ -13,6 +13,10 @@ const logger = require('../../../lib/logger');
  * install still exercises onboarding without blocking on credentials. On a real
  * provider error it throws, and the dispatcher records the attempt as failed.
  *
+ * It never sends a live email in the test environment, even if real creds are
+ * present: tests use the log transport, which keeps them hermetic (no network)
+ * and prevents an accidental real send during a test run.
+ *
  * Resend was chosen for deliverability (including to Nigerian inboxes) and a
  * plain HTTP interface. A different provider (Postmark, SES) is a one-method swap
  * behind this same Channel contract.
@@ -29,9 +33,10 @@ class EmailChannel extends Channel {
   async send({ to, subject, text, html }) {
     const { resendApiKey, from, configured } = env.email;
 
-    if (!configured) {
-      // Dev transport: log the FULL body — set-password links and temp passwords
-      // live past the first line, so a preview would hide exactly what's needed.
+    if (!configured || env.isTest) {
+      // Dev/test transport: log the FULL body — set-password links and temp
+      // passwords live past the first line, so a preview would hide exactly
+      // what's needed.
       logger.info(
         { channel: 'email', to, subject, transport: 'dev' },
         `email (dev transport)\n--- to: ${to} | ${subject} ---\n${text || ''}\n---`

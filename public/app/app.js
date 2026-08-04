@@ -15,9 +15,12 @@ async function boot() {
     try { await navigator.serviceWorker.register('/sw.js'); } catch {}
   }
 
-  // Deep link to a single lesson, else the learner's home.
-  const lessonId = new URLSearchParams(location.search).get('lesson');
+  // Deep link to a single lesson or quiz, else the learner's home.
+  const params = new URLSearchParams(location.search);
+  const lessonId = params.get('lesson');
+  const quizId = params.get('quiz');
   if (lessonId) return renderLesson(lessonId);
+  if (quizId) return renderQuiz(quizId);
   return renderHome();
 }
 
@@ -68,6 +71,9 @@ function courseCard(course) {
     : `<div class="muted">No lessons yet.</div>`;
 
   const modules = (course.modules || []).map(moduleBlock).join('');
+  const quizzes = (course.quizzes || []).length
+    ? `<div class="module"><h3>Quizzes</h3><ul class="lessons">${course.quizzes.map(quizRow).join('')}</ul></div>`
+    : '';
 
   return `
     <section class="course">
@@ -77,8 +83,31 @@ function courseCard(course) {
         ${course.cohortTitle ? `<div class="muted">${pickText(course.cohortTitle)}</div>` : ''}
       </div>
       ${meter}
-      <div class="modules">${modules || '<p class="muted">No lessons yet.</p>'}</div>
+      <div class="modules">${modules || '<p class="muted">No lessons yet.</p>'}${quizzes}</div>
     </section>`;
+}
+
+function quizRow(q) {
+  const left = Math.max(0, (q.attemptsAllowed || 1) - (q.attemptsUsed || 0));
+  const meta = `<span class="muted">${q.questionCount} question${q.questionCount === 1 ? '' : 's'}</span>`;
+  if (left <= 0) {
+    return `
+      <li class="lesson is-open">
+        <span class="lesson-open" style="cursor:default">
+          <span class="thr-dot open"></span>
+          <span class="lesson-title">${pickText(q.title)}</span>
+          <span class="lesson-meta">${meta} <span class="chip done-chip">completed</span></span>
+        </span>
+      </li>`;
+  }
+  return `
+    <li class="lesson is-open">
+      <a class="lesson-open" href="?quiz=${q.id}">
+        <span class="thr-dot open"></span>
+        <span class="lesson-title">${pickText(q.title)}</span>
+        <span class="lesson-meta">${meta} <span class="chip open-chip">${left} attempt${left === 1 ? '' : 's'} left</span></span>
+      </a>
+    </li>`;
 }
 
 function moduleBlock(mod) {
@@ -137,6 +166,121 @@ function wireHome() {
       if (!open && !note.textContent) note.textContent = li.dataset.heldMsg || 'This teaching is held until your standing is attested.';
     });
   });
+}
+
+/* --------------------------------------------------------------------- quiz */
+
+async function renderQuiz(quizId) {
+  root.innerHTML = `<p class="muted">Loading quiz…</p>`;
+  let data;
+  try {
+    const res = await fetch(`/api/v1/quizzes/${quizId}/present`, { headers: { Accept: 'application/json' } });
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    if (!res.ok) throw new Error('unavailable');
+    data = await res.json();
+  } catch {
+    root.innerHTML = backLink() + `<div class="err">This quiz isn't available.</div>`;
+    return;
+  }
+  if (data.csrfToken) { STATE.csrf = data.csrfToken; setCsrfMeta(data.csrfToken); }
+
+  const questions = data.questions || [];
+  const body = questions.map((q, i) => renderQuestion(q, i)).join('');
+  root.innerHTML = backLink() +
+    `<h1>${pickText(data.title)}</h1>
+     <div id="quiz-questions">${body || '<p class="muted">This quiz has no questions.</p>'}</div>
+     <div class="card"><button class="btn" id="quiz-submit">Submit answers</button>
+       <span id="quiz-msg" class="muted" style="margin-left:10px"></span></div>`;
+
+  document.getElementById('quiz-submit').addEventListener('click', () => submitQuiz(quizId, questions));
+}
+
+function renderQuestion(q, i) {
+  const prompt = `<div class="q-prompt"><span class="q-num">${i + 1}.</span> ${pickRaw(q.prompt)} <span class="muted">(${q.points} pt${q.points === 1 ? '' : 's'})</span></div>`;
+  let field = '';
+
+  if (q.type === 'mcq' || q.type === 'multi') {
+    const input = q.type === 'mcq' ? 'radio' : 'checkbox';
+    field = (q.options || []).map((o) =>
+      `<label class="q-opt"><input type="${input}" name="q_${q.id}" value="${o.id}"> ${pickText(o.text)}</label>`
+    ).join('');
+  } else if (q.type === 'matching') {
+    field = (q.lefts || []).map((l) =>
+      `<div class="q-match"><span class="q-left">${escapeHtml(l)}</span>
+        <select data-match="${escapeAttr(l)}" name="q_${q.id}">
+          <option value="">—</option>
+          ${(q.rights || []).map((r) => `<option value="${escapeAttr(r)}">${escapeHtml(r)}</option>`).join('')}
+        </select></div>`
+    ).join('');
+  } else if (q.type === 'numeric') {
+    field = `<input class="q-text" type="number" step="any" name="q_${q.id}">`;
+  } else if (q.type === 'essay') {
+    field = `<textarea class="q-text" name="q_${q.id}" rows="5" placeholder="Your answer"></textarea>`;
+  } else {
+    // short / cloze
+    field = `<input class="q-text" type="text" name="q_${q.id}" placeholder="Your answer">`;
+  }
+
+  return `<div class="card q-block" data-qid="${q.id}" data-qtype="${q.type}">${prompt}<div class="q-field">${field}</div></div>`;
+}
+
+// Gather each question's response in the shape submit() expects, then POST.
+async function submitQuiz(quizId, questions) {
+  const responses = {};
+  for (const q of questions) {
+    const block = root.querySelector(`.q-block[data-qid="${q.id}"]`);
+    if (!block) continue;
+    if (q.type === 'mcq') {
+      const sel = block.querySelector('input:checked');
+      responses[q.id] = sel ? sel.value : '';
+    } else if (q.type === 'multi') {
+      responses[q.id] = [...block.querySelectorAll('input:checked')].map((el) => el.value);
+    } else if (q.type === 'matching') {
+      const map = {};
+      block.querySelectorAll('select[data-match]').forEach((s) => { if (s.value) map[s.dataset.match] = s.value; });
+      responses[q.id] = map;
+    } else if (q.type === 'numeric') {
+      const v = block.querySelector('input').value;
+      responses[q.id] = v === '' ? '' : Number(v);
+    } else {
+      responses[q.id] = block.querySelector('input, textarea').value;
+    }
+  }
+
+  const btn = document.getElementById('quiz-submit');
+  const msg = document.getElementById('quiz-msg');
+  btn.disabled = true;
+  msg.textContent = 'Submitting…';
+  try {
+    const res = await fetch(`/api/v1/quizzes/${quizId}/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...csrfHeader() },
+      body: JSON.stringify({ responses }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || err.message || 'Could not submit');
+    }
+    const { attempt } = await res.json();
+    renderQuizResult(attempt);
+  } catch (e) {
+    btn.disabled = false;
+    msg.textContent = e.message;
+  }
+}
+
+function renderQuizResult(attempt) {
+  const pct = attempt.maxScore ? Math.round((attempt.autoScore / attempt.maxScore) * 100) : 0;
+  const manual = attempt.needsManualMarking
+    ? `<p class="muted">Some answers (written responses) will be marked by an assessor — this score is provisional.</p>`
+    : '';
+  root.innerHTML = backLink() + `
+    <div class="card">
+      <h1 style="margin-top:0">Submitted</h1>
+      <p style="font-size:22px;margin:6px 0"><strong>${attempt.autoScore} / ${attempt.maxScore}</strong> <span class="muted">(${pct}%)</span></p>
+      ${manual}
+      <a class="btn ghost" href="/app/" style="margin-top:8px">Back to your learning</a>
+    </div>`;
 }
 
 /* ------------------------------------------------------------------- lesson */

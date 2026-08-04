@@ -1,0 +1,38 @@
+<% var nav = 'report'; var pageTitle = 'Report a concern'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'SAFETY'; var heading = 'Report a concern'; var lede = 'Tell the platform team about content or behaviour that may break the rules. Reports go to platform staff, not your institution\'s admins.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+
+<% if (sent) { %>
+  <div class="ok-note" style="margin:12px 0"><span class="badge ok">received</span> Thank you — your report has been sent to the platform team.</div>
+<% } %>
+<% if (error) { %><div class="err" role="alert" style="margin:12px 0"><%= error %></div><% } %>
+
+<form method="post" action="/report" class="card" style="max-width:520px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <label for="r-what">What are you reporting?</label>
+  <select id="r-what" name="subjectType">
+    <option value="resource">A lesson, file, or piece of content</option>
+    <option value="user">A person</option>
+    <option value="tenant">This institution</option>
+  </select>
+
+  <label for="r-cat" style="margin-top:12px">Category</label>
+  <select id="r-cat" name="category">
+    <option value="illegal_content">Illegal content</option>
+    <option value="harassment">Harassment or abuse</option>
+    <option value="compromised_account">A compromised account</option>
+    <option value="spam">Spam</option>
+    <option value="other">Something else</option>
+  </select>
+
+  <label for="r-ref" style="margin-top:12px">Where is it? <span class="quiet">(a link, title, or description)</span></label>
+  <input id="r-ref" name="subjectRef" type="text" placeholder="e.g. the lesson &quot;Week 3&quot; or a URL">
+
+  <label for="r-detail" style="margin-top:12px">Details</label>
+  <textarea id="r-detail" name="detail" rows="5" placeholder="What happened, and anything that would help us look into it."></textarea>
+
+  <div style="margin-top:18px"><button class="btn" type="submit">Send report</button></div>
+</form>
+<%- include("../layouts/foot") %>

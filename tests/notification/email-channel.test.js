@@ -1,17 +1,25 @@
 'use strict';
 
 /**
- * Email channel transport. Reads creds at send time, so:
- *   - no creds  → dev log transport, provider never called
- *   - creds set → POSTs to Resend with the right payload, returns its ref
- *   - provider error → throws, so notify() records the attempt as failed
+ * Email channel transport. Reads creds at send time. In the test environment it
+ * uses the log transport by default (hermetic — see email.js); these tests flip
+ * env.isTest off within this file so the live-send path can be exercised against
+ * a stubbed fetch, never the network.
  */
 
 const { EmailChannel } = require('../../src/services/notification/channels/email');
+const env = require('../../src/config/env');
 
 const channel = new EmailChannel();
+let realIsTest;
+
+beforeEach(() => {
+  realIsTest = env.isTest;
+  env.isTest = false;
+});
 
 afterEach(() => {
+  env.isTest = realIsTest;
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
@@ -55,4 +63,17 @@ it('throws on a non-2xx so the dispatcher records failure', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 422, text: async () => 'unverified from' })));
 
   await expect(channel.send({ to: 'a@x.io', subject: 'Hi', text: 'b' })).rejects.toThrow(/422/);
+});
+
+it('uses the log transport in the test environment even with live creds', async () => {
+  env.isTest = true;
+  vi.stubEnv('RESEND_API_KEY', 'live-key');
+  vi.stubEnv('EMAIL_FROM', 'Real <no-reply@real.test>');
+  const fetchSpy = vi.fn();
+  vi.stubGlobal('fetch', fetchSpy);
+
+  const out = await channel.send({ to: 'a@x.io', subject: 'Hi', text: 'b' });
+
+  expect(fetchSpy).not.toHaveBeenCalled();
+  expect(out.providerRef).toMatch(/^dev-/);
 });

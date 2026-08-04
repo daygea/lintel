@@ -4,6 +4,7 @@
 const CHECKERS = [
   ['tenant-guard', require('./check-tenant-guard')],
   ['tenant-indexes', require('./check-tenant-indexes')],
+  ['sparse-compound', require('./check-sparse-compound')],
   ['append-only', require('./check-append-only')],
   ['no-tenant-terms', require('./check-no-tenant-terms')],
   ['money', require('./check-money')],

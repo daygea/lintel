@@ -14,6 +14,7 @@ const QuizAttemptSchema = new Schema(
     autoScore: Number,
     maxScore: Number,
     needsManualMarking: { type: Boolean, default: false }, // essay present
+    manualMarks: Schema.Types.Mixed, // { questionId: points } — assessor's marks for essays
 
     startedAt: { type: Date, default: Date.now },
     submittedAt: Date,

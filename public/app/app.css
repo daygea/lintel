@@ -68,3 +68,15 @@ ul.lessons{list-style:none;margin:0;padding:0}
 .player img{width:100%;display:block}
 .player.pdf{background:var(--paper)}
 .player.pdf iframe{width:100%;height:72vh;border:0;display:block;background:#fff}
+
+/* --- Quiz taking --- */
+.q-block{padding:14px 16px}
+.q-prompt{font-size:15px;line-height:1.5;margin-bottom:10px}
+.q-num{color:var(--muted);font-weight:600;margin-right:2px}
+.q-field{display:flex;flex-direction:column;gap:8px}
+.q-opt{display:flex;align-items:flex-start;gap:8px;font-size:14px;padding:6px 0;cursor:pointer}
+.q-opt input{margin-top:3px}
+.q-text{width:100%;padding:8px 10px;border:1px solid var(--rule);border-radius:3px;font:inherit;box-sizing:border-box}
+.q-match{display:flex;align-items:center;gap:10px;margin:4px 0}
+.q-left{flex:1;font-size:14px}
+.q-match select{padding:6px 8px}

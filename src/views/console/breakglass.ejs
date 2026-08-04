@@ -21,6 +21,7 @@
       </td>
       <td style="text-align:right">
         <% if (active) { %>
+          <a class="btn small" href="/console/breakglass/<%= g._id %>/read" style="margin-right:6px">Read content</a>
           <form method="post" action="/console/breakglass/<%= g._id %>/revoke" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn ghost small" type="submit">Revoke</button></form>
         <% } %>
       </td>

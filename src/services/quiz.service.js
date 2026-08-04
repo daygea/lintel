@@ -12,6 +12,84 @@ async function createQuiz(data) {
   return Quiz.create(data);
 }
 
+const toArray = (v) => (Array.isArray(v) ? v : v == null || v === '' ? [] : [v]);
+
+/**
+ * Normalise a raw form/question payload into a QuestionSchema subdocument, per
+ * type — validating here (once), never in a controller. Writes exactly the
+ * fields mark() reads: options[].correct (by _id), numericAnswer+tolerance,
+ * answers+caseSensitive, pairs.
+ */
+function buildQuestion(raw) {
+  const type = raw.type;
+  const prompt = String(raw.prompt || '').trim();
+  if (!prompt) throw new ValidationError('A question needs a prompt');
+  const q = { type, prompt: { en: prompt }, points: Number(raw.points) > 0 ? Number(raw.points) : 1 };
+
+  if (type === 'mcq' || type === 'multi') {
+    const texts = toArray(raw.optionText).map((t) => String(t).trim());
+    const correct = (type === 'mcq' ? [String(raw.correct)] : toArray(raw.correct).map(String));
+    q.options = texts
+      .map((t, i) => ({ text: { en: t }, correct: correct.includes(String(i)) }))
+      .filter((o) => o.text.en);
+    if (q.options.length < 2) throw new ValidationError('Add at least two options');
+    if (!q.options.some((o) => o.correct)) throw new ValidationError('Mark at least one correct option');
+  } else if (type === 'matching') {
+    const lefts = toArray(raw.left).map((s) => String(s).trim());
+    const rights = toArray(raw.right).map((s) => String(s).trim());
+    q.pairs = lefts.map((left, i) => ({ left, right: rights[i] || '' })).filter((p) => p.left && p.right);
+    if (!q.pairs.length) throw new ValidationError('Add at least one complete pair');
+  } else if (type === 'cloze' || type === 'short') {
+    q.answers = String(raw.answers || '').split('\n').map((s) => s.trim()).filter(Boolean);
+    q.caseSensitive = raw.caseSensitive === 'on' || raw.caseSensitive === 'true';
+    if (!q.answers.length) throw new ValidationError('Add at least one accepted answer');
+  } else if (type === 'numeric') {
+    q.numericAnswer = Number(raw.numericAnswer);
+    q.tolerance = Number(raw.tolerance) || 0;
+    if (Number.isNaN(q.numericAnswer)) throw new ValidationError('Enter the numeric answer');
+  } else if (type !== 'essay') {
+    throw new ValidationError('Unknown question type');
+  }
+  return q;
+}
+
+async function addQuestion(quizId, raw) {
+  const quiz = await Quiz.findById(quizId).exec();
+  if (!quiz) throw new ValidationError('No such quiz');
+  quiz.questions.push(buildQuestion(raw));
+  await quiz.save();
+  await AuditLog.create({
+    actorUserId: currentUserId(), action: 'quiz.question_added',
+    subjectType: 'Quiz', subjectId: quiz._id, meta: { type: raw.type },
+  });
+  return quiz;
+}
+
+async function removeQuestion(quizId, questionId) {
+  const quiz = await Quiz.findById(quizId).exec();
+  if (!quiz) throw new ValidationError('No such quiz');
+  quiz.questions = quiz.questions.filter((q) => String(q._id) !== String(questionId));
+  await quiz.save();
+  return quiz;
+}
+
+/** Open / close / return-to-draft. A quiz can't be OPENED with no questions. */
+async function setStatus(quizId, status) {
+  if (!['draft', 'open', 'closed'].includes(status)) throw new ValidationError('Invalid status');
+  const quiz = await Quiz.findById(quizId).exec();
+  if (!quiz) throw new ValidationError('No such quiz');
+  if (status === 'open' && !quiz.questions.length) {
+    throw new ValidationError('Add at least one question before opening the quiz');
+  }
+  quiz.status = status;
+  await quiz.save();
+  await AuditLog.create({
+    actorUserId: currentUserId(), action: 'quiz.status_changed',
+    subjectType: 'Quiz', subjectId: quiz._id, meta: { status },
+  });
+  return quiz;
+}
+
 /**
  * Present a quiz to a learner: draw the pool, shuffle if asked, and STRIP the
  * answers before it leaves the server. A quiz whose correct answers travel to the
@@ -75,6 +153,15 @@ async function submit({ quizId, userId, responses }) {
     subjectId: attempt._id,
     meta: { autoScore, maxScore, needsManual },
   });
+
+  // Roll the result into the course gradebook — best-effort, so a gradebook
+  // hiccup never fails a submission the learner has already made. Lazy require
+  // keeps the dependency one-way (gradebook doesn't know about quizzes).
+  try {
+    await require('./gradebook.service').recordQuizScore({ quiz, userId });
+  } catch (err) {
+    require('../lib/logger').warn({ quizId: String(quizId), err: err.message }, 'quiz gradebook roll-up failed');
+  }
 
   return attempt;
 }
@@ -145,4 +232,64 @@ function shuffle(arr) {
   return a;
 }
 
-module.exports = { listQuizzes, getQuiz, createQuiz, presentFor, submit, mark };
+/* ------------------------------------------------------------- manual marking */
+
+const essayTotal = (marks) => Object.values(marks || {}).reduce((s, v) => s + (Number(v) || 0), 0);
+
+/** Attempts on this quiz that still need an assessor to mark a written answer. */
+function listAttemptsToMark(quizId) {
+  return QuizAttempt.find({ quizId, needsManualMarking: true, status: 'submitted' })
+    .populate('userId', 'name email').sort({ submittedAt: 1 }).exec();
+}
+
+/** One attempt plus its quiz, for the marking screen. */
+async function getAttemptForMarking(attemptId) {
+  const attempt = await QuizAttempt.findById(attemptId).populate('userId', 'name email').exec();
+  if (!attempt) return null;
+  const quiz = await Quiz.findById(attempt.quizId).exec();
+  return { attempt, quiz };
+}
+
+/**
+ * Record an assessor's marks for an attempt's essay questions, finalise it, and
+ * roll the result into the gradebook. Points are clamped to each question's max.
+ * autoScore (the auto portion) is left untouched; essay marks live in manualMarks,
+ * so re-marking replaces rather than double-counts.
+ */
+async function markEssays(attemptId, rawMarks) {
+  const attempt = await QuizAttempt.findById(attemptId).exec();
+  if (!attempt) throw new ValidationError('No such attempt');
+  const quiz = await Quiz.findById(attempt.quizId).exec();
+  if (!quiz) throw new ValidationError('No such quiz');
+
+  const marks = {};
+  for (const q of quiz.questions) {
+    if (q.type !== 'essay') continue;
+    const raw = Number(rawMarks?.[String(q._id)]);
+    marks[String(q._id)] = Number.isFinite(raw) ? Math.min(Math.max(raw, 0), q.points || 1) : 0;
+  }
+
+  attempt.manualMarks = marks;
+  attempt.needsManualMarking = false;
+  attempt.status = 'marked';
+  await attempt.save();
+
+  await AuditLog.create({
+    actorUserId: currentUserId(), action: 'quiz.marked',
+    subjectType: 'QuizAttempt', subjectId: attempt._id,
+    meta: { manualTotal: essayTotal(marks) },
+  });
+
+  try {
+    await require('./gradebook.service').recordQuizScore({ quiz, userId: attempt.userId });
+  } catch (err) {
+    require('../lib/logger').warn({ attemptId: String(attempt._id), err: err.message }, 'quiz gradebook roll-up failed');
+  }
+
+  return attempt;
+}
+
+module.exports = {
+  listQuizzes, getQuiz, createQuiz, buildQuestion, addQuestion, removeQuestion, setStatus,
+  presentFor, submit, mark, listAttemptsToMark, getAttemptForMarking, markEssays,
+};

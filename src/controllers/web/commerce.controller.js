@@ -58,3 +58,44 @@ exports.recordPayment = h(async (req, res) => {
   });
   res.redirect('/fees');
 });
+
+/* --------------------------------------------------------------------- invoices */
+
+exports.raiseInvoice = h(async (req, res) => {
+  const invoice = await commerce.raiseInvoice({
+    enrollmentId: req.body.enrollmentId,
+    feeScheduleId: req.body.feeScheduleId,
+  });
+  res.redirect(`/invoices/${invoice._id}`);
+});
+
+exports.showInvoice = h(async (req, res) => {
+  const view = await commerce.invoiceView(req.params.id);
+  if (!view) return res.status(404).render('error', { status: 404, message: 'Invoice not found' });
+  res.render('commerce/invoice', {
+    ...view, format, currencies: SUPPORTED, pick,
+    online: commerce.PROVIDERS.paystack.isConfigured(),
+    error: null,
+  });
+});
+
+exports.recordInvoicePayment = h(async (req, res) => {
+  const currency = (req.body.currency || 'NGN').toUpperCase();
+  await commerce.recordPayment({
+    invoiceId: req.params.id,
+    amount: { amount: toMinor(req.body.amount), currency },
+    method: req.body.method === 'cash' ? 'cash' : 'bank_transfer',
+    note: req.body.note || undefined,
+  });
+  res.redirect(`/invoices/${req.params.id}`);
+});
+
+exports.payInvoice = h(async (req, res) => {
+  const { authorizationUrl } = await commerce.beginPayment({ invoiceId: req.params.id });
+  res.redirect(authorizationUrl); // Paystack checkout (or a dev stub URL when unconfigured)
+});
+
+exports.waiveInvoice = h(async (req, res) => {
+  await commerce.waive({ invoiceId: req.params.id, reason: req.body.reason || 'Waived' });
+  res.redirect(`/invoices/${req.params.id}`);
+});

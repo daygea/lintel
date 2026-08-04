@@ -7,6 +7,7 @@
   <% if (tree.course.visibility === 'private') { %><span class="badge held" style="margin-left:6px">held</span>
   <% } else { %><span class="badge open" style="margin-left:6px"><%= tree.course.visibility %></span><% } %>
   <span class="quiet mono" style="margin-left:10px;font-size:12px">v<%= tree.course.version || 1 %> · <%= tree.course.session || 'no session' %></span>
+  <a class="btn ghost small" href="/courses/<%= tree.course._id %>/quizzes" style="margin-left:10px">Quizzes</a>
 </div>
 
 <div class="section">

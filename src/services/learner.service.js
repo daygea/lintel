@@ -2,6 +2,7 @@
 
 const { Lesson, ContentBlock, ContentPolicy, Asset } = require('../models');
 const { Course, Module, Enrollment, Cohort, LessonProgress } = require('../models');
+const { Quiz, QuizAttempt } = require('../models');
 const { canAccessLesson, previewAccess } = require('./eligibility.service');
 const storage = require('../lib/storage');
 const { accessUrl } = require('./archive.service');
@@ -59,6 +60,22 @@ async function myLearning({ userId, locale = 'en' }) {
     const moduleList = [...buckets.values()].filter((m) => m.lessons.length);
     if (ungrouped.lessons.length) moduleList.push(ungrouped);
 
+    // Open quizzes for this course, with how many attempts the learner has left.
+    // Discovery only — presentFor still strips answers, submit still marks.
+    const quizDocs = await Quiz.find({ courseId: course._id, status: 'open' }).sort({ createdAt: 1 }).exec();
+    const quizzes = [];
+    for (const qz of quizDocs) {
+      const attemptsUsed = await QuizAttempt.countDocuments({ quizId: qz._id, userId: uid }).exec();
+      quizzes.push({
+        id: qz._id,
+        title: qz.title,
+        questionCount: qz.questions.length,
+        attemptsAllowed: qz.attemptsAllowed,
+        attemptsUsed,
+        passPercent: qz.passPercent,
+      });
+    }
+
     courses.push({
       id: course._id,
       enrollmentId: enr._id,
@@ -68,6 +85,7 @@ async function myLearning({ userId, locale = 'en' }) {
       lessonCount: lessons.length,
       openCount,
       modules: moduleList,
+      quizzes,
     });
   }
 

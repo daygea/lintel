@@ -1,0 +1,30 @@
+<% var nav = 'security'; var pageTitle = 'Set up two-factor'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'SECURITY'; var heading = 'Set up two-factor'; var lede = 'Add this account to your authenticator app, then enter the 6-digit code it shows to confirm.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+
+<p style="margin-top:-8px"><a class="back" href="/security">← Security</a></p>
+<% if (error) { %><div class="err" role="alert" style="margin:12px 0"><%= error %></div><% } %>
+
+<div class="card" style="max-width:560px">
+  <h2 style="margin-top:0">1. Add to your app</h2>
+  <p class="quiet" style="font-size:13px">In Google Authenticator, 1Password, Authy, or similar, add an account and enter this key (or paste the setup link).</p>
+  <label>Setup key</label>
+  <div class="mono" style="font-size:18px;letter-spacing:2px;background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:10px 12px;word-break:break-all"><%= secret %></div>
+  <details style="margin-top:10px">
+    <summary class="quiet" style="font-size:13px;cursor:pointer">Setup link (otpauth://)</summary>
+    <div class="mono" style="font-size:12px;word-break:break-all;margin-top:6px;color:var(--muted)"><%= uri %></div>
+  </details>
+
+  <h2 style="margin-top:22px">2. Confirm</h2>
+  <form method="post" action="/security/mfa/confirm">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="secret" value="<%= secret %>">
+    <input type="hidden" name="uri" value="<%= uri %>">
+    <label for="mfa-token">6-digit code</label>
+    <input id="mfa-token" name="token" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" required
+      style="width:160px;font-size:18px;letter-spacing:3px" placeholder="000000">
+    <div style="margin-top:14px"><button class="btn" type="submit">Turn on two-factor</button></div>
+  </form>
+</div>
+<%- include("../layouts/foot") %>

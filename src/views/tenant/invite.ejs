@@ -1,0 +1,44 @@
+<% var nav = 'members'; var pageTitle = 'Invite a member'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<%
+  var eyebrow = 'PEOPLE';
+  var heading = 'Invite a member';
+  var lede = 'Send someone a set-password link and a place at this institution.';
+%>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+
+<div class="card" style="max-width:520px">
+  <% if (sent) { %>
+    <div class="thr is-open" style="padding:10px 0 10px 16px;margin-bottom:16px">
+      <span class="badge ok">sent</span>
+      <span class="quiet" style="font-size:13px;margin-left:8px">Invitation sent to <strong><%= sent %></strong>. They'll receive a link to set a password and sign in.</span>
+    </div>
+  <% } %>
+  <% if (error) { %>
+    <div class="err" role="alert" style="margin-bottom:14px"><%= error %></div>
+  <% } %>
+
+  <form method="post" action="/members/invite">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <label for="inv-email">Email</label>
+    <input id="inv-email" name="email" type="email" required placeholder="person@example.com" autocomplete="off">
+
+    <label for="inv-name" style="margin-top:12px">Name <span class="quiet">(optional)</span></label>
+    <input id="inv-name" name="name" type="text" placeholder="Their name">
+
+    <label for="inv-role" style="margin-top:12px">Role</label>
+    <select id="inv-role" name="role">
+      <% roles.forEach(function (r) { %>
+        <option value="<%= r %>"<%= r === 'learner' ? ' selected' : '' %>><%= labels[r] || r %></option>
+      <% }); %>
+    </select>
+
+    <div style="margin-top:18px">
+      <button class="btn" type="submit">Send invitation</button>
+      <a class="btn ghost" href="/" style="margin-left:8px">Back to overview</a>
+    </div>
+  </form>
+  <p class="quiet" style="font-size:12px;margin-top:14px">The person is granted their place immediately and can sign in once they set a password from the emailed link. If email isn't configured yet, the link is written to the server log.</p>
+</div>
+<%- include("../layouts/foot") %>

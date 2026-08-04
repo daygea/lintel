@@ -40,7 +40,14 @@ const CohortSchema = new Schema(
 
 CohortSchema.plugin(tenantGuard);
 CohortSchema.plugin(localeMap, { paths: ['title'] });
-CohortSchema.index({ tenantId: 1, code: 1 }, { unique: true, sparse: true });
+// Unique per tenant, but only for cohorts that actually carry a code. A partial
+// index, NOT sparse: a compound sparse index still indexes rows missing `code`
+// (tenantId is always present), so two code-less cohorts would collide on
+// {tenant, null}. partialFilterExpression scopes uniqueness to real codes.
+CohortSchema.index(
+  { tenantId: 1, code: 1 },
+  { unique: true, partialFilterExpression: { code: { $type: 'string' } } }
+);
 
 CohortSchema.index({ tenantId: 1, session: 1 });
 CohortSchema.index({ tenantId: 1, status: 1 });

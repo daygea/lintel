@@ -1,0 +1,76 @@
+<% var nav = 'fees'; var pageTitle = 'Invoice'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'INVOICE'; var heading = user && user.name ? user.name : 'Invoice'; var lede = 'What is owed against this enrolment, and how it has been paid. A payment is a permanent record; a waiver is a decision, not an edit.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+
+<% if (error) { %><div class="err" role="alert" style="margin:12px 0"><%= error %></div><% } %>
+
+<div class="card">
+  <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:baseline">
+    <div><div class="quiet" style="font-size:12px">DUE</div><div style="font-size:20px"><%= format(invoice.amountDue) %></div></div>
+    <div><div class="quiet" style="font-size:12px">PAID</div><div style="font-size:20px"><%= format(invoice.amountPaid) %></div></div>
+    <div><div class="quiet" style="font-size:12px">OUTSTANDING</div><div style="font-size:20px"><strong><%= format(outstanding) %></strong></div></div>
+    <div style="margin-left:auto">
+      <% if (invoice.state==='full') { %><span class="badge ok">paid in full</span>
+      <% } else if (invoice.state==='waived') { %><span class="badge open">waived</span>
+      <% } else if (invoice.state==='overdue') { %><span class="badge held">overdue</span>
+      <% } else { %><span class="badge held"><%= invoice.state %></span><% } %>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:22px">
+  <h2>Payments</h2>
+  <table class="table">
+    <thead><tr><th>When</th><th>Amount</th><th>Method</th><th>Note</th></tr></thead>
+    <tbody>
+    <% (payments||[]).forEach(function (p) { %>
+      <tr>
+        <td class="quiet"><%= new Date(p.at).toLocaleDateString() %></td>
+        <td><%= format(p.amount) %></td>
+        <td><span class="badge flat"><%= p.method %></span></td>
+        <td class="quiet"><%= p.note || '' %></td>
+      </tr>
+    <% }); %>
+    <% if (!(payments||[]).length) { %><tr class="empty"><td colspan="4">No payments recorded yet.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+
+<% if (invoice.state !== 'full' && invoice.state !== 'waived') { %>
+  <div class="section" style="margin-top:22px;display:flex;gap:28px;flex-wrap:wrap">
+    <div style="flex:1;min-width:280px">
+      <h2>Record a payment</h2>
+      <p class="quiet" style="font-size:13px;margin-top:-4px">For bank transfers or cash confirmed by a registrar.</p>
+      <form method="post" action="/invoices/<%= invoice._id %>/payments" style="max-width:360px">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="currency" value="<%= invoice.amountDue.currency %>">
+        <label for="pay-amt">Amount (<%= invoice.amountDue.currency %>)</label>
+        <input id="pay-amt" name="amount" type="number" step="0.01" min="0" required placeholder="0.00">
+        <label for="pay-method" style="margin-top:10px">Method</label>
+        <select id="pay-method" name="method"><option value="bank_transfer">Bank transfer</option><option value="cash">Cash</option></select>
+        <label for="pay-note" style="margin-top:10px">Note <span class="quiet">(optional)</span></label>
+        <input id="pay-note" name="note" type="text" placeholder="e.g. teller no.">
+        <div style="margin-top:14px"><button class="btn" type="submit">Record payment</button></div>
+      </form>
+    </div>
+
+    <div style="flex:1;min-width:280px">
+      <h2>Collect online</h2>
+      <p class="quiet" style="font-size:13px;margin-top:-4px">Generate a Paystack checkout for the outstanding <%= format(outstanding) %>.<% if (!online) { %> <strong>Test mode</strong> — Paystack isn't configured, so this opens a stub link.<% } %></p>
+      <form method="post" action="/invoices/<%= invoice._id %>/pay">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn<%= online ? '' : ' ghost' %>" type="submit">Pay online</button>
+      </form>
+
+      <h2 style="margin-top:22px">Waive</h2>
+      <form method="post" action="/invoices/<%= invoice._id %>/waive" style="max-width:360px">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label for="waive-reason">Reason</label>
+        <input id="waive-reason" name="reason" type="text" required placeholder="Why this is waived">
+        <div style="margin-top:10px"><button class="btn ghost" type="submit">Waive outstanding</button></div>
+      </form>
+    </div>
+  </div>
+<% } %>
+<%- include("../layouts/foot") %>

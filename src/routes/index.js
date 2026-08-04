@@ -4,6 +4,11 @@ const express = require('express');
 
 const webAuth = require('../controllers/web/auth.controller');
 const webTenant = require('../controllers/web/tenant.controller');
+const webInvite = require('../controllers/web/invite.controller');
+const webSecurity = require('../controllers/web/security.controller');
+const webSettings = require('../controllers/web/settings.controller');
+const webReport = require('../controllers/web/report.controller');
+const apiInvite = require('../controllers/api/invite.controller');
 const webCurriculum = require('../controllers/web/curriculum.controller');
 
 const apiAuth = require('../controllers/api/auth.controller');
@@ -20,6 +25,7 @@ const apiAssessment = require('../controllers/api/assessment.controller');
 const webAssessment = require('../controllers/web/assessment.controller');
 const apiGradebook = require('../controllers/api/gradebook.controller');
 const webGradebook = require('../controllers/web/gradebook.controller');
+const webQuiz = require('../controllers/web/quiz.controller');
 const apiCommerce = require('../controllers/api/commerce.controller');
 const apiCredential = require('../controllers/api/credential.controller');
 const webCredential = require('../controllers/web/credential.controller');
@@ -58,6 +64,17 @@ router.get('/', requireUser, requireMember, webTenant.dashboard);
 router.get('/api/v1/members', ...staff, apiMembership.list);
 router.post('/members/:id/admit', ...staff, webTenant.admit);
 router.post('/api/v1/members/:id/admit', ...staff, apiMembership.admit);
+router.get('/members/invite', ...staff, webInvite.showInvite);
+router.post('/members/invite', ...staff, webInvite.submitInvite);
+router.post('/api/v1/members/invite', ...staff, apiInvite.invite);
+router.get('/security', requireUser, webSecurity.show);
+router.post('/security/mfa/begin', requireUser, webSecurity.beginMfa);
+router.post('/security/mfa/confirm', requireUser, webSecurity.confirmMfa);
+router.post('/security/mfa/disable', requireUser, webSecurity.disableMfa);
+router.get('/settings/branding', ...staff, webSettings.showBranding);
+router.post('/settings/branding', ...staff, webSettings.saveBranding);
+router.get('/report', requireUser, requireMember, webReport.show);
+router.post('/report', requireUser, requireMember, webReport.submit);
 router.patch(
   '/api/v1/members/:id/roles',
   requireUser,
@@ -77,6 +94,15 @@ router.post('/courses/:id/lessons', ...author, webCurriculum.createLesson);
 router.get('/courses/:id/lessons/:lessonId', ...author, webCurriculum.showLesson);
 router.post('/courses/:id/lessons/:lessonId/blocks', ...author, webCurriculum.createBlock);
 router.post('/courses/:id/lessons/:lessonId/policy', ...author, webCurriculum.setLessonPolicy);
+router.get('/courses/:id/quizzes', ...assessor, webQuiz.list);
+router.post('/courses/:id/quizzes', ...assessor, webQuiz.create);
+router.get('/courses/:id/quizzes/:quizId', ...assessor, webQuiz.edit);
+router.post('/courses/:id/quizzes/:quizId/questions', ...assessor, webQuiz.addQuestion);
+router.post('/courses/:id/quizzes/:quizId/questions/:qid/delete', ...assessor, webQuiz.removeQuestion);
+router.post('/courses/:id/quizzes/:quizId/status', ...assessor, webQuiz.setStatus);
+router.get('/courses/:id/quizzes/:quizId/marking', ...assessor, webQuiz.marking);
+router.get('/courses/:id/quizzes/:quizId/attempts/:attemptId', ...assessor, webQuiz.markAttempt);
+router.post('/courses/:id/quizzes/:quizId/attempts/:attemptId/mark', ...assessor, webQuiz.submitMarking);
 
 router.get('/api/v1/programs', ...author, apiCurriculum.listPrograms);
 router.post('/api/v1/programs', ...author, apiCurriculum.createProgram);
@@ -232,6 +258,11 @@ router.post('/api/v1/quizzes/:id/submit', requireUser, requireMember, apiGradebo
 router.get('/fees', ...staff, webCommerce.fees);
 router.post('/fees/schedules', ...staff, webCommerce.createSchedule);
 router.post('/fees/payments', ...staff, webCommerce.recordPayment);
+router.post('/invoices', ...staff, webCommerce.raiseInvoice);
+router.get('/invoices/:id', ...staff, webCommerce.showInvoice);
+router.post('/invoices/:id/payments', ...staff, webCommerce.recordInvoicePayment);
+router.post('/invoices/:id/pay', ...staff, webCommerce.payInvoice);
+router.post('/invoices/:id/waive', ...staff, webCommerce.waiveInvoice);
 
 router.get('/api/v1/fee-schedules', ...staff, apiCommerce.listSchedules);
 router.post('/api/v1/fee-schedules', ...staff, apiCommerce.createSchedule);

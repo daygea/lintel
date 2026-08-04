@@ -1,0 +1,47 @@
+<% var nav = 'courses'; var pageTitle = 'Quizzes'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'COURSE'; var heading = 'Quizzes'; var lede = 'Build quizzes for this course. A quiz is a draft until you open it — only open quizzes appear to enrolled learners.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+
+<p style="margin-top:-8px"><a class="back" href="/courses/<%= courseId %>">← <%= course ? pick(course.title, 'en') : 'Course' %></a></p>
+
+<div class="section" style="margin-top:18px">
+  <h2>Quizzes</h2>
+  <table class="table">
+    <thead><tr><th>Title</th><th>Status</th><th>Questions</th><th>Pass</th><th></th></tr></thead>
+    <tbody>
+    <% (quizzes||[]).forEach(function (q) { %>
+      <tr>
+        <td><%= pick(q.title, 'en') %></td>
+        <td>
+          <% if (q.status === 'open') { %><span class="badge ok">open</span>
+          <% } else if (q.status === 'closed') { %><span class="badge">closed</span>
+          <% } else { %><span class="badge held">draft</span><% } %>
+        </td>
+        <td><%= (q.questions||[]).length %></td>
+        <td><%= q.passPercent %>%</td>
+        <td style="text-align:right"><a class="btn ghost small" href="/courses/<%= courseId %>/quizzes/<%= q._id %>">Edit</a></td>
+      </tr>
+    <% }); %>
+    <% if (!(quizzes||[]).length) { %><tr class="empty"><td colspan="5">No quizzes yet.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+
+<div class="section" style="margin-top:22px">
+  <h2>New quiz</h2>
+  <% if (error) { %><div class="err" role="alert" style="margin-bottom:12px"><%= error %></div><% } %>
+  <form method="post" action="/courses/<%= courseId %>/quizzes" style="max-width:480px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label for="q-title">Title</label>
+    <input id="q-title" name="title" type="text" required placeholder="e.g. Module 1 check">
+    <div style="display:flex;gap:12px;margin-top:12px">
+      <div style="flex:1"><label for="q-pass">Pass %</label><input id="q-pass" name="passPercent" type="number" min="0" max="100" value="50"></div>
+      <div style="flex:1"><label for="q-att">Attempts</label><input id="q-att" name="attemptsAllowed" type="number" min="1" value="1"></div>
+      <div style="flex:1"><label for="q-time">Time limit (min)</label><input id="q-time" name="timeLimitMinutes" type="number" min="0" placeholder="none"></div>
+    </div>
+    <label class="q-opt" style="margin-top:12px"><input type="checkbox" name="shuffle"> Shuffle question order</label>
+    <div style="margin-top:16px"><button class="btn" type="submit">Create quiz</button></div>
+  </form>
+</div>
+<%- include("../layouts/foot") %>

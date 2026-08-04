@@ -1,0 +1,33 @@
+<% var nav = 'courses'; var pageTitle = 'Mark attempt'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'MARKING'; var heading = (attempt.userId && attempt.userId.name) ? attempt.userId.name : 'Attempt'; var lede = 'Award points for each written answer. Auto-marked questions are already scored; your marks are added to them.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+
+<p style="margin-top:-8px"><a class="back" href="/courses/<%= courseId %>/quizzes/<%= quizId %>/marking">← Marking</a></p>
+<% if (error) { %><div class="err" role="alert" style="margin:12px 0"><%= error %></div><% } %>
+
+<div class="card">
+  <span class="quiet">Auto-marked so far:</span> <strong><%= attempt.autoScore %></strong> / <%= attempt.maxScore %>
+  <span class="muted">· <%= pick(quiz.title, 'en') %></span>
+</div>
+
+<form method="post" action="/courses/<%= courseId %>/quizzes/<%= quizId %>/attempts/<%= attempt._id %>/mark" style="margin-top:16px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <% var essays = (quiz.questions||[]).filter(function (q) { return q.type === 'essay'; }); %>
+  <% essays.forEach(function (q, i) { %>
+    <div class="card q-block">
+      <div class="q-prompt"><span class="q-num"><%= i + 1 %>.</span> <%= pick(q.prompt, 'en') %> <span class="muted">(max <%= q.points %>)</span></div>
+      <div style="background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:10px 12px;white-space:pre-wrap;font-size:14px;margin:8px 0">
+        <% var ans = attempt.responses ? attempt.responses[String(q._id)] : ''; %>
+        <%= (ans === undefined || ans === null || ans === '') ? '— no answer —' : ans %>
+      </div>
+      <label for="m-<%= q._id %>">Points</label>
+      <input id="m-<%= q._id %>" name="marks[<%= q._id %>]" type="number" step="1" min="0" max="<%= q.points %>"
+        value="<%= (attempt.manualMarks && attempt.manualMarks[String(q._id)] != null) ? attempt.manualMarks[String(q._id)] : '' %>"
+        style="width:110px" required>
+    </div>
+  <% }); %>
+  <% if (!essays.length) { %><p class="muted">This attempt has no written answers to mark.</p><% } %>
+  <div style="margin-top:16px"><button class="btn" type="submit">Save marks &amp; finalise</button></div>
+</form>
+<%- include("../layouts/foot") %>

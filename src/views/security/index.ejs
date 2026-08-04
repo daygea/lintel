@@ -1,0 +1,26 @@
+<% var nav = 'security'; var pageTitle = 'Security'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'ACCOUNT'; var heading = 'Security'; var lede = 'Two-factor authentication asks for a code from your authenticator app each time you sign in.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+
+<% if (done === 'on') { %><div class="ok-note" style="margin:12px 0"><span class="badge ok">on</span> Two-factor authentication is now on.</div><% } %>
+<% if (done === 'off') { %><div class="ok-note" style="margin:12px 0">Two-factor authentication has been turned off.</div><% } %>
+<% if (err === 'code') { %><div class="err" role="alert" style="margin:12px 0">That code wasn't right — please try setting up again.</div><% } %>
+
+<div class="card" style="max-width:520px">
+  <h2 style="margin-top:0">Two-factor authentication</h2>
+  <% if (mfaEnabled) { %>
+    <p><span class="badge ok">enabled</span> You'll be asked for a code when you sign in.</p>
+    <form method="post" action="/security/mfa/disable" style="margin-top:8px">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="btn ghost" type="submit">Turn off</button>
+    </form>
+  <% } else { %>
+    <p><span class="badge held">off</span> Add a second step to protect your account.</p>
+    <form method="post" action="/security/mfa/begin" style="margin-top:8px">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="btn" type="submit">Set up two-factor</button>
+    </form>
+  <% } %>
+</div>
+<%- include("../layouts/foot") %>

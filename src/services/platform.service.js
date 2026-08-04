@@ -1,6 +1,8 @@
 'use strict';
 
 const { Tenant, User, Membership, PlatformAuditLog, TenantApplication, AbuseReport, BreakglassGrant } = require('../models');
+const { Course, Lesson, ContentBlock, Asset } = require('../models');
+const storage = require('../lib/storage');
 const { runAsPlatform, currentUserId } = require('../lib/context');
 const { ValidationError } = require('../lib/errors');
 const { PLANS } = require('../config/plans');
@@ -311,6 +313,63 @@ const listBreakglass = () =>
     BreakglassGrant.find({}).sort({ grantedAt: -1 }).limit(100).populate('operatorUserId', 'email').exec()
   );
 
+/**
+ * Consume an active break-glass grant to READ a tenant's content. The grant must
+ * exist, be unexpired and unrevoked, and belong to the operator asking. Every read
+ * is written to the platform audit — the whole point of break-glass is that access
+ * is visible. Eligibility gating is bypassed on purpose: this is an oversight read,
+ * not a learner view.
+ */
+async function assertActiveGrant(grantId, actingUserId) {
+  const grant = await runAsPlatform('load grant', () => BreakglassGrant.findById(grantId).exec());
+  if (!grant) throw new ValidationError('No such grant');
+  if (grant.revokedAt || grant.expiresAt <= new Date()) throw new ValidationError('This break-glass grant is no longer active.');
+  if (String(grant.operatorUserId) !== String(actingUserId)) throw new ValidationError('This grant belongs to another operator.');
+  return grant;
+}
+
+async function breakglassRead(grantId, actingUserId) {
+  const grant = await assertActiveGrant(grantId, actingUserId);
+  const tenant = await runAsPlatform('bg tenant', () => Tenant.findById(grant.tenantId).exec());
+  const courses = await runWithTenant(grant.tenantId, actingUserId, async () => {
+    const cs = await Course.find({}).sort({ code: 1 }).exec();
+    const out = [];
+    for (const c of cs) {
+      const lessons = await Lesson.find({ courseId: c._id }).sort({ order: 1 }).exec();
+      out.push({ course: c, lessons });
+    }
+    return out;
+  });
+  await runAsPlatform('breakglass view', () =>
+    audit('breakglass.viewed', 'Tenant', grant.tenantId, { grantId: String(grant._id), scope: 'index' }),
+  actingUserId);
+  return { grant, tenant, courses };
+}
+
+async function breakglassLesson(grantId, lessonId, actingUserId) {
+  const grant = await assertActiveGrant(grantId, actingUserId);
+  const result = await runWithTenant(grant.tenantId, actingUserId, async () => {
+    const lesson = await Lesson.findById(lessonId).exec();
+    if (!lesson) throw new ValidationError('No such lesson');
+    const blocks = await ContentBlock.find({ lessonId }).sort({ order: 1 }).exec();
+    const rendered = [];
+    for (const b of blocks) {
+      if (b.assetId) {
+        const asset = await Asset.findById(b.assetId).exec();
+        const url = asset && asset.status === 'ready' ? await storage.signGet(asset.storageKey) : null;
+        rendered.push({ type: b.type, url, filename: asset ? asset.filename : null, status: asset ? asset.status : 'missing' });
+      } else {
+        rendered.push({ type: b.type, body: b.body, embedUrl: b.embedUrl });
+      }
+    }
+    return { lesson, blocks: rendered };
+  });
+  await runAsPlatform('breakglass view', () =>
+    audit('breakglass.viewed', 'Lesson', lessonId, { grantId: String(grant._id), scope: 'lesson' }),
+  actingUserId);
+  return { grant, ...result };
+}
+
 /* ---- Platform audit -------------------------------------------------------- */
 
 const recentAudit = (limit = 100) =>
@@ -324,7 +383,7 @@ module.exports = {
   editTenantMetadata, closeTenant,
   suspendUser, reactivateUser, forceLogout, sendPasswordReset,
   fileReport, listReports, reportDetail, resolveReport,
-  openBreakglass, revokeBreakglass, listBreakglass,
+  openBreakglass, revokeBreakglass, listBreakglass, breakglassRead, breakglassLesson,
   listSuperadmins, grantSuperadmin, revokeSuperadmin,
   recentAudit,
 };

@@ -4,6 +4,7 @@ const auth = require('../../services/auth.service');
 const platform = require('../../services/platform.service');
 const signup = require('../../services/signup.service');
 const { PLANS } = require('../../config/plans');
+const { pick } = require('../../plugins/locale-map');
 
 const h = (fn) => async (req, res, next) => { try { await fn(req, res); } catch (err) { next(err); } };
 
@@ -162,4 +163,13 @@ exports.openBreakglass = h(async (req, res) => {
 exports.revokeBreakglass = h(async (req, res) => {
   await platform.revokeBreakglass(req.params.id, req.user._id);
   res.redirect('/console/breakglass');
+});
+
+exports.breakglassRead = h(async (req, res) => {
+  const view = await platform.breakglassRead(req.params.id, req.user._id);
+  res.render('console/breakglass-read', view);
+});
+exports.breakglassLesson = h(async (req, res) => {
+  const view = await platform.breakglassLesson(req.params.id, req.params.lessonId, req.user._id);
+  res.render('console/breakglass-lesson', { ...view, pick });
 });

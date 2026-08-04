@@ -26,6 +26,19 @@
         <td>
           <% if (e.paymentState==='full'||e.paymentState==='waived') { %><span class="badge open"><%= e.paymentState %></span>
           <% } else { %><span class="badge held"><%= e.paymentState || 'unpaid' %></span><% } %>
+          <% var inv = invoiceByEnrollment ? invoiceByEnrollment[String(e._id)] : null; %>
+          <% if (inv) { %>
+            <a class="btn ghost small" href="/invoices/<%= inv._id %>" style="margin-left:8px">Invoice</a>
+          <% } else if ((schedules||[]).length) { %>
+            <form method="post" action="/invoices" style="display:inline-flex;gap:6px;align-items:center;margin-left:8px">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="enrollmentId" value="<%= e._id %>">
+              <select name="feeScheduleId" required style="font-size:12px">
+                <% schedules.forEach(function (s) { %><option value="<%= s._id %>"><%= pick(s.label, locale) %></option><% }); %>
+              </select>
+              <button class="btn small" type="submit">Raise invoice</button>
+            </form>
+          <% } %>
         </td>
       </tr>
     <% }); %>

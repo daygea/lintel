@@ -21,5 +21,5 @@ exports.transcript = h(async (req, res) => res.json(await gb.transcriptFor(req.p
 /* quizzes */
 exports.listQuizzes = h(async (req, res) => res.json({ quizzes: await quiz.listQuizzes(req.query.courseId ? { courseId: req.query.courseId } : {}) }));
 exports.createQuiz = h(async (req, res) => res.status(201).json({ quiz: await quiz.createQuiz(req.body) }));
-exports.presentQuiz = h(async (req, res) => res.json(await quiz.presentFor(req.params.id)));
+exports.presentQuiz = h(async (req, res) => res.json({ ...await quiz.presentFor(req.params.id), csrfToken: req.session.csrfToken }));
 exports.submitQuiz = h(async (req, res) => res.status(201).json({ attempt: await quiz.submit({ ...req.body, quizId: req.params.id, userId: req.user._id }) }));

@@ -1,0 +1,27 @@
+<% var nav='breakglass'; var pageTitle='Break-glass — read'; %>
+<%- include("head", { nav: nav, pageTitle: pageTitle }) %>
+<div class="page-head">
+  <div class="eyebrow">PLATFORM · BREAK-GLASS</div>
+  <h1><%= tenant ? tenant.name : 'Institution' %> — content</h1>
+  <p class="lede">A time-boxed, audited read of this institution's content under an open grant. Every page you open here is written to the platform audit. Grant expires <%= new Date(grant.expiresAt).toLocaleString() %>.</p>
+</div>
+
+<div style="background:#3a2a1a;border:1px solid #5a4326;border-radius:4px;padding:10px 14px;margin-bottom:16px;font-size:13px">
+  <strong>Reason on file:</strong> <%= grant.justification %>
+</div>
+
+<% courses.forEach(function (c) { %>
+  <div class="table" style="margin-bottom:18px">
+    <h3 style="margin:0 0 6px"><span class="mono quiet"><%= c.course.code %></span> <%= c.course.title && (c.course.title.en || c.course.title.get && c.course.title.get('en')) ? (c.course.title.en || c.course.title.get('en')) : c.course.code %></h3>
+    <ul style="margin:0;padding-left:18px">
+      <% (c.lessons||[]).forEach(function (l) { %>
+        <li style="padding:2px 0"><a href="/console/breakglass/<%= grant._id %>/lessons/<%= l._id %>"><%= l.title && (l.title.en || (l.title.get && l.title.get('en'))) ? (l.title.en || l.title.get('en')) : 'Lesson' %></a></li>
+      <% }); %>
+      <% if (!(c.lessons||[]).length) { %><li class="quiet">No lessons.</li><% } %>
+    </ul>
+  </div>
+<% }); %>
+<% if (!courses.length) { %><p class="quiet">This institution has no courses.</p><% } %>
+
+<p style="margin-top:20px"><a class="btn ghost" href="/console/breakglass">← Back to the ledger</a></p>
+<%- include("foot") %>

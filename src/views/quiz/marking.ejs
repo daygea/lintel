@@ -1,0 +1,25 @@
+<% var nav = 'courses'; var pageTitle = 'Marking'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'QUIZ'; var heading = 'Marking'; var lede = 'Attempts with written answers waiting for an assessor. Marking one finalises it and rolls the score into the gradebook.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+
+<p style="margin-top:-8px"><a class="back" href="/courses/<%= courseId %>/quizzes/<%= quiz._id %>">← <%= pick(quiz.title, 'en') %></a></p>
+
+<div class="section" style="margin-top:14px">
+  <h2>Awaiting marking <span class="quiet mono" style="font-size:13px">(<%= (attempts||[]).length %>)</span></h2>
+  <table class="table">
+    <thead><tr><th>Learner</th><th>Submitted</th><th>Auto score</th><th></th></tr></thead>
+    <tbody>
+    <% (attempts||[]).forEach(function (a) { %>
+      <tr>
+        <td><%= a.userId && a.userId.name ? a.userId.name : '—' %></td>
+        <td class="quiet"><%= a.submittedAt ? new Date(a.submittedAt).toLocaleDateString() : '' %></td>
+        <td class="quiet"><%= a.autoScore %> / <%= a.maxScore %> <span class="muted">(auto only)</span></td>
+        <td style="text-align:right"><a class="btn small" href="/courses/<%= courseId %>/quizzes/<%= quiz._id %>/attempts/<%= a._id %>">Mark</a></td>
+      </tr>
+    <% }); %>
+    <% if (!(attempts||[]).length) { %><tr class="empty"><td colspan="4">Nothing waiting — every submission is marked.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+<%- include("../layouts/foot") %>

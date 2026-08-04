@@ -1,0 +1,32 @@
+<% var nav='breakglass'; var pageTitle='Break-glass — lesson'; %>
+<%- include("head", { nav: nav, pageTitle: pageTitle }) %>
+<div class="page-head">
+  <div class="eyebrow">PLATFORM · BREAK-GLASS</div>
+  <h1><%= (lesson.title && (lesson.title.en || (lesson.title.get && lesson.title.get('en')))) || 'Lesson' %></h1>
+  <p class="lede">This view has been recorded in the platform audit. Grant expires <%= new Date(grant.expiresAt).toLocaleString() %>.</p>
+</div>
+
+<% blocks.forEach(function (b) { %>
+  <div class="table" style="margin-bottom:14px;padding:14px">
+    <div class="eyebrow" style="margin-bottom:6px"><%= b.type %></div>
+    <% if (b.type === 'rich_text' || b.type === 'text') { %>
+      <div><%= pick(b.body, 'en') %></div>
+    <% } else if (b.url) { %>
+      <% if (b.type === 'image') { %>
+        <img src="<%= b.url %>" alt="" style="max-width:100%;border-radius:4px">
+      <% } else if (b.type === 'pdf') { %>
+        <a class="btn" href="<%= b.url %>" target="_blank" rel="noopener">Open document<%= b.filename ? ' — ' + b.filename : '' %></a>
+      <% } else { %>
+        <a class="btn" href="<%= b.url %>" target="_blank" rel="noopener">Open media<%= b.filename ? ' — ' + b.filename : '' %></a>
+      <% } %>
+    <% } else if (b.assetId !== undefined && !b.url) { %>
+      <span class="quiet">Media not available (<%= b.status || 'not ready' %>).</span>
+    <% } else { %>
+      <span class="quiet">No inline content for this block.</span>
+    <% } %>
+  </div>
+<% }); %>
+<% if (!blocks.length) { %><p class="quiet">This lesson has no content blocks.</p><% } %>
+
+<p style="margin-top:20px"><a class="btn ghost" href="/console/breakglass/<%= grant._id %>/read">← Content index</a></p>
+<%- include("foot") %>

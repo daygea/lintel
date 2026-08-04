@@ -55,5 +55,7 @@ router.post('/console/reports/:id/resolve', c.resolveReport);
 router.get('/console/breakglass', c.breakglass);
 router.post('/console/breakglass', c.openBreakglass);
 router.post('/console/breakglass/:id/revoke', c.revokeBreakglass);
+router.get('/console/breakglass/:id/read', c.breakglassRead);
+router.get('/console/breakglass/:id/lessons/:lessonId', c.breakglassLesson);
 
 module.exports = router;

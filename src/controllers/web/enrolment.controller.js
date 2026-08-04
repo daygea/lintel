@@ -3,6 +3,7 @@
 const svc = require('../../services/enrolment.service');
 const curriculum = require('../../services/curriculum.service');
 const membership = require('../../services/membership.service');
+const commerce = require('../../services/commerce');
 const { pick } = require('../../plugins/locale-map');
 const { ValidationError } = require('../../lib/errors');
 
@@ -21,15 +22,21 @@ exports.listCohorts = h(async (req, res) => {
 });
 
 exports.showCohort = h(async (req, res) => {
-  const [cohort, applications, enrollments, sessions, members] = await Promise.all([
+  const [cohort, applications, enrollments, sessions, members, schedules] = await Promise.all([
     svc.getCohort ? svc.getCohort(req.params.id) : null,
     svc.listApplications(req.params.id, 'submitted'),
     svc.listEnrollments(req.params.id),
     svc.listSessions(req.params.id),
     membership.list(),
+    commerce.listSchedules(),
   ]);
-  // Enrollable = active members carrying the learner role, minus those already
-  // enrolled in this cohort (a second enrol is a harmless no-op, but don't offer it).
+  // Attach each enrolment's invoice (if any) so the roster can show fee state and
+  // offer "raise invoice" where there's none yet.
+  const invoiceByEnrollment = {};
+  await Promise.all((enrollments || []).map(async (e) => {
+    invoiceByEnrollment[String(e._id)] = await commerce.invoiceFor(e._id);
+  }));
+
   const enrolledIds = new Set((enrollments || []).map((e) => String(e.userId?._id || e.userId)));
   const enrollable = (members || []).filter(
     (m) => m.status === 'active' && (m.roles || []).includes('learner') &&
@@ -42,6 +49,8 @@ exports.showCohort = h(async (req, res) => {
     enrollments,
     sessions,
     enrollable,
+    schedules,
+    invoiceByEnrollment,
     pick,
     locale: req.tenant.defaultLocale,
   });

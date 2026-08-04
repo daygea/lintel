@@ -1,0 +1,137 @@
+<% var nav = 'courses'; var pageTitle = 'Quiz'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'QUIZ'; var heading = pick(quiz.title, 'en'); var lede = 'Add questions, then open the quiz so enrolled learners can take it. Correct answers stay on the server — they are never sent to a learner.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+
+<p style="margin-top:-8px"><a class="back" href="/courses/<%= courseId %>/quizzes">← Quizzes</a></p>
+<% if (error) { %><div class="err" role="alert" style="margin:12px 0"><%= error %></div><% } %>
+
+<div class="section" style="margin-top:14px">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span>Status:
+      <% if (quiz.status === 'open') { %><span class="badge ok">open</span>
+      <% } else if (quiz.status === 'closed') { %><span class="badge">closed</span>
+      <% } else { %><span class="badge held">draft</span><% } %>
+    </span>
+    <% if (quiz.status !== 'open') { %>
+      <form method="post" action="/courses/<%= courseId %>/quizzes/<%= quiz._id %>/status" style="display:inline">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="status" value="open">
+        <button class="btn small" type="submit">Open for learners</button>
+      </form>
+    <% } %>
+    <% if (quiz.status !== 'closed') { %>
+      <form method="post" action="/courses/<%= courseId %>/quizzes/<%= quiz._id %>/status" style="display:inline">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="status" value="closed">
+        <button class="btn ghost small" type="submit">Close</button>
+      </form>
+    <% } %>
+    <% if (quiz.status !== 'draft') { %>
+      <form method="post" action="/courses/<%= courseId %>/quizzes/<%= quiz._id %>/status" style="display:inline">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="status" value="draft">
+        <button class="btn ghost small" type="submit">Back to draft</button>
+      </form>
+    <% } %>
+    <span class="quiet" style="font-size:13px">Pass <%= quiz.passPercent %>% · <%= quiz.attemptsAllowed %> attempt<%= quiz.attemptsAllowed === 1 ? '' : 's' %><%= quiz.shuffle ? ' · shuffled' : '' %></span>
+    <a class="btn ghost small" href="/courses/<%= courseId %>/quizzes/<%= quiz._id %>/marking" style="margin-left:auto">Marking</a>
+  </div>
+</div>
+
+<div class="section" style="margin-top:22px">
+  <h2>Questions (<%= (quiz.questions||[]).length %>)</h2>
+  <% (quiz.questions||[]).forEach(function (q, i) { %>
+    <div class="card q-block">
+      <div style="display:flex;justify-content:space-between;gap:10px">
+        <div class="q-prompt" style="margin:0"><span class="q-num"><%= i + 1 %>.</span> <%= pick(q.prompt, 'en') %>
+          <span class="badge flat"><%= q.type %></span> <span class="muted"><%= q.points %> pt<%= q.points === 1 ? '' : 's' %></span></div>
+        <form method="post" action="/courses/<%= courseId %>/quizzes/<%= quiz._id %>/questions/<%= q._id %>/delete">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button class="btn ghost small" type="submit" aria-label="Delete question">Delete</button>
+        </form>
+      </div>
+      <% if (q.type === 'mcq' || q.type === 'multi') { %>
+        <ul class="q-answers"><% (q.options||[]).forEach(function (o) { %><li<%= o.correct ? ' class="correct"' : '' %>><%= pick(o.text, 'en') %><%= o.correct ? ' ✓' : '' %></li><% }); %></ul>
+      <% } else if (q.type === 'matching') { %>
+        <ul class="q-answers"><% (q.pairs||[]).forEach(function (p) { %><li><%= p.left %> → <%= p.right %></li><% }); %></ul>
+      <% } else if (q.type === 'numeric') { %>
+        <p class="muted" style="margin:6px 0 0">Answer: <%= q.numericAnswer %> ± <%= q.tolerance || 0 %></p>
+      <% } else if (q.type === 'cloze' || q.type === 'short') { %>
+        <p class="muted" style="margin:6px 0 0">Accepted: <%= (q.answers||[]).join(', ') %><%= q.caseSensitive ? ' (case-sensitive)' : '' %></p>
+      <% } else { %>
+        <p class="muted" style="margin:6px 0 0">Marked by an assessor.</p>
+      <% } %>
+    </div>
+  <% }); %>
+  <% if (!(quiz.questions||[]).length) { %><p class="muted">No questions yet — add one below.</p><% } %>
+</div>
+
+<div class="section" style="margin-top:22px">
+  <h2>Add a question</h2>
+  <form method="post" action="/courses/<%= courseId %>/quizzes/<%= quiz._id %>/questions" style="max-width:560px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div style="display:flex;gap:12px">
+      <div style="flex:2"><label for="qtype">Type</label>
+        <select id="qtype" name="type">
+          <option value="mcq">Multiple choice (one answer)</option>
+          <option value="multi">Multiple choice (several answers)</option>
+          <option value="short">Short answer</option>
+          <option value="cloze">Fill in the blank</option>
+          <option value="numeric">Numeric</option>
+          <option value="matching">Matching</option>
+          <option value="essay">Essay (marked by hand)</option>
+        </select>
+      </div>
+      <div style="flex:1"><label for="qpoints">Points</label><input id="qpoints" name="points" type="number" min="1" value="1"></div>
+    </div>
+
+    <label for="qprompt" style="margin-top:12px">Prompt</label>
+    <textarea id="qprompt" name="prompt" rows="2" required placeholder="The question"></textarea>
+
+    <div class="qgroup" data-type="mcq multi" style="margin-top:12px">
+      <div class="quiet" style="font-size:13px;margin-bottom:6px">Options — tick the correct one(s). Blank rows are ignored.</div>
+      <% for (var i = 0; i < 5; i++) { %>
+        <div class="q-optrow"><input name="optionText" type="text" placeholder="Option <%= i + 1 %>"><label class="q-optck"><input class="opt-correct" type="radio" name="correct" value="<%= i %>"> correct</label></div>
+      <% } %>
+    </div>
+
+    <div class="qgroup" data-type="matching" hidden style="margin-top:12px">
+      <div class="quiet" style="font-size:13px;margin-bottom:6px">Pairs — left matches right. Blank rows are ignored.</div>
+      <% for (var i = 0; i < 5; i++) { %>
+        <div class="q-match"><input name="left" type="text" placeholder="Left <%= i + 1 %>"><span>→</span><input name="right" type="text" placeholder="Right <%= i + 1 %>"></div>
+      <% } %>
+    </div>
+
+    <div class="qgroup" data-type="short cloze" hidden style="margin-top:12px">
+      <label for="qanswers">Accepted answers <span class="quiet">(one per line)</span></label>
+      <textarea id="qanswers" name="answers" rows="3" placeholder="acceptable answer&#10;another accepted answer"></textarea>
+      <label class="q-opt" style="margin-top:8px"><input type="checkbox" name="caseSensitive"> Case-sensitive</label>
+    </div>
+
+    <div class="qgroup" data-type="numeric" hidden style="margin-top:12px">
+      <div style="display:flex;gap:12px">
+        <div style="flex:1"><label for="qnum">Answer</label><input id="qnum" name="numericAnswer" type="number" step="any"></div>
+        <div style="flex:1"><label for="qtol">Tolerance ±</label><input id="qtol" name="tolerance" type="number" step="any" value="0"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px"><button class="btn" type="submit">Add question</button></div>
+  </form>
+</div>
+
+<script>
+  (function () {
+    var sel = document.getElementById('qtype');
+    var groups = document.querySelectorAll('.qgroup');
+    function refresh() {
+      var t = sel.value;
+      groups.forEach(function (g) {
+        var on = g.getAttribute('data-type').split(' ').indexOf(t) >= 0;
+        g.hidden = !on;
+        g.querySelectorAll('input, textarea, select').forEach(function (el) { el.disabled = !on; });
+      });
+      document.querySelectorAll('.opt-correct').forEach(function (el) { el.type = (t === 'multi') ? 'checkbox' : 'radio'; });
+    }
+    sel.addEventListener('change', refresh);
+    refresh();
+  })();
+</script>
+<%- include("../layouts/foot") %>

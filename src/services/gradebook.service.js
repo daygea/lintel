@@ -1,6 +1,6 @@
 'use strict';
 
-const { GradeScheme, LineItem, Score, Course, User, AuditLog } = require('../models');
+const { GradeScheme, LineItem, Score, Course, User, AuditLog, QuizAttempt } = require('../models');
 const { ValidationError } = require('../lib/errors');
 const { currentUserId } = require('../lib/context');
 const { pick } = require('../plugins/locale-map');
@@ -133,8 +133,51 @@ async function transcriptFor(userId) {
   };
 }
 
+/* --------------------------------------------------------------- quiz roll-up */
+
+/**
+ * A quiz feeds a line item natively (LineItem.source='quiz', quizId). Ensure the
+ * course gradebook has a column for this quiz, created once and lazily. Scores
+ * roll up as a percentage, so the column is out of 100.
+ */
+async function ensureQuizLineItem(quiz) {
+  let lineItem = await LineItem.findOne({ quizId: quiz._id }).exec();
+  if (!lineItem) {
+    lineItem = await LineItem.create({
+      courseId: quiz.courseId,
+      label: quiz.title,
+      category: 'quizzes',
+      source: 'quiz',
+      quizId: quiz._id,
+      maxPoints: 100,
+      published: true,
+    });
+  }
+  return lineItem;
+}
+
+/**
+ * Roll a learner's quiz result into the gradebook: their BEST fully-marked
+ * attempt, as a percentage, on the quiz's line item. A quiz not tied to a course
+ * has no gradebook to post to. Attempts still awaiting manual marking (an essay)
+ * aren't final and don't roll up until they're marked. Best-of-attempts, so a
+ * weaker later attempt never lowers a stronger earlier one.
+ */
+async function recordQuizScore({ quiz, userId }) {
+  if (!quiz.courseId) return null;
+  const attempts = await QuizAttempt.find({ quizId: quiz._id, userId, status: 'marked' }).exec();
+  if (!attempts.length) return null;
+  // Earned = auto-marked portion + any assessor marks for essays.
+  const earned = (a) =>
+    (a.autoScore || 0) + Object.values(a.manualMarks || {}).reduce((s, v) => s + (Number(v) || 0), 0);
+  const bestPct = Math.max(...attempts.map((a) => (a.maxScore ? (earned(a) / a.maxScore) * 100 : 0)));
+  const lineItem = await ensureQuizLineItem(quiz);
+  return putScore({ lineItemId: lineItem._id, userId, points: Math.round(bestPct) });
+}
+
 module.exports = {
   listSchemes, upsertScheme,
   listLineItems, createLineItem,
   putScore, computeForLearner, transcriptFor,
+  ensureQuizLineItem, recordQuizScore,
 };

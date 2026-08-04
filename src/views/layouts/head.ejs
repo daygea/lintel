@@ -61,7 +61,7 @@
       </div>
       <div class="who">
         <% if (typeof user !== "undefined" && user) { %><%= user.name %><% } %>
-        <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">Sign out</button></form>
+        <a href="/report" style="margin-right:12px">Report</a><a href="/security" style="margin-right:12px">Security</a><form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">Sign out</button></form>
       </div>
     </div>
     <main class="main">
