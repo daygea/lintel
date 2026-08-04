@@ -69,4 +69,15 @@ Object.defineProperties(module.exports, {
     enumerable: true,
     get() { return String(process.env.ALLOW_SELF_REGISTRATION || 'true') === 'true'; },
   },
+  // Email transport. Read at access time so creds can be set without cache-busting
+  // (and stubbed in tests). If either key is unset the email channel falls back to
+  // the dev log transport — the app still boots and the notification path still runs.
+  email: {
+    enumerable: true,
+    get() {
+      const resendApiKey = process.env.RESEND_API_KEY || null;
+      const from = process.env.EMAIL_FROM || null;
+      return { resendApiKey, from, configured: Boolean(resendApiKey && from) };
+    },
+  },
 });
