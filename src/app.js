@@ -49,6 +49,10 @@ function createApp() {
     })
   );
 
+  // Liveness probe for the platform (Render health checks, uptime monitors).
+  // Host-agnostic, no tenant context, no DB — just proves the process is serving.
+  app.get('/healthz', (req, res) => res.json({ ok: true }));
+
   // Platform console — apex-only, superadmin-gated, no tenant context. Mounted
   // above the resolver with CSRF (which is tenant-independent). Its own router
   // loads the platform session and enforces the superadmin gate.

@@ -1,0 +1,52 @@
+# Render Blueprint for Lintel.
+#
+# Deploy: push this file to the repo, then in Render choose "New +" → "Blueprint"
+# and point it at the repo. Render creates the web service below and prompts you
+# for the secrets marked `sync: false`. Fill those in the dashboard.
+#
+# MongoDB is NOT provided by Render — use MongoDB Atlas (free M0 tier) and paste
+# its connection string as MONGODB_URI. See DEPLOY.md.
+#
+# The transcode worker (audio/video) needs ffmpeg, which this Node runtime lacks;
+# it's intentionally omitted here. Text, image, and PDF content work without it.
+# See DEPLOY.md for adding the worker later via a Docker service.
+
+services:
+  - type: web
+    name: lintel
+    runtime: node
+    region: frankfurt          # closest Render region to West Africa
+    plan: starter              # avoid free-tier cold starts for a live app
+    branch: main
+    buildCommand: npm install && npm run check   # checkers (incl. boot) gate every deploy
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: ROOT_DOMAIN
+        value: lintel.africa
+      - key: SESSION_SECRET
+        generateValue: true    # Render generates a strong secret once
+      # ---- secrets: set these in the Render dashboard (Environment tab) ----
+      - key: MONGODB_URI
+        sync: false            # mongodb+srv://…  from MongoDB Atlas
+      - key: SUPERADMIN_EMAIL
+        sync: false            # the email that gets the platform console
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false            # omit to keep email in dev-log mode
+      - key: EMAIL_FROM
+        sync: false            # e.g. "Lintel <no-reply@lintel.africa>"
+      - key: PAYSTACK_SECRET_KEY
+        sync: false            # omit to keep online payment in test/stub mode

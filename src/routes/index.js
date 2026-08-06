@@ -58,6 +58,7 @@ const author = [
   requireMember,
   requireRole(ROLES.OWNER, ROLES.ADMIN, ROLES.INSTRUCTOR),
 ];
+const assessor = [requireUser, requireMember, requireRole(ROLES.OWNER, ROLES.ADMIN, ROLES.INSTRUCTOR, ROLES.ASSESSOR, ROLES.ELDER)];
 
 /* ------------------------------------------------------------------- people */
 router.get('/', requireUser, requireMember, webTenant.dashboard);
@@ -209,7 +210,6 @@ router.get('/api/v1/push/key', ...asLearner, apiLearner.pushKey);
 router.post('/api/v1/push/subscribe', ...asLearner, apiLearner.pushSubscribe);
 
 /* ------------------------------------------------------ assessment (Sprint 5a) */
-const assessor = [requireUser, requireMember, requireRole(ROLES.OWNER, ROLES.ADMIN, ROLES.INSTRUCTOR, ROLES.ASSESSOR, ROLES.ELDER)];
 
 router.get('/assessments', ...assessor, webAssessment.list);
 router.get('/assessments/:id', ...assessor, webAssessment.show);
