@@ -109,7 +109,8 @@ async function notify({ userId, template, data = {}, channels = ['email'], local
   const user = await User.findById(userId).exec();
   if (!user) throw new Error('No such user');
 
-  const subject = pick(tmpl.subject, locale) || pick(tmpl.subject, 'en');
+  const subjectVal = pick(tmpl.subject, locale) || pick(tmpl.subject, 'en');
+  const subject = typeof subjectVal === 'function' ? subjectVal(data) : subjectVal;
   const textFn = tmpl.text[locale] || tmpl.text.en;
   const text = typeof textFn === 'function' ? textFn(data) : textFn;
 
