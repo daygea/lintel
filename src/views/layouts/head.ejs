@@ -53,14 +53,17 @@
       <a href="/api/v1/export" style="color:#8A8DA0">Export data</a>
     </div>
   </aside>
+  <div class="rail-scrim" aria-hidden="true" onclick="document.body.classList.remove('nav-open')"></div>
   <div class="content">
     <div class="topbar">
+      <button class="rail-toggle" type="button" aria-label="Open menu" aria-expanded="false"
+        onclick="var o=document.body.classList.toggle('nav-open');this.setAttribute('aria-expanded',o)">&#9776;</button>
       <div class="crumbs">
         <a href="/"><%= tenant.name %></a>
         <% if (typeof pageTitle !== 'undefined' && pageTitle) { %><span class="sep">/</span><%= pageTitle %><% } %>
       </div>
       <div class="who">
-        <% if (typeof user !== "undefined" && user) { %><%= user.name %><% } %>
+        <% if (typeof user !== "undefined" && user) { %><span class="uname"><%= user.name %></span><% } %>
         <a href="/report" style="margin-right:12px">Report</a><a href="/security" style="margin-right:12px">Security</a><form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">Sign out</button></form>
       </div>
     </div>
