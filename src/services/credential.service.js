@@ -114,5 +114,5 @@ async function verifyPublic(verificationCode) {
 
 module.exports = {
   listTemplates, createTemplate,
-  issue, revoke, listFor, verifyPublic,
+  issue, revoke, listFor, listAll, verifyPublic,
 };

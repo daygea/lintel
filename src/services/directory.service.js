@@ -15,8 +15,12 @@ async function upsertListing(data) {
   }
   const existing = await DirectoryListing.findOne({}).exec();
   if (existing) {
-    await DirectoryListing.updateOne({ _id: existing._id }, data).exec();
-    return DirectoryListing.findById(existing._id).exec();
+    // Assign + save (not updateOne): tagline/about are Mongoose Map fields, and a
+    // raw updateOne doesn't cast a plain object into a Map or run the localeMap
+    // validate hook — so the update path silently dropped them.
+    Object.assign(existing, data);
+    await existing.save();
+    return existing;
   }
   return DirectoryListing.create(data);
 }
