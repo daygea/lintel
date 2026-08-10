@@ -130,6 +130,24 @@ async function lessonFor({ lessonId, userId, locale = 'en', request = {} }) {
   };
 }
 
+/**
+ * External lecture links — a YouTube/Vimeo video, or a direct audio/video URL on
+ * another platform. Known providers are normalised to their embeddable player URL;
+ * direct media is detected by extension and played natively. Anything else is
+ * offered as a plain link, because arbitrary sites can't be safely iframed (many
+ * send X-Frame-Options: DENY, so an iframe would just render blank).
+ */
+function classifyEmbed(rawUrl) {
+  const url = String(rawUrl || '').trim();
+  let m = url.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/);
+  if (m) return { kind: 'youtube', src: `https://www.youtube.com/embed/${m[1]}`, url };
+  m = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (m) return { kind: 'vimeo', src: `https://player.vimeo.com/video/${m[1]}`, url };
+  if (/\.(mp4|webm|ogv|mov|m4v)(?:[?#]|$)/i.test(url)) return { kind: 'video', src: url, url };
+  if (/\.(mp3|m4a|aac|ogg|oga|wav|flac)(?:[?#]|$)/i.test(url)) return { kind: 'audio', src: url, url };
+  return { kind: 'link', src: url, url };
+}
+
 async function renderBlock(block, uid, locale, request) {
   const policy = block.contentPolicyId
     ? await ContentPolicy.findById(block.contentPolicyId).exec()
@@ -156,6 +174,12 @@ async function renderBlock(block, uid, locale, request) {
       watermark: watermarkFor(uid, request),
       streamOnly: true,
     };
+  }
+
+  if (block.type === 'embed') {
+    if (!block.embedUrl) return { ...base, unavailable: true, reason: 'This external resource has no link.' };
+    await logView(block, uid, request);
+    return { ...base, embed: classifyEmbed(block.embedUrl) };
   }
 
   // audio / video / pdf / image → signed URL from our own storage
@@ -207,6 +231,9 @@ async function packFor({ lessonId, userId, locale = 'en', request = {} }) {
   for (const block of blocks) {
     if (block.type === 'archive_ref') {
       throw new ValidationError('Lessons with archive material are stream-only and cannot be saved offline.');
+    }
+    if (block.type === 'embed') {
+      throw new ValidationError('Lessons with an external link (e.g. a YouTube video) are online-only and cannot be saved offline.');
     }
     const policy = block.contentPolicyId ? await ContentPolicy.findById(block.contentPolicyId).exec() : null;
     if (policy && (policy.streamOnly || !policy.offlineCacheable)) {
@@ -261,4 +288,4 @@ const logView = (block, uid, request, accessionNumber) =>
     sessionId: request.sessionId,
   });
 
-module.exports = { myLearning, lessonFor, packFor };
+module.exports = { myLearning, lessonFor, packFor, classifyEmbed };

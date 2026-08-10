@@ -450,6 +450,10 @@ The engine is built and configured against `test-oiss` via `seed/oiss-config.js`
 
 21. **A compound index must NEVER use `sparse: true` — use a partial index.** A *compound* sparse index only skips a document when it contains **none** of the indexed keys. On a tenant-scoped model `tenantId` is always present, so `sparse` never excludes the rows it looks like it should: absent optional keys index as `null`, and a `unique + sparse` compound index silently lets ref-less rows collide on `{tenant, null}`. This bit twice — `Cohort {tenantId, code}` (only one code-less cohort per tenant) and `Payment {tenantId, providerRef}` (a second manual payment swallowed as a "webhook replay"). Both are now `partialFilterExpression` indexes keyed on the optional field actually existing, and `check-sparse-compound` fails the build on any compound `sparse: true` (escape hatch: `// @sparse-ok`). **After pulling these changes, run `npm run indexes` on every existing database** — the schema change doesn't retrofit an index already built the old way (see bite #16's cousin).
 
+22. **A template field can be a function of the data — evaluate it, don't pass it raw.** `notify()` resolves a function-valued template *text* by calling it with the data, but for a while did not do the same for the *subject* — it passed `pick(tmpl.subject)` straight through. The one template with a function subject (`account_created`, the new-institution owner email) therefore handed the email channel a *function*, which `JSON.stringify` silently drops — so Resend received a body with no subject and rejected the send with **422 Missing subject field**, and only the owner-onboarding email failed. Fixed to mirror the text path: `typeof subjectVal === 'function' ? subjectVal(data) : subjectVal`. Lesson: anywhere you render locale-map template fields, handle both string and function values.
+
+23. **Guard-group consts in `routes/index.js` are declared mid-file — a route that uses one above its declaration is a boot-time TDZ.** `staff` / `author` / `assessor` / `issuer` / `asLearner` are `const` arrays scattered through the router. A route added *above* the relevant `const` throws `Cannot access 'assessor' before initialization` **at load** — and it passes every text checker and the entire test suite, because none of them execute `routes/index.js` top-to-bottom. It only surfaces on `npm run dev` / in production. The `boot` checker (Part X) now catches this whole class by actually building the app. When adding routes, keep them below the guard consts they use.
+
 # Part IX — August 2026 build log (post-Sprint-15)
 
 Everything above describes the engine as handed over. This section records the features wired on top of it since, closing the write-UI and onboarding gaps found in an August audit. All are on the same spine (tenant-guard + eligibility evaluator), pass the checkers (now **13** — `sparse-compound` added), and ship with tests.
@@ -465,6 +469,40 @@ Everything above describes the engine as handed over. This section records the f
 **Trust & safety, and self-service.** **Branding editor** (`/settings/branding` — name, wordmark, logo, accent colour, languages). **Report a concern** (`/report`) lets any member file an abuse report to the platform team (the console already listed/resolved them). **Break-glass content viewer**: the console had the grant *ledger*; now an operator can **consume an active grant** to read a tenant's courses/lessons/content read-only — grant-gated (unexpired, unrevoked, owned by the asker), eligibility bypassed by design, and **every page recorded in the platform audit**.
 
 **Operational reminders.** Run `npm run indexes` after the Cohort/Payment index changes. Bump `public/sw.js` `BUILD` on any PWA-shell change (it's a cache-first worker) — it's at `v0.9.0`. Audio/video still need the transcode worker (`npm run worker`, ffmpeg); images/PDFs are ready on upload. Still deferred by choice: per-quiz eligibility gating, learner-facing self-pay, a QR image for MFA, essay re-open.
+
+# Part X — Production & post-launch (August 2026)
+
+Lintel is **live at `lintel.africa`** on Render. This part records how it's deployed and what changed to get it there — read it before touching deploy config, email, or the worker.
+
+## Deployment shape
+
+- **Web service on Render** (native Node runtime, `npm start` → `src/server.js`). Sessions persist in Mongo via `connect-mongo`, so restarts and multiple instances are fine.
+- **MongoDB Atlas** — Render has no managed Mongo. `MONGODB_URI` points at an Atlas cluster (co-locate its region with Render's to keep app↔DB latency low).
+- **Cloudflare R2** for media, **Resend** for email, **Paystack** (optional) for online payment.
+- **Subdomain multi-tenancy drives DNS.** Tenants resolve by host (`hostToSlug`), so DNS needs the **apex**, `www`, **and a wildcard `*.lintel.africa`** — all three added as Render custom domains (wildcard TLS may want a one-time `_acme-challenge` TXT) and as records at the registrar. The apex serves marketing (`isApex`); `<slug>.lintel.africa` serves a tenant; custom domains are supported per tenant.
+- **`GET /healthz`** (host-agnostic, mounted above the resolver, no DB) is the health-check path.
+- **`render.yaml`** (Blueprint) and **`DEPLOY.md`** capture the whole setup: Atlas, env vars, DNS, first-run indexes. The Blueprint's build command is `npm install && npm run check`, so **the checkers gate every deploy** — a boot break can't ship.
+
+Env vars (web): `MONGODB_URI`, `SESSION_SECRET`, `ROOT_DOMAIN`, `SUPERADMIN_EMAIL`, the four `R2_*`, `RESEND_API_KEY` + `EMAIL_FROM` (email), `PAYSTACK_SECRET_KEY` (payments). **Never set `PORT`** — Render injects it. On a free instance there's **no Shell**, so run `npm run indexes` **locally against the Atlas URI** once (a fresh DB just builds the partial indexes).
+
+## The `boot` checker — the 14th checker
+
+Text-scanning checkers and the unit tests never require `app.js` top-to-bottom, so a route referencing a not-yet-declared guard (bite #23), a typo'd controller, or a broken import passes everything and then crashes on `npm run dev`. `check-boot` spawns a child process that calls `require('./src/app.js').createApp()` with placeholder env (swallowing the lazy Mongo connection) and fails the build on any load-time throw. This is why the build command runs the checkers: **a boot break fails the deploy instead of going live.**
+
+## Email in production
+
+- Real sending is via **Resend** (`RESEND_API_KEY` + `EMAIL_FROM` on a verified domain). Unset → dev-log transport (logs instead of sends). Tests never send (`env.isTest`).
+- **Signup is approval-gated by default** (`AUTO_PROVISION_TENANTS` defaults false): an institution signup files a *pending application*; the owner's set-password email sends when you **approve it in the console**. Set `AUTO_PROVISION_TENANTS=true` for instant provisioning + immediate email.
+- The `account_created` **function-subject** bug (bite #22) was the real cause of "signup didn't email" — a 422, not a config miss. Fixed.
+- **Resend domain verification:** DKIM verified is enough to send. SPF wants a `send` **MX** record; on some registrars (Namecheap) you must switch Mail Settings → **Custom MX** before the MX type is offered. A verified DKIM alone will send in the meantime; `onboarding@resend.dev` works as a temporary `EMAIL_FROM` while DNS propagates.
+
+## Transcode worker (audio/video)
+
+Images and PDFs are ready on upload; **audio/video** stay "preparing" until a worker transcodes them, and that worker needs **ffmpeg** — which Render's Node runtime lacks. So it runs as a **Docker-based Background Worker** built from **`worker.Dockerfile`** (`node:22-bookworm-slim` + `apt install ffmpeg` + `npm run worker`; see **`WORKER.md`**). It's separate from the web service (no ports), shares `MONGODB_URI` and `R2_*`, polls the Mongo `Job` queue, and flips assets to `ready`. Background Workers are **paid** (Starter min; Standard for lecture-length video). The web service already enqueues `media.transcode` on upload — deploying the worker needs no web redeploy.
+
+## Mobile
+
+Both admin shells — the tenant admin (`layouts/head.ejs` + `public/css/lintel.css`) and the platform console (`console/head.ejs`) — are now **off-canvas drawers**: a hamburger in the sticky topbar slides the sidebar in over a tap-to-close scrim, page scroll locks while open, wide tables scroll horizontally, and the topbar declutters (`< 820px`). The learner **PWA is already mobile-first**, and the public/auth/marketing pages already carry the viewport meta and use centered cards — so only the two admin shells needed work.
 
 ---
 

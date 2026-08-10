@@ -363,6 +363,20 @@ function renderBlock(block, lessonId) {
     return el;
   }
 
+  if (block.embed) {
+    const e = block.embed;
+    if (e.kind === 'youtube' || e.kind === 'vimeo') {
+      el.innerHTML = `<div class="player embed"><iframe src="${escapeHtml(e.src)}" title="Lesson video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe></div>`;
+    } else if (e.kind === 'video') {
+      el.innerHTML = `<div class="player video"><video controls preload="metadata" playsinline src="${escapeHtml(e.src)}"></video></div>`;
+    } else if (e.kind === 'audio') {
+      el.innerHTML = `<div class="player audio"><audio controls preload="metadata" src="${escapeHtml(e.src)}"></audio></div>`;
+    } else {
+      el.innerHTML = `<a class="btn" href="${escapeHtml(e.url)}" target="_blank" rel="noopener noreferrer">Open resource ↗</a>`;
+    }
+    return el;
+  }
+
   if (block.streamUrl) {
     const wm = block.watermark ? `<span class="watermark">${escapeHtml(block.watermark)}</span>` : '';
     const labels = (block.tkLabels || []).map((l) => `<span class="tk">${escapeHtml(l)}</span>`).join('');

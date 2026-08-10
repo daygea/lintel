@@ -68,6 +68,8 @@ ul.lessons{list-style:none;margin:0;padding:0}
 .player img{width:100%;display:block}
 .player.pdf{background:var(--paper)}
 .player.pdf iframe{width:100%;height:72vh;border:0;display:block;background:#fff}
+.player.embed{aspect-ratio:16/9}
+.player.embed iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 
 /* --- Quiz taking --- */
 .q-block{padding:14px 16px}
