@@ -45,7 +45,7 @@ it('sends a resolved subject for a FUNCTION-subject template (account_created)',
   expect(typeof body.subject).toBe('string');
 });
 
-it('still sends the subject for a STRING-subject template (enrolled)', async () => {
-  const body = await sentBody('enrolled', { cohortTitle: 'Autumn' });
+it('still sends the subject for a STRING-subject template (enrollment.activated)', async () => {
+  const body = await sentBody('enrollment.activated', { cohortTitle: 'Autumn' });
   expect(body.subject).toBe('You are enrolled');
 });
