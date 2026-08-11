@@ -50,11 +50,13 @@ async function renderHome() {
     html += `
       <div class="card">
         <p style="margin:0">You're not enrolled in anything yet.</p>
-        <p class="muted" style="margin:8px 0 0">When a registrar enrols you in a cohort, your courses appear here.</p>
+        <p class="muted" style="margin:8px 0 0">Apply to an open programme below, or a registrar can enrol you directly.</p>
       </div>`;
   } else {
     html += courses.map(courseCard).join('');
   }
+
+  html += `<p style="margin-top:18px"><a class="btn" href="/apply">Browse open programmes</a></p>`;
 
   html += `<div id="offline" style="margin-top:26px"></div>`;
   root.innerHTML = html;

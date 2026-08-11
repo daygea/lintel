@@ -7,6 +7,7 @@ const webTenant = require('../controllers/web/tenant.controller');
 const webInvite = require('../controllers/web/invite.controller');
 const webSecurity = require('../controllers/web/security.controller');
 const webSettings = require('../controllers/web/settings.controller');
+const webApply = require('../controllers/web/apply.controller');
 const webReport = require('../controllers/web/report.controller');
 const apiInvite = require('../controllers/api/invite.controller');
 const webCurriculum = require('../controllers/web/curriculum.controller');
@@ -166,6 +167,8 @@ router.post('/api/v1/cohorts/:id/close', ...staff, apiEnrolment.closeCohort);
 
 // Applying is done by the applicant themselves; admitted status not required.
 router.post('/api/v1/applications', requireUser, requireMember, apiEnrolment.apply);
+router.get('/apply', requireUser, requireMember, webApply.show);
+router.post('/apply', requireUser, requireMember, webApply.submit);
 router.get('/api/v1/cohorts/:cohortId/applications', ...staff, apiEnrolment.listApplications);
 router.post('/api/v1/applications/:id/decide', ...staff, apiEnrolment.decideApplication);
 router.post('/api/v1/cohorts/:id/enrol', ...staff, apiEnrolment.enrol);

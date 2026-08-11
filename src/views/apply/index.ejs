@@ -1,0 +1,70 @@
+<% var pageTitle = 'Open programmes'; %>
+<%- include("../layouts/public-head") %>
+<div class="pub-wide">
+  <div class="page-head">
+    <div class="eyebrow"><%= typeof tenant !== 'undefined' && tenant ? tenant.name.toUpperCase() : 'LINTEL' %></div>
+    <h1 style="font-size:26px">Open programmes</h1>
+    <p class="lede" style="font-size:14px">Apply to a cohort that's open for applications. A registrar reviews each application before admitting you.</p>
+  </div>
+
+  <p style="margin:-4px 0 18px"><a class="quiet mono" style="font-size:12px" href="/app/">← my learning</a></p>
+
+  <% if (applied) { %><div class="notice ok" style="margin-bottom:16px"><span class="badge ok">received</span> Your application has been submitted. You'll hear back once a registrar has reviewed it.</div><% } %>
+  <% if (error) { %><div class="notice err" role="alert" style="margin-bottom:16px"><%= error %></div><% } %>
+
+  <% if (!(cohorts || []).length) { %>
+    <div class="thr" style="padding:14px 0 14px 16px"><span class="quiet">No programmes are open for applications right now. Please check back later.</span></div>
+  <% } %>
+
+  <% (cohorts || []).forEach(function (row) { var c = row.cohort; %>
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px">
+          <div style="font-family:var(--serif);font-size:17px"><%= c.courseId ? pick(c.courseId.title, locale) : pick(c.title, locale) %></div>
+          <div class="quiet" style="font-size:13px;margin-top:2px"><%= pick(c.title, locale) %> · <%= c.session %> · <%= c.mode %></div>
+          <% if (c.applicationsCloseAt) { %><div class="quiet mono" style="font-size:12px;margin-top:4px">Applications close <%= new Date(c.applicationsCloseAt).toLocaleDateString() %></div><% } %>
+        </div>
+        <div style="text-align:right">
+          <% if (row.enrolled) { %>
+            <span class="badge ok">enrolled</span>
+          <% } else if (row.application) { %>
+            <% var s = row.application.status; %>
+            <% if (s === 'admitted') { %><span class="badge ok">admitted</span>
+            <% } else if (s === 'declined') { %><span class="badge held">declined</span>
+            <% } else if (s === 'withdrawn') { %><span class="badge flat">withdrawn</span>
+            <% } else { %><span class="badge">under review</span><% } %>
+          <% } else { %>
+            <form method="post" action="/apply">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="cohortId" value="<%= c._id %>">
+              <button class="btn" type="submit">Apply</button>
+            </form>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  <% }); %>
+
+  <% var others = (applications || []).filter(function (a) { return !(cohorts||[]).some(function (r){ return String(r.cohort._id) === String(a.cohortId && a.cohortId._id ? a.cohortId._id : a.cohortId); }); }); %>
+  <% if (others.length) { %>
+    <h2 style="margin-top:26px">Your other applications</h2>
+    <table class="table">
+      <thead><tr><th>Programme</th><th>Session</th><th>Status</th></tr></thead>
+      <tbody>
+      <% others.forEach(function (a) { var c = a.cohortId; %>
+        <tr>
+          <td><%= c && c.courseId ? pick(c.courseId.title, locale) : (c ? pick(c.title, locale) : '—') %></td>
+          <td class="quiet"><%= c ? c.session : '' %></td>
+          <td>
+            <% if (a.status === 'admitted') { %><span class="badge ok">admitted</span>
+            <% } else if (a.status === 'declined') { %><span class="badge held">declined</span>
+            <% } else if (a.status === 'withdrawn') { %><span class="badge flat">withdrawn</span>
+            <% } else { %><span class="badge">under review</span><% } %>
+          </td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+<%- include("../layouts/public-foot") %>

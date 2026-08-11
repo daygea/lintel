@@ -20,6 +20,22 @@ const { currentUserId } = require('../lib/context');
 
 const listCohorts = (filter = {}) => Cohort.find(filter).sort({ startsAt: -1 }).exec();
 
+/** Cohorts a learner could apply to right now: open, and within any application window. */
+async function listOpenCohorts() {
+  const now = new Date();
+  const cohorts = await Cohort.find({ status: 'open' }).populate('courseId').sort({ startsAt: 1 }).exec();
+  return cohorts.filter((c) => !c.applicationsCloseAt || c.applicationsCloseAt > now);
+}
+
+/** A learner's own applications, newest first, with cohort + course for display. */
+const applicationsForUser = (userId) =>
+  Application.find({ userId })
+    .populate({ path: 'cohortId', populate: { path: 'courseId' } })
+    .sort({ createdAt: -1 })
+    .exec();
+
+const enrollmentsForUser = (userId) => Enrollment.find({ userId }).exec();
+
 const getCohort = (id) => Cohort.findById(id).exec();
 
 async function createCohort(data) {
@@ -241,6 +257,9 @@ const audit = (action, subjectType, subjectId, meta) =>
 
 module.exports = {
   listCohorts,
+  listOpenCohorts,
+  applicationsForUser,
+  enrollmentsForUser,
   getCohort,
   createCohort,
   openCohort,
