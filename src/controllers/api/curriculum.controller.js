@@ -117,3 +117,19 @@ exports.search = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.deleteLesson = async (req, res, next) => {
+  try {
+    res.json(await curriculumService.deleteLesson(req.params.lessonId));
+  } catch (err) { next(err); }
+};
+
+exports.deleteModule = async (req, res, next) => {
+  try { res.json(await curriculumService.deleteModule(req.params.id)); }
+  catch (err) { next(err); }
+};
+
+exports.deleteCourse = async (req, res, next) => {
+  try { res.json(await curriculumService.deleteCourse(req.params.id)); }
+  catch (err) { next(err); }
+};

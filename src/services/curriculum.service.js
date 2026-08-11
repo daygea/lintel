@@ -1,6 +1,10 @@
 'use strict';
 
-const { Program, Course, Module, Lesson, ContentBlock, AuditLog } = require('../models');
+const {
+  Program, Course, Module, Lesson, ContentBlock, AuditLog,
+  Cohort, Session, Application, FeeSchedule, Group, Enrollment,
+  Quiz, QuizAttempt, LineItem, Score,
+} = require('../models');
 const { ValidationError } = require('../lib/errors');
 const { currentUserId } = require('../lib/context');
 
@@ -137,6 +141,88 @@ function groupBy(docs, key) {
 const audit = (action, subjectType, subjectId, meta) =>
   AuditLog.create({ actorUserId: currentUserId(), action, subjectType, subjectId, meta });
 
+/**
+ * Delete a lesson and its content blocks. The blocks are the lesson's own content
+ * (references, not the underlying media assets — those live in the media library
+ * and are managed there). Access logs are append-only and left untouched.
+ */
+async function deleteLesson(lessonId) {
+  const lesson = await Lesson.findById(lessonId).exec();
+  if (!lesson) throw new ValidationError('No such lesson');
+  await ContentBlock.deleteMany({ lessonId }).exec();
+  await Lesson.deleteOne({ _id: lessonId }).exec();
+  await AuditLog.create({
+    actorUserId: currentUserId(), action: 'lesson.deleted',
+    subjectType: 'Lesson', subjectId: lessonId, meta: { courseId: lesson.courseId },
+  });
+  return { deleted: true, courseId: lesson.courseId };
+}
+
+/** Delete a module and the lessons (with their blocks) under it. */
+async function deleteModule(moduleId) {
+  const mod = await Module.findById(moduleId).exec();
+  if (!mod) throw new ValidationError('No such module');
+  const lessonIds = (await Lesson.find({ moduleId }).select('_id').exec()).map((l) => l._id);
+  if (lessonIds.length) await ContentBlock.deleteMany({ lessonId: { $in: lessonIds } }).exec();
+  await Lesson.deleteMany({ moduleId }).exec();
+  await Module.deleteOne({ _id: moduleId }).exec();
+  await AuditLog.create({
+    actorUserId: currentUserId(), action: 'module.deleted',
+    subjectType: 'Module', subjectId: moduleId, meta: { courseId: mod.courseId, lessons: lessonIds.length },
+  });
+  return { deleted: true, courseId: mod.courseId };
+}
+
+/**
+ * Delete a course and everything it owns: modules, lessons and their blocks,
+ * quizzes and their attempts, the quiz gradebook line items and scores, and its
+ * (empty) cohorts with their config. Refuses while any learner is enrolled — you
+ * delete the cohorts first (which is itself guarded), so no enrolment is ever
+ * orphaned. Media assets stay in the library; append-only records are untouched.
+ */
+async function deleteCourse(courseId) {
+  const course = await Course.findById(courseId).exec();
+  if (!course) throw new ValidationError('No such course');
+
+  const enrolled = await Enrollment.countDocuments({ courseId }).exec();
+  if (enrolled > 0) {
+    throw new ValidationError(
+      `${enrolled} learner${enrolled === 1 ? ' is' : 's are'} enrolled in this course. Delete its cohorts (which unenrols learners) before deleting the course.`
+    );
+  }
+
+  const lessonIds = (await Lesson.find({ courseId }).select('_id').exec()).map((l) => l._id);
+  if (lessonIds.length) await ContentBlock.deleteMany({ lessonId: { $in: lessonIds } }).exec();
+  await Lesson.deleteMany({ courseId }).exec();
+  await Module.deleteMany({ courseId }).exec();
+
+  const quizIds = (await Quiz.find({ courseId }).select('_id').exec()).map((q) => q._id);
+  if (quizIds.length) await QuizAttempt.deleteMany({ quizId: { $in: quizIds } }).exec();
+  await Quiz.deleteMany({ courseId }).exec();
+
+  const liIds = (await LineItem.find({ courseId }).select('_id').exec()).map((li) => li._id);
+  if (liIds.length) await Score.deleteMany({ lineItemId: { $in: liIds } }).exec();
+  await LineItem.deleteMany({ courseId }).exec();
+
+  const cohortIds = (await Cohort.find({ courseId }).select('_id').exec()).map((c) => c._id);
+  if (cohortIds.length) {
+    await Promise.all([
+      Session.deleteMany({ cohortId: { $in: cohortIds } }).exec(),
+      Application.deleteMany({ cohortId: { $in: cohortIds } }).exec(),
+      FeeSchedule.deleteMany({ cohortId: { $in: cohortIds } }).exec(),
+      Group.deleteMany({ cohortId: { $in: cohortIds } }).exec(),
+    ]);
+    await Cohort.deleteMany({ courseId }).exec();
+  }
+
+  await Course.deleteOne({ _id: courseId }).exec();
+  await AuditLog.create({
+    actorUserId: currentUserId(), action: 'course.deleted', subjectType: 'Course', subjectId: courseId,
+    meta: { code: course.code, lessons: lessonIds.length, quizzes: quizIds.length, cohorts: cohortIds.length },
+  });
+  return { deleted: true };
+}
+
 module.exports = {
   listPrograms,
   createProgram,
@@ -144,6 +230,9 @@ module.exports = {
   getLesson,
   listBlocks,
   setLessonPolicy,
+  deleteLesson,
+  deleteModule,
+  deleteCourse,
   getCourse,
   getCourseTree,
   createCourse,

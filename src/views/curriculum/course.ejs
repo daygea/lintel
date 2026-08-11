@@ -2,6 +2,7 @@
 <%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
 <% var eyebrow = tree.course.code; var heading = pick(tree.course.title, locale); var lede = null; %>
 <%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+<% if (typeof error !== "undefined" && error) { %><div class="notice err" role="alert" style="margin-bottom:10px"><%= error %></div><% } %>
 <div style="margin:-14px 0 8px">
   <span class="badge <%= tree.course.status==='published'?'ok':'flat' %>"><%= tree.course.status %></span>
   <% if (tree.course.visibility === 'private') { %><span class="badge held" style="margin-left:6px">held</span>
@@ -16,7 +17,13 @@
 
   <% tree.modules.forEach(function (m) { %>
     <div style="margin:22px 0">
-      <div style="font-family:var(--serif);font-size:17px;margin-bottom:8px"><%= pick(m.module.title, locale) %></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div style="font-family:var(--serif);font-size:17px"><%= pick(m.module.title, locale) %></div>
+        <form method="post" action="/courses/<%= tree.course._id %>/modules/<%= m.module._id %>/delete" style="margin-left:auto" onsubmit="return confirm('Delete this module and its lessons? This cannot be undone.')">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button class="btn ghost small" type="submit" title="Delete module">Delete</button>
+        </form>
+      </div>
       <% (m.lessons||[]).forEach(function (l) { %>
         <a href="/courses/<%= tree.course._id %>/lessons/<%= l.lesson._id %>" class="thr <%= (l.lesson && l.lesson.eligibilityPolicyId) ? 'is-held' : 'is-open' %>" style="display:block;padding:8px 0 8px 16px;margin:6px 0;color:var(--ink)">
           <div><%= pick(l.lesson.title, locale) %></div>
@@ -62,5 +69,16 @@
       <button class="btn" type="submit">Add module</button>
     </form>
   </details>
+</div>
+
+<div class="section">
+  <div style="padding:12px 16px;border:1px solid var(--rule);border-radius:6px;max-width:560px">
+    <strong>Delete this course</strong>
+    <p class="quiet" style="font-size:13px;margin:4px 0 10px">Removes the course and everything under it — modules, lessons, content blocks, quizzes, and empty cohorts. A course with enrolled learners can't be deleted until its cohorts are removed. Media stays in your library. This can't be undone.</p>
+    <form method="post" action="/courses/<%= tree.course._id %>/delete" onsubmit="return confirm('Delete this entire course and all its content? This cannot be undone.')">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="btn ghost" type="submit">Delete course</button>
+    </form>
+  </div>
 </div>
 <%- include("../layouts/foot") %>

@@ -45,3 +45,9 @@ exports.markAttendance = h(async (req, res) => res.json({ attendance: await svc.
 exports.attendance = h(async (req, res) => res.json({ attendance: await svc.attendanceFor(req.params.sessionId) }));
 
 exports.notifications = h(async (req, res) => res.json({ notifications: await history() }));
+
+exports.deleteCohort = async (req, res, next) => {
+  try {
+    res.json(await svc.deleteCohort(req.params.id));
+  } catch (err) { next(err); }
+};

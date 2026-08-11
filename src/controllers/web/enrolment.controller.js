@@ -51,6 +51,7 @@ exports.showCohort = h(async (req, res) => {
     enrollable,
     schedules,
     invoiceByEnrollment,
+    error: req.query.err || null,
     pick,
     locale: req.tenant.defaultLocale,
   });
@@ -89,6 +90,18 @@ exports.openCohort = h(async (req, res) => {
 exports.closeCohort = h(async (req, res) => {
   await svc.closeCohort(req.params.id);
   res.redirect(`/cohorts/${req.params.id}`);
+});
+
+exports.deleteCohort = h(async (req, res) => {
+  try {
+    await svc.deleteCohort(req.params.id);
+    res.redirect('/cohorts');
+  } catch (err) {
+    if (err.status === 422 || err.name === 'ValidationError') {
+      return res.redirect(`/cohorts/${req.params.id}?err=${encodeURIComponent(err.message)}`);
+    }
+    throw err;
+  }
 });
 
 exports.createSession = h(async (req, res) => {

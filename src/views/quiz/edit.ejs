@@ -134,4 +134,15 @@
     refresh();
   })();
 </script>
+
+<div class="section">
+  <div style="padding:12px 16px;border:1px solid var(--rule);border-radius:6px;max-width:520px">
+    <strong>Delete this quiz</strong>
+    <p class="quiet" style="font-size:13px;margin:4px 0 10px">Removes the quiz, all learner attempts, and its gradebook column with any scores on it. This can't be undone.</p>
+    <form method="post" action="/courses/<%= courseId %>/quizzes/<%= quiz._id %>/delete" onsubmit="return confirm('Delete this quiz, its attempts, and its gradebook scores? This cannot be undone.')">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="btn ghost" type="submit">Delete quiz</button>
+    </form>
+  </div>
+</div>
 <%- include("../layouts/foot") %>

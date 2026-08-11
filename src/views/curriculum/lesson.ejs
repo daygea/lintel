@@ -94,4 +94,15 @@
     <button class="btn" type="submit">Add block</button>
   </form>
 </div>
+
+<div class="section">
+  <div style="padding:12px 16px;border:1px solid var(--rule);border-radius:6px;max-width:520px">
+    <strong>Delete this lesson</strong>
+    <p class="quiet" style="font-size:13px;margin:4px 0 10px">Removes the lesson and its content blocks. Uploaded media stays in your library. This can't be undone.</p>
+    <form method="post" action="/courses/<%= courseId %>/lessons/<%= lesson._id %>/delete" onsubmit="return confirm('Delete this lesson and its content? This cannot be undone.')">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="btn ghost" type="submit">Delete lesson</button>
+    </form>
+  </div>
+</div>
 <%- include("../layouts/foot") %>

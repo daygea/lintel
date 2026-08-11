@@ -7,6 +7,8 @@ const {
   LessonProgress,
   Session,
   Attendance,
+  FeeSchedule,
+  Group,
   Lesson,
   AuditLog,
 } = require('../models');
@@ -206,6 +208,34 @@ const attendanceFor = (sessionId) =>
 
 /* ------------------------------------------------------------------- helper */
 
+/**
+ * Delete a cohort and its owned config (sessions, applications, fee schedules,
+ * groups). Refuses if any learner is enrolled — a cohort with learners must have
+ * them unenrolled first, so we never orphan an enrolment. Attendance hangs off
+ * sessions, and a cohort with no enrolments has none, so it needs no separate pass.
+ */
+async function deleteCohort(cohortId) {
+  const cohort = await Cohort.findById(cohortId).exec();
+  if (!cohort) throw new ValidationError('No such cohort');
+
+  const enrolled = await Enrollment.countDocuments({ cohortId }).exec();
+  if (enrolled > 0) {
+    throw new ValidationError(
+      `${enrolled} learner${enrolled === 1 ? ' is' : 's are'} enrolled in this cohort. Unenrol them before deleting it.`
+    );
+  }
+
+  await Promise.all([
+    Session.deleteMany({ cohortId }).exec(),
+    Application.deleteMany({ cohortId }).exec(),
+    FeeSchedule.deleteMany({ cohortId }).exec(),
+    Group.deleteMany({ cohortId }).exec(),
+  ]);
+  await Cohort.deleteOne({ _id: cohortId }).exec();
+  await audit('cohort.deleted', 'Cohort', cohortId, { session: cohort.session });
+  return { deleted: true };
+}
+
 const audit = (action, subjectType, subjectId, meta) =>
   AuditLog.create({ actorUserId: currentUserId(), action, subjectType, subjectId, meta });
 
@@ -215,6 +245,7 @@ module.exports = {
   createCohort,
   openCohort,
   closeCohort,
+  deleteCohort,
   apply,
   listApplications,
   decideApplication,

@@ -105,3 +105,8 @@ exports.submitMarking = h(async (req, res) => {
   await quiz.markEssays(req.params.attemptId, req.body.marks || {});
   res.redirect(`/courses/${req.params.id}/quizzes/${req.params.quizId}/marking`);
 });
+
+exports.deleteQuiz = h(async (req, res) => {
+  await quiz.deleteQuiz(req.params.quizId);
+  res.redirect(`/courses/${req.params.id}/quizzes`);
+});

@@ -73,6 +73,8 @@
     <% if (cohort.status === 'open' || cohort.status === 'running') { %>
       <form method="post" action="/cohorts/<%= cohortId %>/close" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn ghost small" type="submit">Close cohort</button></form>
     <% } %>
+    <form method="post" action="/cohorts/<%= cohortId %>/delete" style="display:inline;margin-left:6px" onsubmit="return confirm('Delete this cohort? This cannot be undone. (A cohort with enrolled learners cannot be deleted.)')"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn ghost small" type="submit">Delete cohort</button></form>
+    <% if (typeof error !== "undefined" && error) { %><div class="notice err" role="alert" style="margin-top:8px"><%= error %></div><% } %>
   <% } %>
 </div>
 

@@ -19,7 +19,7 @@ exports.listCourses = async (req, res, next) => {
 exports.showCourse = async (req, res, next) => {
   try {
     const tree = await curriculumService.getCourseTree(req.params.id);
-    res.render('curriculum/course', { tree, pick, locale: req.tenant.defaultLocale });
+    res.render('curriculum/course', { tree, error: req.query.err || null, pick, locale: req.tenant.defaultLocale });
   } catch (err) {
     next(err);
   }
@@ -71,6 +71,32 @@ exports.createLesson = async (req, res, next) => {
     });
     res.redirect(`/courses/${req.params.id}`);
   } catch (err) { next(err); }
+};
+
+exports.deleteLesson = async (req, res, next) => {
+  try {
+    await curriculumService.deleteLesson(req.params.lessonId);
+    res.redirect(`/courses/${req.params.id}`);
+  } catch (err) { next(err); }
+};
+
+exports.deleteModule = async (req, res, next) => {
+  try {
+    await curriculumService.deleteModule(req.params.moduleId);
+    res.redirect(`/courses/${req.params.id}`);
+  } catch (err) { next(err); }
+};
+
+exports.deleteCourse = async (req, res, next) => {
+  try {
+    await curriculumService.deleteCourse(req.params.id);
+    res.redirect('/courses');
+  } catch (err) {
+    if (err.status === 422 || err.name === 'ValidationError') {
+      return res.redirect(`/courses/${req.params.id}?err=${encodeURIComponent(err.message)}`);
+    }
+    next(err);
+  }
 };
 
 // @parity-exempt eligibilityService.listPolicies — this is a web-view concern:

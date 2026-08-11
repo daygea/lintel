@@ -23,3 +23,5 @@ exports.listQuizzes = h(async (req, res) => res.json({ quizzes: await quiz.listQ
 exports.createQuiz = h(async (req, res) => res.status(201).json({ quiz: await quiz.createQuiz(req.body) }));
 exports.presentQuiz = h(async (req, res) => res.json({ ...await quiz.presentFor(req.params.id), csrfToken: req.session.csrfToken }));
 exports.submitQuiz = h(async (req, res) => res.status(201).json({ attempt: await quiz.submit({ ...req.body, quizId: req.params.id, userId: req.user._id }) }));
+
+exports.deleteQuiz = h(async (req, res) => res.json(await quiz.deleteQuiz(req.params.id)));

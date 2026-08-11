@@ -1,6 +1,6 @@
 'use strict';
 
-const { Quiz, QuizAttempt, AuditLog } = require('../models');
+const { Quiz, QuizAttempt, LineItem, Score, AuditLog } = require('../models');
 const { ValidationError } = require('../lib/errors');
 const { currentUserId } = require('../lib/context');
 
@@ -289,7 +289,29 @@ async function markEssays(attemptId, rawMarks) {
   return attempt;
 }
 
+/**
+ * Delete a quiz: its attempts, and the gradebook line item it fed (with the
+ * scores on it). An author's explicit cleanup — the confirm dialog warns that
+ * learner attempts and scores go with it.
+ */
+async function deleteQuiz(quizId) {
+  const quiz = await Quiz.findById(quizId).exec();
+  if (!quiz) throw new ValidationError('No such quiz');
+  await QuizAttempt.deleteMany({ quizId }).exec();
+  const lineItem = await LineItem.findOne({ quizId }).exec();
+  if (lineItem) {
+    await Score.deleteMany({ lineItemId: lineItem._id }).exec();
+    await LineItem.deleteOne({ _id: lineItem._id }).exec();
+  }
+  await Quiz.deleteOne({ _id: quizId }).exec();
+  await AuditLog.create({
+    actorUserId: currentUserId(), action: 'quiz.deleted',
+    subjectType: 'Quiz', subjectId: quizId, meta: { courseId: quiz.courseId },
+  });
+  return { deleted: true, courseId: quiz.courseId };
+}
+
 module.exports = {
   listQuizzes, getQuiz, createQuiz, buildQuestion, addQuestion, removeQuestion, setStatus,
-  presentFor, submit, mark, listAttemptsToMark, getAttemptForMarking, markEssays,
+  presentFor, submit, mark, listAttemptsToMark, getAttemptForMarking, markEssays, deleteQuiz,
 };

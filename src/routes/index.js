@@ -91,15 +91,19 @@ router.get('/courses/search', ...author, webCurriculum.search);
 router.get('/courses/:id', ...author, webCurriculum.showCourse);
 router.post('/courses/:id/copy', ...author, webCurriculum.copyCourse);
 router.post('/courses/:id/modules', ...author, webCurriculum.createModule);
+router.post('/courses/:id/modules/:moduleId/delete', ...author, webCurriculum.deleteModule);
+router.post('/courses/:id/delete', ...author, webCurriculum.deleteCourse);
 router.post('/courses/:id/lessons', ...author, webCurriculum.createLesson);
 router.get('/courses/:id/lessons/:lessonId', ...author, webCurriculum.showLesson);
 router.post('/courses/:id/lessons/:lessonId/blocks', ...author, webCurriculum.createBlock);
 router.post('/courses/:id/lessons/:lessonId/policy', ...author, webCurriculum.setLessonPolicy);
+router.post('/courses/:id/lessons/:lessonId/delete', ...author, webCurriculum.deleteLesson);
 router.get('/courses/:id/quizzes', ...assessor, webQuiz.list);
 router.post('/courses/:id/quizzes', ...assessor, webQuiz.create);
 router.get('/courses/:id/quizzes/:quizId', ...assessor, webQuiz.edit);
 router.post('/courses/:id/quizzes/:quizId/questions', ...assessor, webQuiz.addQuestion);
 router.post('/courses/:id/quizzes/:quizId/questions/:qid/delete', ...assessor, webQuiz.removeQuestion);
+router.post('/courses/:id/quizzes/:quizId/delete', ...assessor, webQuiz.deleteQuiz);
 router.post('/courses/:id/quizzes/:quizId/status', ...assessor, webQuiz.setStatus);
 router.get('/courses/:id/quizzes/:quizId/marking', ...assessor, webQuiz.marking);
 router.get('/courses/:id/quizzes/:quizId/attempts/:attemptId', ...assessor, webQuiz.markAttempt);
@@ -116,10 +120,13 @@ router.patch('/api/v1/courses/:id', ...author, apiCurriculum.updateCourse);
 router.post('/api/v1/courses/:id/copy', ...author, apiCurriculum.copyCourse);
 
 router.post('/api/v1/modules', ...author, apiCurriculum.createModule);
+router.delete('/api/v1/modules/:id', ...author, apiCurriculum.deleteModule);
+router.delete('/api/v1/courses/:id', ...author, apiCurriculum.deleteCourse);
 router.post('/api/v1/lessons', ...author, apiCurriculum.createLesson);
 router.post('/api/v1/blocks', ...author, apiCurriculum.createBlock);
 router.get('/api/v1/lessons/:lessonId', ...author, apiCurriculum.showLesson);
 router.post('/api/v1/lessons/:lessonId/policy', ...author, apiCurriculum.setLessonPolicy);
+router.delete('/api/v1/lessons/:lessonId', ...author, apiCurriculum.deleteLesson);
 router.post('/api/v1/reorder', ...author, apiCurriculum.reorder);
 
 /* -------------------------------------------------------------------- media */
@@ -145,6 +152,7 @@ router.get('/cohorts/:id', ...staff, webEnrolment.showCohort);
 router.post('/cohorts', ...staff, webEnrolment.createCohort);
 router.post('/cohorts/:id/open', ...staff, webEnrolment.openCohort);
 router.post('/cohorts/:id/close', ...staff, webEnrolment.closeCohort);
+router.post('/cohorts/:id/delete', ...staff, webEnrolment.deleteCohort);
 router.post('/cohorts/:id/sessions', ...staff, webEnrolment.createSession);
 router.post('/cohorts/:id/attendance', ...staff, webEnrolment.markAttendance);
 router.post('/applications/:id/decide', ...staff, webEnrolment.decideApplication);
@@ -152,6 +160,7 @@ router.post('/cohorts/:id/enrol', ...staff, webEnrolment.enrolMember);
 
 router.get('/api/v1/cohorts', ...staff, apiEnrolment.listCohorts);
 router.post('/api/v1/cohorts', ...staff, apiEnrolment.createCohort);
+router.delete('/api/v1/cohorts/:id', ...staff, apiEnrolment.deleteCohort);
 router.post('/api/v1/cohorts/:id/open', ...staff, apiEnrolment.openCohort);
 router.post('/api/v1/cohorts/:id/close', ...staff, apiEnrolment.closeCohort);
 
@@ -255,6 +264,7 @@ router.get('/api/v1/users/:userId/transcript', ...assessor, apiGradebook.transcr
 
 router.get('/api/v1/quizzes', ...assessor, apiGradebook.listQuizzes);
 router.post('/api/v1/quizzes', ...assessor, apiGradebook.createQuiz);
+router.delete('/api/v1/quizzes/:id', ...assessor, apiGradebook.deleteQuiz);
 router.get('/api/v1/quizzes/:id/present', requireUser, requireMember, apiGradebook.presentQuiz);
 router.post('/api/v1/quizzes/:id/submit', requireUser, requireMember, apiGradebook.submitQuiz);
 
