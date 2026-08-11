@@ -33,6 +33,7 @@ async function loadLearning(force) {
   STATE.csrf = data.csrfToken || '';
   setCsrfMeta(STATE.csrf);
   STATE.institution = data.institution || '';
+  STATE.learnerName = data.learnerName || '';
   STATE.courses = data.courses || [];
   STATE.loaded = true;
   indexLessonTitles(STATE.courses);
@@ -76,6 +77,7 @@ function shell(sideHtml, paneHtml) {
 function solo(html) { return `<div class="solo">${html}</div>`; }
 
 function wireShell() {
+  document.body.classList.add('has-shell');
   const toggle = document.getElementById('nav-toggle');
   const scrim = document.getElementById('scrim');
   if (toggle) toggle.onclick = () => document.body.classList.toggle('nav-open');
@@ -96,7 +98,8 @@ function sideCourseList(courses, activeId) {
   }).join('');
   return `<div class="side-head">My courses</div>
     ${items || '<p class="muted" style="padding:0 16px">No courses yet.</p>'}
-    <a class="side-cta btn ghost" href="/apply">Browse open programmes</a>`;
+    <a class="side-cta btn ghost" href="/apply">Browse open programmes</a>
+    <a class="side-cta" href="/my/fees" style="font-size:13px">Fees &amp; payments</a>`;
 }
 
 function sideOutline(course, activeLessonId) {
@@ -134,21 +137,61 @@ async function renderHome() {
   try { courses = await loadLearning(); } catch { return renderOfflineOnly(); }
   if (courses == null) return; // redirected to login
 
-  const cards = courses.length
-    ? `<div class="grid">${courses.map(homeCard).join('')}</div>`
+  const first = STATE.learnerName ? escapeHtml(STATE.learnerName.split(' ')[0]) : '';
+  const hero = `
+    <section class="hero">
+      <div class="hero-eyebrow">${escapeHtml(STATE.institution || 'Lintel')}</div>
+      <h1>${first ? 'Welcome back, ' + first : 'Welcome back'}</h1>
+      <p>${courses.length
+        ? 'Pick up where you left off, or explore what\u2019s open.'
+        : 'Your courses will appear here once you\u2019re enrolled.'}</p>
+    </section>`;
+
+  const resume = pickResume(courses);
+  const continueBlock = resume ? continueCard(resume) : '';
+
+  const grid = courses.length
+    ? `<h2 class="section-h">Your courses</h2><div class="grid">${courses.map(homeCard).join('')}</div>`
     : `<div class="card"><p style="margin:0">You're not enrolled in anything yet.</p>
-        <p class="muted" style="margin:8px 0 0">Apply to an open programme, or a registrar can enrol you directly.</p></div>`;
+        <p class="muted" style="margin:8px 0 0">Apply to an open programme below, or a registrar can enrol you directly.</p></div>`;
 
-  const pane = `
-    <h1>Your learning</h1>
-    ${STATE.institution ? `<p class="muted" style="margin-top:-6px">${escapeHtml(STATE.institution)}</p>` : ''}
-    ${cards}
-    <p style="margin-top:18px"><a class="btn" href="/apply">Browse open programmes</a></p>
-    <div id="offline" style="margin-top:26px"></div>`;
-
-  root.innerHTML = shell(sideCourseList(courses, null), pane);
-  wireShell();
+  root.innerHTML = `<div class="home">
+    ${hero}
+    ${continueBlock}
+    ${grid}
+    <p style="margin-top:22px"><a class="btn" href="/apply">Browse open programmes</a> <a class="btn ghost" href="/my/fees" style="margin-left:8px">Fees &amp; payments</a></p>
+    <div id="offline" style="margin-top:26px"></div>
+  </div>`;
   renderOfflineList();
+}
+
+// The course to resume: the in-progress one with the most completed lessons,
+// else the first course that still has an open lesson to start.
+function pickResume(courses) {
+  const inProgress = courses
+    .map((c) => ({ c, p: courseProgress(c) }))
+    .filter((x) => x.p.done > 0 && x.p.done < x.p.total)
+    .sort((a, b) => b.p.done - a.p.done);
+  if (inProgress.length) return inProgress[0].c;
+  return courses.find((c) => flatLessons(c).some((l) => !l.held && l.progress !== 'complete')) || null;
+}
+
+function continueCard(course) {
+  const p = courseProgress(course);
+  const flat = flatLessons(course);
+  const next = flat.find((l) => !l.held && l.progress !== 'complete') || flat.find((l) => !l.held);
+  return `
+    <div class="continue">
+      <div style="flex:1;min-width:220px">
+        <div class="continue-eyebrow">Continue learning</div>
+        <div class="continue-title">${pickText(course.title)}</div>
+        <div class="meter" style="margin-top:10px"><span style="width:${p.pct}%"></span></div>
+        <div class="c-prog" style="margin-top:5px">${p.done} of ${p.total} lessons${next ? ' \u00b7 next: ' + pickText(next.title) : ''}</div>
+      </div>
+      ${next
+        ? `<a class="btn" href="?lesson=${next.id}">Resume</a>`
+        : `<a class="btn ghost" href="?course=${course.id}">Review</a>`}
+    </div>`;
 }
 
 function homeCard(course) {
@@ -176,20 +219,19 @@ async function renderCourse(courseId) {
   const p = courseProgress(course);
   const flat = flatLessons(course);
   const next = flat.find((l) => !l.held && l.progress !== 'complete') || flat.find((l) => !l.held);
-  const quizzes = (course.quizzes || []).length
-    ? `<div class="section"><h2>Quizzes</h2><ul class="q-list">${course.quizzes.map(courseQuizRow).join('')}</ul></div>`
-    : '';
 
   const pane = `
-    <div class="c-head">
+    <div class="course-hero">
       <span class="c-code mono">${escapeHtml(course.code || '')}</span>
       <h1>${pickText(course.title)}</h1>
-      ${course.cohortTitle ? `<p class="muted" style="margin-top:-4px">${pickText(course.cohortTitle)}</p>` : ''}
+      ${course.cohortTitle ? `<p class="muted" style="margin-top:-2px">${pickText(course.cohortTitle)}</p>` : ''}
+      <div class="meter big" style="margin-top:14px" aria-hidden="true"><span style="width:${p.pct}%"></span></div>
+      <p class="muted" style="margin-top:6px">${p.done} of ${p.total} lessons complete${p.pct === 100 ? ' \u00b7 done \u2713' : ''}</p>
+      ${next
+        ? `<p style="margin-top:16px"><a class="btn" href="?lesson=${next.id}">${p.done ? 'Continue' : 'Start'}: ${pickText(next.title)}</a></p>`
+        : '<p class="muted" style="margin-top:12px">No open lessons yet.</p>'}
     </div>
-    <div class="meter big" aria-hidden="true"><span style="width:${p.pct}%"></span></div>
-    <p class="muted" style="margin-top:6px">${p.done} of ${p.total} lessons complete</p>
-    ${next ? `<p style="margin-top:16px"><a class="btn" href="?lesson=${next.id}">${p.done ? 'Continue' : 'Start'}: ${pickText(next.title)}</a></p>` : '<p class="muted">No open lessons yet.</p>'}
-    ${quizzes}`;
+    <p class="quiet" style="font-size:13px;margin-top:20px">Use the course outline to jump to any lesson${(course.quizzes || []).length ? ' or quiz' : ''}.</p>`;
 
   root.innerHTML = shell(sideOutline(course, null), pane);
   wireShell();
@@ -608,6 +650,7 @@ function currentView() {
 
 async function route() {
   window.scrollTo(0, 0);
+  document.body.classList.remove('has-shell'); // shell views re-add via wireShell
   await currentView()();
 }
 

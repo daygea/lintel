@@ -22,6 +22,7 @@ exports.myLearning = h(async (req, res) =>
     // guard as the rest of the app.
     csrfToken: req.session.csrfToken,
     institution: req.tenant.name,
+    learnerName: req.user && req.user.name,
   })
 );
 
