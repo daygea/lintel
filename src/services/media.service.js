@@ -1,8 +1,9 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const { Asset, AuditLog } = require('../models');
+const { Asset, AuditLog, ContentBlock } = require('../models');
 const storage = require('../lib/storage');
+const logger = require('../lib/logger');
 const { enqueue } = require('../lib/queue');
 const { currentTenantId, currentUserId } = require('../lib/context');
 const { ValidationError } = require('../lib/errors');
@@ -138,6 +139,54 @@ const sanitise = (name) =>
     .replace(/[^a-zA-Z0-9._-]/g, '_')
     .slice(-80);
 
+/** Rename a file (its display name). */
+async function renameAsset(assetId, filename) {
+  const name = String(filename || '').trim();
+  if (!name) throw new ValidationError('A file needs a name.');
+  const asset = await Asset.findByIdAndUpdate(assetId, { filename: name }, { new: true }).exec();
+  if (!asset) throw new ValidationError('No such file.');
+  return asset;
+}
+
+/**
+ * Delete a file and every object it owns (original, derivatives, captions). Refuses
+ * if any lesson block still points at it — a file in use must be removed from those
+ * lessons first, so we never leave a lesson with a dangling reference. Object
+ * deletes are best-effort: a storage hiccup on one key doesn't strand the record.
+ */
+async function deleteAsset(assetId) {
+  const asset = await Asset.findById(assetId).exec();
+  if (!asset) throw new ValidationError('No such file.');
+
+  const uses = await ContentBlock.countDocuments({ assetId }).exec();
+  if (uses > 0) {
+    throw new ValidationError(
+      `This file is used in ${uses} lesson block${uses === 1 ? '' : 's'}. Remove it from those lessons before deleting.`
+    );
+  }
+
+  const keys = [
+    asset.storageKey,
+    ...(asset.derivatives || []).map((d) => d.key),
+    ...(asset.captions || []).map((c) => c.key),
+  ].filter(Boolean);
+  for (const key of keys) {
+    try {
+      await storage.del(key);
+    } catch (err) {
+      logger.warn({ key, err: err.message }, 'asset object delete failed (continuing)');
+    }
+  }
+
+  await Asset.deleteOne({ _id: asset._id }).exec();
+  await AuditLog.create({
+    actorUserId: currentUserId(), action: 'asset.deleted',
+    subjectType: 'Asset', subjectId: asset._id,
+    meta: { filename: asset.filename, keysRemoved: keys.length },
+  });
+  return { deleted: true, keysRemoved: keys.length };
+}
+
 module.exports = {
   beginUpload,
   completeUpload,
@@ -146,5 +195,7 @@ module.exports = {
   listAssets,
   getAsset,
   setTranscript,
+  renameAsset,
+  deleteAsset,
   PART_SIZE,
 };

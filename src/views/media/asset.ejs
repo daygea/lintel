@@ -9,6 +9,7 @@
   <% if (asset.bytes) { %><span class="quiet mono" style="margin-left:10px;font-size:12px"><%= (asset.bytes/1024/1024).toFixed(1) %> MB</span><% } %>
 </div>
 <% if (asset.error) { %><div class="notice err"><%= asset.error %></div><% } %>
+<% if (typeof error !== "undefined" && error) { %><div class="notice err" role="alert"><%= error %></div><% } %>
 
 <% var streamable = (asset.kind === 'audio' || asset.kind === 'video'); %>
 
@@ -47,4 +48,24 @@
     <% } %>
   </div>
 <% } %>
+<div class="section">
+  <h2>Manage</h2>
+  <form method="post" action="/media/<%= asset._id %>/rename" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;max-width:520px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div style="flex:1;min-width:220px">
+      <label for="fname">File name</label>
+      <input id="fname" name="filename" type="text" value="<%= asset.filename %>" required>
+    </div>
+    <button class="btn" type="submit">Rename</button>
+  </form>
+
+  <div style="margin-top:18px;padding:12px 16px;border:1px solid var(--rule);border-radius:6px;max-width:520px">
+    <strong>Delete this file</strong>
+    <p class="quiet" style="font-size:13px;margin:4px 0 10px">Removes the file and all its renditions from storage — this can't be undone. A file that's attached to a lesson can't be deleted until it's removed from that lesson.</p>
+    <form method="post" action="/media/<%= asset._id %>/delete" onsubmit="return confirm('Delete this file and all its renditions? This cannot be undone.')">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="btn ghost" type="submit">Delete file</button>
+    </form>
+  </div>
+</div>
 <%- include("../layouts/foot") %>

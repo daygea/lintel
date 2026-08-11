@@ -126,6 +126,8 @@ router.post('/api/v1/reorder', ...author, apiCurriculum.reorder);
 router.get('/media', ...author, webMedia.listAssets);
 router.get('/media/upload', ...author, webMedia.uploadPage);
 router.get('/media/:id', ...author, webMedia.getAsset);
+router.post('/media/:id/rename', ...author, webMedia.rename);
+router.post('/media/:id/delete', ...author, webMedia.remove);
 
 router.get('/api/v1/assets', ...author, apiMedia.listAssets);
 router.post('/api/v1/assets/upload', ...author, apiMedia.beginUpload);
@@ -134,6 +136,8 @@ router.delete('/api/v1/assets/:id/upload', ...author, apiMedia.abandonUpload);
 router.get('/api/v1/assets/:id', ...author, apiMedia.getAsset);
 router.get('/api/v1/assets/:id/playback', ...author, apiMedia.playbackUrl);
 router.patch('/api/v1/assets/:id/transcript', ...author, apiMedia.setTranscript);
+router.patch('/api/v1/assets/:id/rename', ...author, apiMedia.rename);
+router.delete('/api/v1/assets/:id', ...author, apiMedia.deleteAsset);
 
 /* -------------------------------------------------------------- enrolment */
 router.get('/cohorts', ...staff, webEnrolment.listCohorts);

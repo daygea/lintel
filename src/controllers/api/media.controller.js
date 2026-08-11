@@ -58,3 +58,21 @@ exports.setTranscript = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.rename = async (req, res, next) => {
+  try {
+    const asset = await mediaService.renameAsset(req.params.id, req.body.filename);
+    res.json({ id: asset._id, filename: asset.filename });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteAsset = async (req, res, next) => {
+  try {
+    const result = await mediaService.deleteAsset(req.params.id);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
