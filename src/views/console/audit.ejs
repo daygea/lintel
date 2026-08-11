@@ -11,7 +11,7 @@
   <% entries.forEach(function(e){ %>
     <tr>
       <td class="mono quiet" style="font-size:12.5px"><%= new Date(e.at).toLocaleString() %></td>
-      <td class="quiet"><%= e.actorUserId && e.actorUserId.email ? e.actorUserId.email : '—' %></td>
+      <td class="quiet"><%= e.actorUserId && e.actorUserId.email ? e.actorUserId.email : 'System' %></td>
       <td class="mono" style="font-size:13px"><%= e.action %></td>
       <td class="mono quiet" style="font-size:12px"><%= e.meta ? JSON.stringify(e.meta) : '' %></td>
     </tr>

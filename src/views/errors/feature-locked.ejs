@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Not on your plan · Lintel</title>
+  <style>
+    body{margin:0;background:#F5F4F1;color:#14192B;font-family:-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;line-height:1.6}
+    .wrap{max-width:520px;margin:12vh auto;padding:0 20px}
+    .card{background:#fff;border:1px solid #E3E0D9;border-radius:10px;padding:28px 30px}
+    h1{font-family:Georgia,serif;font-size:22px;margin:0 0 6px}
+    .eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8C6E33;margin-bottom:10px}
+    p{color:#4A4A44;font-size:15px}
+    .plan{font-family:monospace;font-size:12px;color:#6E6B63}
+    a.btn{display:inline-block;margin-top:14px;background:#14192B;color:#fff;text-decoration:none;padding:9px 16px;border-radius:6px;font-size:14px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="eyebrow">Not on your plan</div>
+      <h1><%= featureLabel %></h1>
+      <p>This feature isn't included in your institution's current plan<% if (plan) { %> <span class="plan">(<%= plan %>)</span><% } %>. Ask your administrator to upgrade to enable it.</p>
+      <a class="btn" href="/">← Back</a>
+    </div>
+  </div>
+</body>
+</html>

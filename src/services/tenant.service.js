@@ -19,6 +19,7 @@ async function provision({ slug, name, ownerUserId, plan = 'trial', baseCurrency
   const clash = await Tenant.findOne({ slug: String(slug).toLowerCase() });
   if (clash) throw new ValidationError('That address is already taken');
 
+  const trialDays = PLANS[plan].trialDays;
   const tenant = await Tenant.create({
     slug: String(slug).toLowerCase(),
     name,
@@ -28,6 +29,7 @@ async function provision({ slug, name, ownerUserId, plan = 'trial', baseCurrency
     locales,
     defaultLocale: locales[0],
     status: 'trial',
+    trialEndsAt: trialDays ? new Date(Date.now() + trialDays * 864e5) : undefined,
   });
 
   await runWithTenant(tenant._id, ownerUserId, async () => {

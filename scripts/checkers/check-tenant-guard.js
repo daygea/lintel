@@ -15,6 +15,7 @@ const PLATFORM_SCOPED = [
   // platform: a report is filed platform-side, a grant is issued platform-side.
   'abuse-report.js',
   'breakglass-grant.js',
+  'platform-payment.js', // institution→Lintel subscription payment; Lintel's revenue, belongs to no tenant
 ];
 
 module.exports = function checkTenantGuard() {

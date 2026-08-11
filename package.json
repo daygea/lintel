@@ -17,7 +17,8 @@
     "precommit": "npm run check",
     "worker": "node src/workers/index.js",
     "dev:worker": "node --watch src/workers/index.js",
-    "indexes": "node scripts/sync-indexes.js"
+    "indexes": "node scripts/sync-indexes.js",
+    "sweep-trials": "node scripts/sweep-trials.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1086.0",

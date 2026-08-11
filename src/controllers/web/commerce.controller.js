@@ -75,7 +75,8 @@ exports.showInvoice = h(async (req, res) => {
   res.render('commerce/invoice', {
     ...view, format, currencies: SUPPORTED, pick,
     online: commerce.PROVIDERS.paystack.isConfigured(),
-    error: null,
+    refunded: req.query.refunded || null,
+    error: req.query.err || null,
   });
 });
 
@@ -98,4 +99,21 @@ exports.payInvoice = h(async (req, res) => {
 exports.waiveInvoice = h(async (req, res) => {
   await commerce.waive({ invoiceId: req.params.id, reason: req.body.reason || 'Waived' });
   res.redirect(`/invoices/${req.params.id}`);
+});
+
+exports.refundInvoice = h(async (req, res) => {
+  try {
+    const currency = (req.body.currency || 'NGN').toUpperCase();
+    await commerce.refund({
+      invoiceId: req.params.id,
+      amount: { amount: toMinor(req.body.amount), currency },
+      reason: req.body.reason || undefined,
+    });
+    res.redirect(`/invoices/${req.params.id}?refunded=1`);
+  } catch (err) {
+    if (err.status === 422 || err.name === 'ValidationError') {
+      return res.redirect(`/invoices/${req.params.id}?err=${encodeURIComponent(err.message)}`);
+    }
+    throw err;
+  }
 });

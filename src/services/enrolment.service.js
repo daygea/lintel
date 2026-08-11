@@ -10,11 +10,31 @@ const {
   FeeSchedule,
   Group,
   Lesson,
+  Tenant,
   AuditLog,
 } = require('../models');
 const { notify } = require('./notification');
+const { PLANS } = require('../config/plans');
 const { ValidationError, NotAuthorisedError } = require('../lib/errors');
-const { currentUserId } = require('../lib/context');
+const { currentUserId, currentTenantId } = require('../lib/context');
+
+/**
+ * Enforce the plan's seat cap before creating a NEW active enrolment. Re-enrolling
+ * an existing learner doesn't consume a seat (the caller returns early for those),
+ * so this only runs for genuinely new seats. A plan with no seat number is
+ * unlimited. Counts this tenant's active enrolments (query is tenant-scoped).
+ */
+async function assertSeatAvailable() {
+  const tenant = await Tenant.findById(currentTenantId()).exec();
+  const seats = tenant && PLANS[tenant.plan] ? PLANS[tenant.plan].seats : null;
+  if (!seats) return;
+  const active = await Enrollment.countDocuments({ status: 'active' }).exec();
+  if (active >= seats) {
+    throw new ValidationError(
+      `This institution's plan allows ${seats} active learners and has reached that limit. Upgrade the plan to enrol more.`
+    );
+  }
+}
 
 /* ------------------------------------------------------------------ cohorts */
 
@@ -113,13 +133,19 @@ async function decideApplication({ applicationId, decision, note, locale = 'en' 
 
   let enrollment = null;
   if (decision === 'admitted') {
-    enrollment = await Enrollment.create({
-      userId: application.userId,
-      cohortId: application.cohortId,
-      courseId: cohort.courseId,
-      status: 'active',
-      paymentState: 'unpaid',
-    });
+    const already = await Enrollment.findOne({ userId: application.userId, cohortId: application.cohortId }).exec();
+    if (already) {
+      enrollment = already;
+    } else {
+      await assertSeatAvailable();
+      enrollment = await Enrollment.create({
+        userId: application.userId,
+        cohortId: application.cohortId,
+        courseId: cohort.courseId,
+        status: 'active',
+        paymentState: 'unpaid',
+      });
+    }
   }
 
   await audit('application.decided', 'Application', application._id, { decision });
@@ -152,6 +178,8 @@ async function enrol({ cohortId, userId }) {
 
   const existing = await Enrollment.findOne({ userId, cohortId }).exec();
   if (existing) return existing;
+
+  await assertSeatAvailable();
 
   const enrollment = await Enrollment.create({
     userId,

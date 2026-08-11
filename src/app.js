@@ -68,6 +68,7 @@ function createApp() {
   // resolver has established a context.
   app.use(tenantResolver);
   app.use(loadSession);
+  app.use(require('./middleware/enforce-active'));
   app.use(csrf);
 
   app.use(routes);

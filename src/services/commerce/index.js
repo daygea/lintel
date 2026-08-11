@@ -2,9 +2,10 @@
 
 const crypto = require('node:crypto');
 const {
-  FeeSchedule, Invoice, Payment, Enrollment, AuditLog, User,
+  FeeSchedule, Invoice, Payment, Enrollment, AuditLog, User, Tenant,
 } = require('../../models');
 const { PaystackProvider } = require('./providers/paystack');
+const { PLANS } = require('../../config/plans');
 const money = require('../../lib/money');
 const { ValidationError, NotAuthorisedError } = require('../../lib/errors');
 const { currentUserId, currentTenantId } = require('../../lib/context');
@@ -15,6 +16,52 @@ const PROVIDERS = { paystack: new PaystackProvider() };
 /* -------------------------------------------------------------- fee schedules */
 
 const listSchedules = (filter = {}) => FeeSchedule.find(filter).sort({ createdAt: -1 }).exec();
+
+/**
+ * A cohort's default fee schedule (the newest), or null if the cohort is free.
+ * "Free vs paid" is derived from this — a cohort with a schedule whose items sum
+ * above zero is paid; no schedule (or an empty one) is free.
+ */
+const scheduleForCohort = (cohortId) =>
+  FeeSchedule.findOne({ cohortId }).sort({ createdAt: -1 }).exec();
+
+/** The headline fee for a cohort as a money value, or null when it's free. */
+async function cohortFee(cohortId) {
+  const schedule = await scheduleForCohort(cohortId);
+  if (!schedule || !schedule.items.length) return null;
+  const currency = schedule.items[0].amount.currency;
+  const total = schedule.items.reduce((sum, i) => money.add(sum, i.amount), money.zero(currency));
+  return money.isFree(total) ? null : total;
+}
+
+/**
+ * The learner's own invoices, newest first, each with what's still outstanding.
+ * This is the data behind the learner "My fees" page.
+ */
+async function myInvoices(userId) {
+  const invoices = await Invoice.find({ userId }).sort({ createdAt: -1 }).exec();
+  return invoices.map((inv) => ({
+    invoice: inv,
+    outstanding: money.subtract(inv.amountDue, inv.amountPaid),
+    settled: money.isFree(money.subtract(inv.amountDue, inv.amountPaid)) || inv.state === 'waived',
+  }));
+}
+
+/**
+ * Ensure a paid enrolment has an invoice, so the learner can pay without a
+ * registrar raising one by hand. Idempotent (one invoice per enrolment). Returns
+ * the invoice, or null when the cohort is free (nothing to pay).
+ */
+async function ensureInvoiceForEnrolment(enrollmentId) {
+  const existing = await Invoice.findOne({ enrollmentId }).exec();
+  if (existing) return existing;
+  const enrollment = await Enrollment.findById(enrollmentId).exec();
+  if (!enrollment) return null;
+  const schedule = await scheduleForCohort(enrollment.cohortId);
+  if (!schedule || !schedule.items.length) return null; // free cohort → no invoice
+  return raiseInvoice({ enrollmentId, feeScheduleId: schedule._id });
+}
+
 
 async function createSchedule(data) {
   if (!data.label) throw new ValidationError('A fee schedule needs a label');
@@ -74,7 +121,7 @@ async function raiseInvoice({ enrollmentId, feeScheduleId, planId }) {
  * Begin an online payment. Returns a provider authorization URL. The reference is
  * ours and unique, so the webhook can find the invoice again.
  */
-async function beginPayment({ invoiceId, providerKey = 'paystack' }) {
+async function beginPayment({ invoiceId, providerKey = 'paystack', returnUrl }) {
   const invoice = await Invoice.findById(invoiceId).exec();
   if (!invoice) throw new ValidationError('No such invoice');
 
@@ -87,11 +134,26 @@ async function beginPayment({ invoiceId, providerKey = 'paystack' }) {
   const user = await User.findById(invoice.userId).exec();
   const reference = `${currentTenantId()}_${invoice._id}_${crypto.randomBytes(4).toString('hex')}`;
 
+  // Marketplace split (opt-in): if the institution has a Paystack subaccount, the
+  // learner's money is credited to it and Lintel keeps a plan-based cut as the
+  // transaction charge. No subaccount → settles to Lintel's account as before.
+  let subaccount;
+  let transactionCharge;
+  const tenant = await Tenant.findById(currentTenantId()).exec();
+  if (tenant && tenant.paystackSubaccount) {
+    subaccount = tenant.paystackSubaccount;
+    const bps = (PLANS[tenant.plan] && PLANS[tenant.plan].platformFeeBps) || 0;
+    transactionCharge = Math.round((outstanding.amount * bps) / 10000);
+  }
+
   const init = await provider.initialize({
     invoice,
     amount: outstanding,
     email: user?.email,
     reference,
+    callbackUrl: returnUrl,
+    subaccount,
+    transactionCharge,
   });
 
   return { authorizationUrl: init.authorizationUrl, reference: init.reference };
@@ -116,7 +178,7 @@ async function recordPayment({ invoiceId, amount, method, provider = 'manual', p
     }
   }
 
-  const manual = ['bank_transfer', 'cash', 'waiver'].includes(method);
+  const manual = ['bank_transfer', 'cash', 'waiver', 'refund'].includes(method);
   let payment;
   try {
     payment = await Payment.create({
@@ -199,8 +261,18 @@ async function handleWebhook({ providerKey = 'paystack', rawBody, signature, bod
   const parsed = provider.parseWebhook(body);
   if (parsed.event !== 'charge.success') return { ignored: parsed.event };
 
-  // reference format: <tenantId>_<invoiceId>_<rand>
-  const invoiceId = String(parsed.reference).split('_')[1];
+  const ref = String(parsed.reference);
+
+  // Platform subscription payment (institution → Lintel): reference sub_<tenantId>_<plan>_<rand>
+  if (ref.startsWith('sub_')) {
+    const [, tenantId, plan] = ref.split('_');
+    return require('../billing.service').activateSubscription({
+      tenantId, plan, providerRef: parsed.providerRef, amount: parsed.amount,
+    });
+  }
+
+  // Learner invoice payment: reference <tenantId>_<invoiceId>_<rand>
+  const invoiceId = ref.split('_')[1];
   return recordPayment({
     invoiceId,
     amount: parsed.amount,
@@ -249,10 +321,42 @@ async function invoiceView(id) {
   return { invoice, user, payments, outstanding: money.subtract(invoice.amountDue, invoice.amountPaid) };
 }
 
+/**
+ * Refund (part of) what was paid on an invoice. Append-only: this writes a NEW
+ * negative Payment (method 'refund'), never touches the original — the ledger
+ * shows both the charge and the reversal. recordPayment moves the tally and
+ * re-derives the invoice state (paid → part → unpaid). Records the ledger entry;
+ * the institution moves the actual money (bank transfer back, or its Paystack
+ * dashboard). Can't refund more than the net paid.
+ */
+async function refund({ invoiceId, amount, reason }) {
+  const invoice = await Invoice.findById(invoiceId).exec();
+  if (!invoice) throw new ValidationError('No such invoice');
+  if (!amount || amount.amount <= 0) throw new ValidationError('Enter a refund amount greater than zero');
+  if (amount.currency !== invoice.amountPaid.currency) throw new ValidationError('Refund currency must match the payment');
+  if (amount.amount > invoice.amountPaid.amount) throw new ValidationError('Cannot refund more than has been paid');
+
+  const result = await recordPayment({
+    invoiceId,
+    amount: { amount: -amount.amount, currency: amount.currency },
+    method: 'refund',
+    provider: 'manual',
+    note: reason,
+  });
+  await AuditLog.create({
+    actorUserId: currentUserId(),
+    action: 'invoice.refunded',
+    subjectType: 'Invoice',
+    subjectId: invoiceId,
+    meta: { amount: amount.amount, currency: amount.currency, reason },
+  });
+  return result;
+}
+
 module.exports = {
-  listSchedules, createSchedule,
-  raiseInvoice, invoiceFor, invoiceView,
-  beginPayment, recordPayment, confirmBankTransfer, waive, paymentsFor,
+  listSchedules, createSchedule, scheduleForCohort, cohortFee,
+  raiseInvoice, invoiceFor, invoiceView, myInvoices, ensureInvoiceForEnrolment,
+  beginPayment, recordPayment, confirmBankTransfer, waive, refund, paymentsFor,
   handleWebhook,
   PROVIDERS,
 };

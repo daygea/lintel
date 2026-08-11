@@ -19,6 +19,9 @@
   </div>
 </div>
 
+<% if (typeof refunded !== 'undefined' && refunded) { %><div class="ok-note" style="margin:12px 0"><span class="badge ok">refunded</span> Refund recorded against this invoice.</div><% } %>
+<% if (typeof error !== 'undefined' && error) { %><div class="notice err" role="alert" style="margin:12px 0"><%= error %></div><% } %>
+
 <div class="section" style="margin-top:22px">
   <h2>Payments</h2>
   <table class="table">
@@ -71,6 +74,22 @@
         <div style="margin-top:10px"><button class="btn ghost" type="submit">Waive outstanding</button></div>
       </form>
     </div>
+  </div>
+<% } %>
+
+<% if (invoice.amountPaid && invoice.amountPaid.amount > 0) { %>
+  <div class="section" style="margin-top:22px">
+    <h2>Refund</h2>
+    <p class="quiet" style="font-size:13px;margin-top:-4px">Records a refund as a permanent negative entry — the ledger keeps both the charge and the reversal. Move the money by your usual means (bank transfer, or your Paystack dashboard). Up to <%= format(invoice.amountPaid) %> can be refunded.</p>
+    <form method="post" action="/invoices/<%= invoice._id %>/refund" style="max-width:360px" onsubmit="return confirm('Record this refund? This cannot be undone.')">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="currency" value="<%= invoice.amountPaid.currency %>">
+      <label for="refund-amt">Amount (<%= invoice.amountPaid.currency %>)</label>
+      <input id="refund-amt" name="amount" type="number" step="0.01" min="0" required placeholder="0.00">
+      <label for="refund-reason" style="margin-top:10px">Reason</label>
+      <input id="refund-reason" name="reason" type="text" required placeholder="Why this is refunded">
+      <div style="margin-top:14px"><button class="btn ghost" type="submit">Record refund</button></div>
+    </form>
   </div>
 <% } %>
 <%- include("../layouts/foot") %>

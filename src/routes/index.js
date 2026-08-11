@@ -7,7 +7,9 @@ const webTenant = require('../controllers/web/tenant.controller');
 const webInvite = require('../controllers/web/invite.controller');
 const webSecurity = require('../controllers/web/security.controller');
 const webSettings = require('../controllers/web/settings.controller');
+const webBilling = require('../controllers/web/billing.controller');
 const webApply = require('../controllers/web/apply.controller');
+const webFees = require('../controllers/web/fees.controller');
 const webReport = require('../controllers/web/report.controller');
 const apiInvite = require('../controllers/api/invite.controller');
 const webCurriculum = require('../controllers/web/curriculum.controller');
@@ -40,6 +42,7 @@ const express2 = require('express');
 const commerceService = require('../services/commerce');
 
 const { requireUser, requireMember, requireRole } = require('../middleware/auth');
+const { requireFeature } = require('../middleware/require-feature');
 const { ROLES } = require('../lib/roles');
 
 const router = express.Router();
@@ -75,6 +78,9 @@ router.post('/security/mfa/confirm', requireUser, webSecurity.confirmMfa);
 router.post('/security/mfa/disable', requireUser, webSecurity.disableMfa);
 router.get('/settings/branding', ...staff, webSettings.showBranding);
 router.post('/settings/branding', ...staff, webSettings.saveBranding);
+router.get('/settings/billing', ...staff, webBilling.show);
+router.post('/settings/billing/subscribe', ...staff, webBilling.subscribe);
+router.post('/settings/billing/payouts', ...staff, webBilling.savePayouts);
 router.get('/report', requireUser, requireMember, webReport.show);
 router.post('/report', requireUser, requireMember, webReport.submit);
 router.patch(
@@ -99,16 +105,16 @@ router.get('/courses/:id/lessons/:lessonId', ...author, webCurriculum.showLesson
 router.post('/courses/:id/lessons/:lessonId/blocks', ...author, webCurriculum.createBlock);
 router.post('/courses/:id/lessons/:lessonId/policy', ...author, webCurriculum.setLessonPolicy);
 router.post('/courses/:id/lessons/:lessonId/delete', ...author, webCurriculum.deleteLesson);
-router.get('/courses/:id/quizzes', ...assessor, webQuiz.list);
-router.post('/courses/:id/quizzes', ...assessor, webQuiz.create);
-router.get('/courses/:id/quizzes/:quizId', ...assessor, webQuiz.edit);
-router.post('/courses/:id/quizzes/:quizId/questions', ...assessor, webQuiz.addQuestion);
-router.post('/courses/:id/quizzes/:quizId/questions/:qid/delete', ...assessor, webQuiz.removeQuestion);
-router.post('/courses/:id/quizzes/:quizId/delete', ...assessor, webQuiz.deleteQuiz);
-router.post('/courses/:id/quizzes/:quizId/status', ...assessor, webQuiz.setStatus);
-router.get('/courses/:id/quizzes/:quizId/marking', ...assessor, webQuiz.marking);
-router.get('/courses/:id/quizzes/:quizId/attempts/:attemptId', ...assessor, webQuiz.markAttempt);
-router.post('/courses/:id/quizzes/:quizId/attempts/:attemptId/mark', ...assessor, webQuiz.submitMarking);
+router.get('/courses/:id/quizzes', ...assessor, requireFeature('assessment'), webQuiz.list);
+router.post('/courses/:id/quizzes', ...assessor, requireFeature('assessment'), webQuiz.create);
+router.get('/courses/:id/quizzes/:quizId', ...assessor, requireFeature('assessment'), webQuiz.edit);
+router.post('/courses/:id/quizzes/:quizId/questions', ...assessor, requireFeature('assessment'), webQuiz.addQuestion);
+router.post('/courses/:id/quizzes/:quizId/questions/:qid/delete', ...assessor, requireFeature('assessment'), webQuiz.removeQuestion);
+router.post('/courses/:id/quizzes/:quizId/delete', ...assessor, requireFeature('assessment'), webQuiz.deleteQuiz);
+router.post('/courses/:id/quizzes/:quizId/status', ...assessor, requireFeature('assessment'), webQuiz.setStatus);
+router.get('/courses/:id/quizzes/:quizId/marking', ...assessor, requireFeature('assessment'), webQuiz.marking);
+router.get('/courses/:id/quizzes/:quizId/attempts/:attemptId', ...assessor, requireFeature('assessment'), webQuiz.markAttempt);
+router.post('/courses/:id/quizzes/:quizId/attempts/:attemptId/mark', ...assessor, requireFeature('assessment'), webQuiz.submitMarking);
 
 router.get('/api/v1/programs', ...author, apiCurriculum.listPrograms);
 router.post('/api/v1/programs', ...author, apiCurriculum.createProgram);
@@ -169,6 +175,8 @@ router.post('/api/v1/cohorts/:id/close', ...staff, apiEnrolment.closeCohort);
 router.post('/api/v1/applications', requireUser, requireMember, apiEnrolment.apply);
 router.get('/apply', requireUser, requireMember, webApply.show);
 router.post('/apply', requireUser, requireMember, webApply.submit);
+router.get('/my/fees', requireUser, requireMember, webFees.mine);
+router.post('/my/fees/:invoiceId/pay', requireUser, requireMember, requireFeature('commerce'), webFees.pay);
 router.get('/api/v1/cohorts/:cohortId/applications', ...staff, apiEnrolment.listApplications);
 router.post('/api/v1/applications/:id/decide', ...staff, apiEnrolment.decideApplication);
 router.post('/api/v1/cohorts/:id/enrol', ...staff, apiEnrolment.enrol);
@@ -205,8 +213,8 @@ router.post('/api/v1/attestations/:id/revoke', ...issuer, apiEligibility.revoke)
 router.get('/api/v1/attestations', ...staff, apiEligibility.listAttestations);
 router.get('/api/v1/users/:userId/standings', ...staff, apiEligibility.currentFor);
 
-router.get('/api/v1/policies', ...staff, apiEligibility.listPolicies);
-router.post('/api/v1/policies', ...staff, apiEligibility.upsertPolicy);
+router.get('/api/v1/policies', ...staff, requireFeature('eligibility'), apiEligibility.listPolicies);
+router.post('/api/v1/policies', ...staff, requireFeature('eligibility'), apiEligibility.upsertPolicy);
 
 router.get('/api/v1/lessons/:lessonId/access', requireUser, requireMember, apiEligibility.canAccess);
 router.get('/api/v1/access-log', ...staff, apiEligibility.accessLog);
@@ -265,30 +273,31 @@ router.put('/api/v1/scores', ...assessor, apiGradebook.putScore);
 router.get('/api/v1/courses/:courseId/grade', ...assessor, apiGradebook.compute);
 router.get('/api/v1/users/:userId/transcript', ...assessor, apiGradebook.transcript);
 
-router.get('/api/v1/quizzes', ...assessor, apiGradebook.listQuizzes);
-router.post('/api/v1/quizzes', ...assessor, apiGradebook.createQuiz);
-router.delete('/api/v1/quizzes/:id', ...assessor, apiGradebook.deleteQuiz);
-router.get('/api/v1/quizzes/:id/present', requireUser, requireMember, apiGradebook.presentQuiz);
-router.post('/api/v1/quizzes/:id/submit', requireUser, requireMember, apiGradebook.submitQuiz);
+router.get('/api/v1/quizzes', ...assessor, requireFeature('assessment'), apiGradebook.listQuizzes);
+router.post('/api/v1/quizzes', ...assessor, requireFeature('assessment'), apiGradebook.createQuiz);
+router.delete('/api/v1/quizzes/:id', ...assessor, requireFeature('assessment'), apiGradebook.deleteQuiz);
+router.get('/api/v1/quizzes/:id/present', requireUser, requireMember, requireFeature('assessment'), apiGradebook.presentQuiz);
+router.post('/api/v1/quizzes/:id/submit', requireUser, requireMember, requireFeature('assessment'), apiGradebook.submitQuiz);
 
 /* ------------------------------------------------------- commerce (Sprint 6) */
-router.get('/fees', ...staff, webCommerce.fees);
-router.post('/fees/schedules', ...staff, webCommerce.createSchedule);
-router.post('/fees/payments', ...staff, webCommerce.recordPayment);
+router.get('/fees', ...staff, requireFeature('commerce'), webCommerce.fees);
+router.post('/fees/schedules', ...staff, requireFeature('commerce'), webCommerce.createSchedule);
+router.post('/fees/payments', ...staff, requireFeature('commerce'), webCommerce.recordPayment);
 router.post('/invoices', ...staff, webCommerce.raiseInvoice);
 router.get('/invoices/:id', ...staff, webCommerce.showInvoice);
 router.post('/invoices/:id/payments', ...staff, webCommerce.recordInvoicePayment);
 router.post('/invoices/:id/pay', ...staff, webCommerce.payInvoice);
 router.post('/invoices/:id/waive', ...staff, webCommerce.waiveInvoice);
+router.post('/invoices/:id/refund', ...staff, webCommerce.refundInvoice);
 
 router.get('/api/v1/fee-schedules', ...staff, apiCommerce.listSchedules);
 router.post('/api/v1/fee-schedules', ...staff, apiCommerce.createSchedule);
-router.post('/api/v1/invoices', ...staff, apiCommerce.raiseInvoice);
-router.get('/api/v1/enrollments/:enrollmentId/invoice', ...staff, apiCommerce.invoice);
-router.post('/api/v1/payments/begin', requireUser, requireMember, apiCommerce.beginPayment);
-router.post('/api/v1/payments/confirm-transfer', ...staff, apiCommerce.confirmTransfer);
-router.post('/api/v1/invoices/waive', ...staff, apiCommerce.waive);
-router.get('/api/v1/invoices/:invoiceId/payments', ...staff, apiCommerce.payments);
+router.post('/api/v1/invoices', ...staff, requireFeature('commerce'), apiCommerce.raiseInvoice);
+router.get('/api/v1/enrollments/:enrollmentId/invoice', ...staff, requireFeature('commerce'), apiCommerce.invoice);
+router.post('/api/v1/payments/begin', requireUser, requireMember, requireFeature('commerce'), apiCommerce.beginPayment);
+router.post('/api/v1/payments/confirm-transfer', ...staff, requireFeature('commerce'), apiCommerce.confirmTransfer);
+router.post('/api/v1/invoices/waive', ...staff, requireFeature('commerce'), apiCommerce.waive);
+router.get('/api/v1/invoices/:invoiceId/payments', ...staff, requireFeature('commerce'), apiCommerce.payments);
 
 /*
  * Paystack webhook. Public (no session), signature-verified, and needs the RAW
@@ -323,10 +332,10 @@ router.post(
 );
 
 /* ----------------------------------------------------- credentials (Sprint 7) */
-router.get('/credentials', ...staff, webCredential.index);
-router.post('/credentials/templates', ...staff, webCredential.createTemplate);
-router.post('/credentials/issue', ...staff, webCredential.issue);
-router.post('/credentials/:id/revoke', ...staff, webCredential.revoke);
+router.get('/credentials', ...staff, requireFeature('credentials'), webCredential.index);
+router.post('/credentials/templates', ...staff, requireFeature('credentials'), webCredential.createTemplate);
+router.post('/credentials/issue', ...staff, requireFeature('credentials'), webCredential.issue);
+router.post('/credentials/:id/revoke', ...staff, requireFeature('credentials'), webCredential.revoke);
 router.get('/api/v1/credential-templates', ...staff, apiCredential.listTemplates);
 router.post('/api/v1/credential-templates', ...staff, apiCredential.createTemplate);
 router.post('/api/v1/credentials', ...staff, apiCredential.issue);
@@ -358,16 +367,16 @@ router.get('/api/v1/lti/:toolId/lineitems/:lineItemId/results', apiLti.readResul
 router.get('/api/v1/lti/:toolId/courses/:courseId/members', apiLti.membership);
 
 /* ------------------------------------------------ institution directory (Sprint 10) */
-router.get('/api/v1/directory-listing', ...staff, apiDirectory.get);
-router.put('/api/v1/directory-listing', ...staff, apiDirectory.upsert);
-router.post('/api/v1/directory-listing/publish', ...staff, apiDirectory.publish);
-router.post('/api/v1/directory-listing/unpublish', ...staff, apiDirectory.unpublish);
+router.get('/api/v1/directory-listing', ...staff, requireFeature('directory'), apiDirectory.get);
+router.put('/api/v1/directory-listing', ...staff, requireFeature('directory'), apiDirectory.upsert);
+router.post('/api/v1/directory-listing/publish', ...staff, requireFeature('directory'), apiDirectory.publish);
+router.post('/api/v1/directory-listing/unpublish', ...staff, requireFeature('directory'), apiDirectory.unpublish);
 
 /* ---- Directory listing management (the institution's own public presence) ---- */
-router.get('/directory-listing', ...staff, webDirectoryAdmin.show);
-router.post('/directory-listing', ...staff, webDirectoryAdmin.save);
-router.post('/directory-listing/publish', ...staff, webDirectoryAdmin.publish);
-router.post('/directory-listing/unpublish', ...staff, webDirectoryAdmin.unpublish);
+router.get('/directory-listing', ...staff, requireFeature('directory'), webDirectoryAdmin.show);
+router.post('/directory-listing', ...staff, requireFeature('directory'), webDirectoryAdmin.save);
+router.post('/directory-listing/publish', ...staff, requireFeature('directory'), webDirectoryAdmin.publish);
+router.post('/directory-listing/unpublish', ...staff, requireFeature('directory'), webDirectoryAdmin.unpublish);
 
 /* ---- Learner self-registration into this institution (Sprint 12) ---- */
 router.get('/join', webSignup.registerForm);

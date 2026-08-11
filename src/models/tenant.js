@@ -40,6 +40,13 @@ const TenantSchema = new Schema(
     },
 
     status: { type: String, enum: ['trial', 'active', 'suspended', 'closed'], default: 'trial' },
+    trialEndsAt: { type: Date },   // when a trial lapses (set at provision for trial plans)
+    trialWarnedAt: { type: Date }, // set once when the "trial ending" notice is sent
+    currentPeriodEnd: { type: Date }, // paid plans: when the current paid period lapses
+    // Opt-in marketplace payouts: the institution's Paystack subaccount that
+    // receives learner payments directly (Lintel keeps a plan-based cut). Unset =
+    // payments settle to Lintel's account as before.
+    paystackSubaccount: { type: String, trim: true },
   },
   { timestamps: true }
 );

@@ -454,6 +454,12 @@ The engine is built and configured against `test-oiss` via `seed/oiss-config.js`
 
 23. **Guard-group consts in `routes/index.js` are declared mid-file — a route that uses one above its declaration is a boot-time TDZ.** `staff` / `author` / `assessor` / `issuer` / `asLearner` are `const` arrays scattered through the router. A route added *above* the relevant `const` throws `Cannot access 'assessor' before initialization` **at load** — and it passes every text checker and the entire test suite, because none of them execute `routes/index.js` top-to-bottom. It only surfaces on `npm run dev` / in production. The `boot` checker (Part X) now catches this whole class by actually building the app. When adding routes, keep them below the guard consts they use.
 
+24. **R2 (Cloudflare) does not match subdomain wildcards in CORS the way S3 does.** A CORS rule with `AllowedOrigins: ["https://*.lintel.africa"]` silently fails to match `https://acme.lintel.africa`, so the browser blocks the presigned upload PUT and the client reports "Could not reach storage / Failed to fetch." Use `AllowedOrigins: ["*"]` — it's safe here because the upload sends **no credentials** (auth is the short-lived signed URL, not a cookie). When an upload fails, open DevTools → Network → the failed PUT: the request host is `<account-id>.r2.cloudflarestorage.com`; confirm that account id matches `R2_ACCOUNT_ID` and that CORS is set on that exact bucket. "Failed to fetch" is generic — it covers a CORS block, a wrong bucket, and a wrong account id.
+
+25. **A Mongoose `Map` field does not persist through `updateOne` with a plain object.** Locale-map fields (the `LocaleMapType`, a `Map`) are not cast from `{ en: '...' }` by a raw `updateOne`, and `updateOne` also skips the `localeMap` pre-validate hook — so the write silently drops them. Load the document and `Object.assign(doc, data); await doc.save()` instead, which casts the Map and runs the hook. This bit the directory listing's `tagline`/`about` (the create path worked, the update path didn't).
+
+26. **A controller that calls a service function missing from the service's `module.exports` fails only at request time.** The `boot` checker loads every module but never *calls* a handler, and the test suite only covers routes it exercises — so a controller calling `svc.listAll()` where `listAll` was defined but not exported shipped a live 500 (the credentials page). When you add a service function, export it in the same commit; a thin smoke test that GETs each top-level page would catch this whole class.
+
 # Part IX — August 2026 build log (post-Sprint-15)
 
 Everything above describes the engine as handed over. This section records the features wired on top of it since, closing the write-UI and onboarding gaps found in an August audit. All are on the same spine (tenant-guard + eligibility evaluator), pass the checkers (now **13** — `sparse-compound` added), and ship with tests.
@@ -503,6 +509,79 @@ Images and PDFs are ready on upload; **audio/video** stay "preparing" until a wo
 ## Mobile
 
 Both admin shells — the tenant admin (`layouts/head.ejs` + `public/css/lintel.css`) and the platform console (`console/head.ejs`) — are now **off-canvas drawers**: a hamburger in the sticky topbar slides the sidebar in over a tap-to-close scrim, page scroll locks while open, wide tables scroll horizontally, and the topbar declutters (`< 820px`). The learner **PWA is already mobile-first**, and the public/auth/marketing pages already carry the viewport meta and use centered cards — so only the two admin shells needed work.
+
+# Part XI — Learner experience & content (August 2026, cont.)
+
+Everything after go-live: the learner-facing surface grew from a flat list into a real product, content gained external links and full CRUD, and destructive operations got a consistent, guarded shape. Read this before touching the PWA, the delete paths, or the application flow.
+
+## Content: every format a lecture can be
+
+A content block is one of `rich_text, audio, video, pdf, image, embed, archive_ref`. All of them now reach the learner:
+
+- **External-link lectures (`embed`).** A lecture can be a YouTube/Vimeo link, or a link to audio/video on another platform. `learner.service.classifyEmbed(url)` normalises YouTube/Vimeo to their embeddable player URL, detects direct media by extension, and otherwise returns a plain link. The PWA renders YouTube/Vimeo as a responsive 16:9 iframe, direct media as a native player, and anything else as an "open in new tab" link (arbitrary sites can't be safely iframed — `X-Frame-Options`). Embed lessons are online-only (they can't be saved to the offline pack).
+- **Audio is ready on upload.** `media.service.completeUpload` marks **audio** `ready` immediately (browsers play mp3/m4a/wav natively; playback serves the original object when no derivative exists), while **video** still enqueues a transcode job and waits on the worker. Audio still enqueues too, so a running worker enriches it with lower-bitrate rungs — but audio never *blocks* on the (paid, optional) worker. Video does.
+
+## Media CRUD
+
+Media had create + read only. Now `media.service.renameAsset` and `deleteAsset` complete it. **Delete refuses if the file is still used in any lesson block** (it counts `ContentBlock` references) and otherwise removes the record and every object it owns — original, transcoded renditions, captions — from R2, then audits. Assets aren't append-only, so deleting is allowed; the guard is what protects lessons from dangling references.
+
+## Deletion: one guarded pattern, applied across the spine
+
+Deletes follow three rules everywhere: **cascade what the entity owns, refuse when something learner-facing still depends on it, audit.** Five models are never hard-deleted (Part I append-only set) — revocation there is a new record.
+
+- **Lesson** → cascades its content blocks (media assets stay in the library).
+- **Cohort** → refuses if any learner is enrolled; else cascades sessions, applications, fee schedules, groups.
+- **Course** → refuses if any learner is enrolled; else deep-cascades modules → lessons → blocks, quizzes → attempts, quiz gradebook line items → scores, and empty cohorts with their config. (`curriculum.service` became the delete orchestrator here — it imports the models it cascades, not the services, so there's no circular dependency.)
+- **Module** → cascades its lessons + blocks. **Quiz** → cascades attempts and its gradebook column + scores.
+- **Institution** is deliberately **not** a hard delete. `platform.closeTenant` (soft, reversible) is the right default; a true cross-collection purge would obliterate the append-only audit and billing records you're meant to keep, so it's a separate superadmin-only operation, not a button.
+
+Each delete has a confirm dialog, web + API routes, and a guard message surfaced back to the page via `?err=`.
+
+## The learner application flow
+
+"Open for applications" was a real gap: the cohort status gated `apply()`, and the apply→review→admit backend was complete, but **no learner-facing UI existed to discover open cohorts or apply** — the only working path in was registrar direct-enrolment. Now `/apply` (a minimal learner-layout page, not the staff shell) lists open, in-window cohorts with an Apply button, shows the learner's application status (under review / admitted / declined / withdrawn / enrolled), and the PWA home links to it. Applying files an application; a registrar admits it; admission creates the active enrolment; the course appears in the PWA. This complements — doesn't replace — direct enrolment.
+
+## The learner PWA: shell, then SPA
+
+The PWA (`public/app/`, framework-free, must open on a cheap Android phone over 3G) was a flat single-column list that dumped every module and lesson of every course into one scroll. It's now the pattern the best LMSes use:
+
+- **A two-pane shell** — a persistent course-outline **sidebar** (a course switcher on home; the module → lesson outline inside a course, with status icons: open dot, held dot, green ✓ complete; current lesson highlighted) and a focused **content pane**. Home is a course-card grid with progress meters; a course view has an overall progress bar and a Continue/Start button to the next lesson; a lesson has prev/next navigation. On mobile the sidebar is an off-canvas drawer behind a header hamburger.
+- **True SPA navigation.** A delegated click handler intercepts in-app `/app/` links (home + `?course`/`?lesson`/`?quiz`) and swaps views via the History API — `pushState` + a `route()` dispatcher + `popstate` for back/forward. It deliberately passes through `/apply`, `/login`, page anchors, external links, new-tab and modified clicks, and downloads. `loadLearning()` caches the `/api/v1/me/learning` payload so home/course swaps are instant with no refetch; the cache is invalidated only on a real change (mark-complete, quiz submit). Lessons paint the sidebar instantly from cache and show a spinner only in the pane while blocks fetch. Marking a lesson complete ticks its sidebar entry to a ✓ immediately.
+
+**PWA gotcha, reinforced.** The service-worker `BUILD` in `public/sw.js` **must** be bumped on any change to an app-shell file (`app.js`, `app.css`, `index.html`, `pack.js`, `push.js`) or the cache-first worker serves stale code and convinces you the deploy failed. It's now at `v0.13.0`. And when editing `app.js` programmatically (it's large — edits are spliced), re-verify the whole file: a splice once silently removed the `completeControl` function, which no checker caught because it's client JS that only fails when that code path runs in a browser.
+
+---
+
+# Part XII — Money: two flows, and how they're enforced (August 2026, cont.)
+
+Lintel has **two independent money flows**, and conflating them is the classic mistake. The guiding line lives in `config/plans.js`: *"Price to the learner and price to us are unrelated."*
+
+1. **Institution → Lintel** — the SaaS subscription (what an institution pays *you*).
+2. **Learner → Institution** — course/cohort fees (what a learner pays *their institution*), optionally with a Lintel cut.
+
+## Flow A — the platform subscription (institution → Lintel)
+
+- **Plans** live in `config/plans.js`: `trial / institute / grant / university`, each granting a set of `features` (from `config/features.js`) and a `seats` cap, plus a `price`, `cycle`, `trialDays`, and `platformFeeBps`. The tenant carries the denormalised `features`, a `status` (`trial / active / suspended / closed`), `trialEndsAt`, and `currentPeriodEnd`.
+- **Enforcement** (this is what makes plans real — the machinery existed but nothing called it):
+  - *Feature-gating* — `middleware/require-feature.js`. `requireFeature('commerce' | 'assessment' | …)` is wired onto every route a feature owns; a tenant without the feature gets a "not on your plan" page (or 403 JSON). Uses `tenant.hasFeature()`.
+  - *Seat caps* — `enrolment.service.assertSeatAvailable()` runs on both enrol paths (direct + admission) and refuses past `PLANS[plan].seats`. Re-enrolling an existing learner never consumes a seat.
+  - *Trial + subscription expiry* — `billing.service.sweepTrials()` and `sweepSubscriptions()` (run daily by `scripts/sweep-trials.js`, both in one job) warn then **suspend** lapsed trials and unpaid paid-periods.
+  - *Suspended lockout* — `middleware/enforce-active.js` (mounted after `loadSession`) blocks a suspended tenant's whole app, redirects owners/admins to `/settings/billing` to reactivate, keeps the webhook and logout open, and shows everyone else a suspended page.
+- **Self-serve billing** — `/settings/billing` (`billing.controller` + `tenant/billing.ejs`) shows the current plan/status/period and a plan table. Choosing a paid plan calls `billing.service.beginSubscription()` → Paystack checkout; the webhook calls `activateSubscription()` which records a **`PlatformPayment`** (platform-scoped, append-only, idempotent on `providerRef`), sets the plan/features/status, and extends `currentPeriodEnd`. **Model = prepaid periods** (a one-time payment buys 30 days), *not* auto-recurring card billing — that's a deliberate simplification and the obvious future upgrade (Paystack Plans + card auth).
+
+## Flow B — learner fees (learner → institution)
+
+- **Free vs paid is cohort-level**, derived from whether the cohort has a `FeeSchedule` (`commerce.cohortFee()` → a price, or `null` for free). The apply page shows "Free" or the price. Enrolling into a paid cohort **auto-raises an invoice** (`enrolment.service.raiseFeeFor` → `commerce.ensureInvoiceForEnrolment`, best-effort, one invoice per enrolment); free cohorts get nothing and grant instant access.
+- **Learners self-pay** at `/my/fees` (`fees.controller` + `fees/my.ejs`) → `commerce.beginPayment()` → Paystack, returning to `/my/fees?paid=1`. The webhook records the payment and advances the invoice + `payment_state`. A paid course only *holds* lessons until paid if the institution adds a `payment_state` rule to the course's eligibility policy — by design, so deposit / pay-in-full / study-now-pay-later all work.
+- **Refunds** are append-only: `commerce.refund()` writes a **negative `Payment`** (`method: 'refund'`), never mutates the original; `recordPayment` moves the tally and re-derives state (paid → part → unpaid). It records the ledger entry — the institution moves the actual money (automated Paystack refunds are a later step). Staff-only, on the invoice page, capped at the net paid.
+
+## The shared Paystack account, and the optional split
+
+There is **one** platform-level `PAYSTACK_SECRET_KEY` — Lintel's account handles *both* flows. The webhook (`/api/v1/webhooks/paystack`) routes by reference prefix: `sub_…` → a platform subscription (`billing.activateSubscription`), anything else → a learner invoice (`recordPayment`).
+
+**Marketplace split (opt-in).** An institution can set a `paystackSubaccount` (Settings → Billing → Payouts). When set, `commerce.beginPayment` passes that subaccount plus a `transaction_charge` = `outstanding × PLANS[plan].platformFeeBps / 10000` to Paystack, so learner money settles to the *institution's* account and Lintel keeps a plan-based cut (trial 5% → university 0%, which nudges upgrades). No subaccount → settles to Lintel as before. Automated subaccount creation (Paystack API + bank KYC) is not built; institutions paste a code they create in their own Paystack dashboard.
+
+**Two gotchas worth stating.** (27) A platform/system action has *no human actor* — `PlatformAuditLog.actorUserId` is optional and renders as "System"; don't reintroduce a `required: true` there or the cron sweeps will fail to audit. (28) Plan feature **keys are lowercase** (`'commerce'`), while the `F(...)` helper in `plans.js` takes the uppercase constant *names* — assert against the lowercase key.
 
 ---
 

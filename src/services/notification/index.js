@@ -40,6 +40,24 @@ const CHANNELS = {
  * these once the authoring UI for templates lands.
  */
 const TEMPLATES = {
+  'subscription.lapsed': {
+    subject: { en: (d) => `Your ${d.institutionName || 'Lintel'} subscription has lapsed` },
+    text: {
+      en: () => 'Your Lintel plan period has ended and the account is now suspended. Renew from Settings → Billing to restore access.',
+    },
+  },
+  'trial.ending': {
+    subject: { en: (d) => `Your ${d.institutionName || 'Lintel'} trial is ending soon` },
+    text: {
+      en: (d) => `Your Lintel trial ends on ${d.endsAt ? new Date(d.endsAt).toDateString() : 'soon'}. Upgrade your plan to keep access without interruption.`,
+    },
+  },
+  'trial.suspended': {
+    subject: { en: (d) => `Your ${d.institutionName || 'Lintel'} account is suspended` },
+    text: {
+      en: () => 'Your Lintel trial has ended and the account is now suspended. Upgrade your plan to restore access.',
+    },
+  },
   'application.decided': {
     subject: { en: 'Your application' },
     text: {

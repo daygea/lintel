@@ -14,7 +14,9 @@ const appendOnly = require('../plugins/append-only');
  */
 const PlatformAuditLogSchema = new Schema(
   {
-    actorUserId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    // Null actor = system-originated (e.g. the automated trial sweep). Human
+    // actions always set this; only unattended jobs leave it empty.
+    actorUserId: { type: Schema.Types.ObjectId, ref: 'User' },
     action: { type: String, required: true }, // e.g. 'tenant.suspended', 'superadmin.granted'
     subjectType: String,                       // 'Tenant' | 'User' | 'TenantApplication'
     subjectId: Schema.Types.ObjectId,

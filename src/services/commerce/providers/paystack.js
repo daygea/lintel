@@ -24,15 +24,24 @@ class PaystackProvider extends PaymentProvider {
     return !!this.secret;
   }
 
-  async initialize({ amount, email, reference }) {
+  async initialize({ amount, email, reference, callbackUrl, subaccount, transactionCharge }) {
     if (!this.isConfigured()) {
       logger.info({ reference }, 'paystack initialize (dev stub)');
       return { authorizationUrl: `https://checkout.paystack.test/${reference}`, reference };
     }
+    const body = { amount: amount.amount, currency: amount.currency, email, reference };
+    if (callbackUrl) body.callback_url = callbackUrl; // return the payer to their fees page
+    if (subaccount) {
+      // Marketplace split: credit the institution's subaccount, keep Lintel's cut
+      // as the transaction charge, and let the subaccount bear Paystack's fee.
+      body.subaccount = subaccount;
+      if (transactionCharge != null) body.transaction_charge = transactionCharge;
+      body.bearer = 'subaccount';
+    }
     const res = await fetch(`${this.base}/transaction/initialize`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${this.secret}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: amount.amount, currency: amount.currency, email, reference }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!data.status) throw new Error(data.message || 'Paystack initialize failed');

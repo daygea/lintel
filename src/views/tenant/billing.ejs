@@ -1,0 +1,67 @@
+<% var nav = 'settings'; var pageTitle = 'Billing'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'SETTINGS'; var heading = 'Billing & plan'; var lede = 'Your Lintel subscription. This is separate from any fees your learners pay you.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+
+<% if (paid) { %><div class="ok-note" style="margin:12px 0"><span class="badge ok">received</span> Thank you — we'll confirm your payment shortly and update your plan.</div><% } %>
+<% if (error) { %><div class="notice err" role="alert" style="margin:12px 0"><%= error %></div><% } %>
+
+<div class="card" style="margin-bottom:20px">
+  <div style="display:flex;gap:16px;align-items:baseline;flex-wrap:wrap">
+    <div style="font-family:var(--serif);font-size:18px">Current plan: <strong><%= (plans.find(function(p){return p.current;})||{}).label || plan %></strong></div>
+    <div>
+      <% if (status === 'active') { %><span class="badge ok">active</span>
+      <% } else if (status === 'trial') { %><span class="badge">trial</span>
+      <% } else if (status === 'suspended') { %><span class="badge held">suspended</span>
+      <% } else { %><span class="badge"><%= status %></span><% } %>
+    </div>
+  </div>
+  <p class="quiet" style="font-size:13px;margin:8px 0 0">
+    <% if (status === 'trial' && trialEndsAt) { %>Trial ends <%= new Date(trialEndsAt).toLocaleDateString() %>.
+    <% } else if (status === 'suspended') { %>Your access is suspended. Choose a plan below to reactivate.
+    <% } else if (currentPeriodEnd) { %>Renews / ends <%= new Date(currentPeriodEnd).toLocaleDateString() %>.
+    <% } %>
+  </p>
+</div>
+
+<table class="table">
+  <thead><tr><th>Plan</th><th>Price</th><th>Learners</th><th>Features</th><th></th></tr></thead>
+  <tbody>
+  <% plans.forEach(function (p) { %>
+    <tr>
+      <td><strong><%= p.label %></strong></td>
+      <td class="mono"><% if (p.free) { %>Free<% } else { %><%= format(p.price) %>/mo<% } %></td>
+      <td class="quiet"><%= p.seats.toLocaleString() %></td>
+      <td class="quiet"><%= p.featureCount %></td>
+      <td style="text-align:right">
+        <% if (p.current) { %>
+          <span class="badge ok">current</span>
+        <% } else if (p.free) { %>
+          <span class="quiet" style="font-size:12px">by arrangement</span>
+        <% } else { %>
+          <form method="post" action="/settings/billing/subscribe" style="margin:0">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="plan" value="<%= p.key %>">
+            <button class="btn" type="submit"><%= status === 'suspended' ? 'Reactivate on' : 'Choose' %> <%= p.label %></button>
+          </form>
+        <% } %>
+      </td>
+    </tr>
+  <% }); %>
+  </tbody>
+</table>
+<p class="quiet" style="font-size:12px;margin-top:10px">Payments are processed securely by Paystack. Free plans (trial, grant) are arranged with the Lintel team.</p>
+
+<% if (payout) { %><div class="ok-note" style="margin:18px 0 8px"><span class="badge ok">saved</span> Payout settings updated.</div><% } %>
+<div class="card" style="margin-top:18px">
+  <h2 style="margin-top:0">Payouts <span class="quiet" style="font-size:13px;font-weight:normal">— receive learner payments directly</span></h2>
+  <p class="quiet" style="font-size:13px">By default, learner fees settle to Lintel and are remitted to you. To receive them <strong>directly</strong>, add your Paystack subaccount code — learner payments then go to your account and Lintel keeps a <strong><%= (feeBps/100).toFixed(feeBps % 100 ? 2 : 0) %>%</strong> platform fee on your current plan. Create a subaccount in your Paystack dashboard (Settings → Subaccounts) and paste its code below.</p>
+  <form method="post" action="/settings/billing/payouts" style="max-width:420px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label for="subaccount">Paystack subaccount code</label>
+    <input id="subaccount" name="subaccount" type="text" value="<%= subaccount %>" placeholder="ACCT_xxxxxxxx">
+    <div style="margin-top:12px"><button class="btn ghost" type="submit">Save payout settings</button></div>
+  </form>
+  <% if (subaccount) { %><p class="quiet" style="font-size:12px;margin-top:8px">Learner payments currently route to <span class="mono"><%= subaccount %></span>.</p><% } %>
+</div>
+<%- include("../layouts/foot") %>
