@@ -30,11 +30,16 @@
   </p>
   <% } %>
 
-  <% if (listing.contact && (listing.contact.email || listing.contact.website)) { %>
-    <p style="margin-top:22px;font-size:14px">
-      <% if (listing.contact.website) { %><a href="<%= listing.contact.website %>">Website</a><% } %>
-      <% if (listing.contact.email) { %> <span class="quiet">·</span> <span class="mono"><%= listing.contact.email %></span><% } %>
-    </p>
+  <% if (listing.contact && (listing.contact.website || listing.contact.email)) { %>
+    <div class="section" style="margin-top:22px;font-size:14px">
+      <% if (listing.contact.website) { %>
+        <% var site = /^https?:\/\//i.test(listing.contact.website) ? listing.contact.website : 'https://' + listing.contact.website; %>
+        <div style="margin-bottom:4px"><span class="quiet">Website:</span> <a href="<%= site %>" target="_blank" rel="noopener"><%= listing.contact.website %></a></div>
+      <% } %>
+      <% if (listing.contact.email) { %>
+        <div><span class="quiet">Email:</span> <a class="mono" href="mailto:<%= listing.contact.email %>"><%= listing.contact.email %></a></div>
+      <% } %>
+    </div>
   <% } %>
 </article>
 <%- include("../layouts/public-foot") %>

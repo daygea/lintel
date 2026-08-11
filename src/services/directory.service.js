@@ -99,7 +99,7 @@ async function publicView(handle) {
 async function browse({ q, limit = 50 } = {}) {
   return runAsPlatform('public directory browse (no session)', async () => {
     const filter = { publishedAt: { $exists: true } };
-    const listings = await DirectoryListing.find(filter).limit(limit).exec();
+    const listings = await DirectoryListing.find(filter).sort({ publishedAt: -1 }).limit(limit).exec();
     const rows = listings.map((l) => ({
       handle: l.handle,
       displayName: l.displayName,

@@ -81,10 +81,18 @@ async function completeUpload(assetId, { parts, checksum }) {
     meta: { filename: asset.filename, bytes: asset.bytes, kind: asset.kind },
   });
 
-  if (asset.kind === 'audio' || asset.kind === 'video') {
+  if (asset.kind === 'video') {
+    // Video needs transcoding (browser-compatible codec, multiple resolutions).
     await enqueue('media.transcode', { assetId: String(asset._id) });
     asset.status = 'processing';
     await asset.save();
+  } else if (asset.kind === 'audio') {
+    // Audio is natively playable, so serve the original immediately — it must not
+    // wait on the (optional, paid) transcode worker. If a worker IS running it
+    // still adds the lower-bitrate rungs, which playbackUrl prefers when present.
+    asset.status = 'ready';
+    await asset.save();
+    await enqueue('media.transcode', { assetId: String(asset._id) });
   } else {
     asset.status = 'ready';
     await asset.save();
