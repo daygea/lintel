@@ -20,6 +20,7 @@ const CourseSchema = new Schema(
     instructorIds: [{ type: Schema.Types.ObjectId, ref: 'User' }],
 
     status: { type: String, enum: ['draft', 'active', 'archived'], default: 'draft' },
+    coverAssetId: { type: Schema.Types.ObjectId, ref: 'Asset' }, // optional cover image (an image Asset)
     visibility: { type: String, enum: ['private', 'directory', 'catalog'], default: 'private' },
 
     /**

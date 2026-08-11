@@ -3,6 +3,7 @@
 const curriculumService = require('../../services/curriculum.service');
 const eligibilityService = require('../../services/eligibility.service');
 const mediaService = require('../../services/media.service');
+const storage = require('../../lib/storage');
 const courseCopyService = require('../../services/course-copy.service');
 const searchService = require('../../services/search.service');
 const { pick } = require('../../plugins/locale-map');
@@ -19,10 +20,32 @@ exports.listCourses = async (req, res, next) => {
 exports.showCourse = async (req, res, next) => {
   try {
     const tree = await curriculumService.getCourseTree(req.params.id);
-    res.render('curriculum/course', { tree, error: req.query.err || null, pick, locale: req.tenant.defaultLocale });
+    const images = await mediaService.listAssets({ kind: 'image', status: 'ready' }).catch(() => []);
+    const imageChoices = await Promise.all(
+      images.map(async (a) => ({ id: String(a._id), filename: a.filename, url: await storage.signGet(a.storageKey) }))
+    );
+    let coverUrl = null;
+    if (tree.course.coverAssetId) {
+      const cover = await mediaService.getAsset(tree.course.coverAssetId).catch(() => null);
+      if (cover && cover.storageKey) coverUrl = await storage.signGet(cover.storageKey);
+    }
+    res.render('curriculum/course', {
+      tree, imageChoices, coverUrl,
+      coverAssetId: tree.course.coverAssetId ? String(tree.course.coverAssetId) : null,
+      saved: req.query.cover || null,
+      error: req.query.err || null,
+      pick, locale: req.tenant.defaultLocale,
+    });
   } catch (err) {
     next(err);
   }
+};
+
+exports.setCover = async (req, res, next) => {
+  try {
+    await curriculumService.updateCourse(req.params.id, { coverAssetId: req.body.assetId || null });
+    res.redirect(`/courses/${req.params.id}?cover=1`);
+  } catch (err) { next(err); }
 };
 
 exports.createCourse = async (req, res, next) => {

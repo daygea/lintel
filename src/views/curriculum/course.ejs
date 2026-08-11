@@ -12,6 +12,35 @@
 </div>
 
 <div class="section">
+  <h2>Cover image</h2>
+  <% if (typeof saved !== 'undefined' && saved) { %><div class="ok-note" style="margin:8px 0"><span class="badge ok">saved</span> Cover updated.</div><% } %>
+  <p class="hint">Shown on the learner's dashboard card and course header. Upload images in the <a href="/media">media library</a>, then choose one here.</p>
+  <% if (typeof coverUrl !== 'undefined' && coverUrl) { %>
+    <div style="margin:10px 0"><img src="<%= coverUrl %>" alt="Current cover" style="width:280px;max-width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;border:1px solid var(--rule,#E3E0D9)"></div>
+  <% } %>
+  <% if (!(imageChoices || []).length) { %>
+    <p class="quiet">No image assets yet — upload one in the media library first.</p>
+  <% } else { %>
+    <form method="post" action="/courses/<%= tree.course._id %>/cover">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="cover-picker">
+        <label class="cover-opt<%= !coverAssetId ? ' sel' : '' %>">
+          <input type="radio" name="assetId" value=""<%= !coverAssetId ? ' checked' : '' %>>
+          <span class="cover-none">No cover</span>
+        </label>
+        <% imageChoices.forEach(function (img) { %>
+          <label class="cover-opt<%= coverAssetId === img.id ? ' sel' : '' %>">
+            <input type="radio" name="assetId" value="<%= img.id %>"<%= coverAssetId === img.id ? ' checked' : '' %>>
+            <img src="<%= img.url %>" alt="<%= img.filename %>">
+          </label>
+        <% }); %>
+      </div>
+      <div style="margin-top:12px"><button class="btn" type="submit">Set cover</button></div>
+    </form>
+  <% } %>
+</div>
+
+<div class="section">
   <h2>Structure</h2>
   <p class="hint">A lesson bordered in brass is open teaching; one bordered in slate is held until standing is attested. Click a lesson to add its content.</p>
 

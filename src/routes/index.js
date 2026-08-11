@@ -98,6 +98,7 @@ router.get('/courses/search', ...author, webCurriculum.search);
 router.get('/courses/:id', ...author, webCurriculum.showCourse);
 router.post('/courses/:id/copy', ...author, webCurriculum.copyCourse);
 router.post('/courses/:id/modules', ...author, webCurriculum.createModule);
+router.post('/courses/:id/cover', ...author, webCurriculum.setCover);
 router.post('/courses/:id/modules/:moduleId/delete', ...author, webCurriculum.deleteModule);
 router.post('/courses/:id/delete', ...author, webCurriculum.deleteCourse);
 router.post('/courses/:id/lessons', ...author, webCurriculum.createLesson);

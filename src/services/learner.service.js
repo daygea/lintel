@@ -76,12 +76,19 @@ async function myLearning({ userId, locale = 'en' }) {
       });
     }
 
+    let coverUrl = null;
+    if (course.coverAssetId) {
+      const cover = await Asset.findById(course.coverAssetId).exec();
+      if (cover && cover.storageKey) coverUrl = await storage.signGet(cover.storageKey);
+    }
+
     courses.push({
       id: course._id,
       enrollmentId: enr._id,
       code: course.code,
       title: course.title,
       cohortTitle: cohort ? cohort.title : null,
+      coverUrl,
       lessonCount: lessons.length,
       openCount,
       modules: moduleList,

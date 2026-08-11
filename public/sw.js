@@ -15,7 +15,7 @@
  *     media is streamed and must never touch a cache — see fetch handler.
  */
 
-const BUILD = 'lintel-v0.15.0'; // ← bump on every deploy
+const BUILD = 'lintel-v0.16.0'; // ← bump on every deploy
 const SHELL_CACHE = `${BUILD}-shell`;
 
 const SHELL = [

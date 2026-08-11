@@ -194,15 +194,32 @@ function continueCard(course) {
     </div>`;
 }
 
+// A course cover: the uploaded image if there is one, otherwise a deterministic
+// gradient + monogram so every card looks intentional even before a cover is set.
+function coverArt(course, cls) {
+  if (course.coverUrl) {
+    return `<span class="${cls}" style="background-image:url('${course.coverUrl}')"></span>`;
+  }
+  const key = String(course.code || course.id || '');
+  let seed = 0;
+  for (let i = 0; i < key.length; i++) seed = (seed + key.charCodeAt(i)) % 360;
+  const h2 = (seed + 42) % 360;
+  const mono = escapeHtml((pickText(course.title) || course.code || '?').trim().charAt(0).toUpperCase());
+  return `<span class="${cls} gen" style="background:linear-gradient(135deg,hsl(${seed} 42% 30%),hsl(${h2} 48% 20%))"><span class="mono-badge">${mono}</span></span>`;
+}
+
 function homeCard(course) {
   const p = courseProgress(course);
   return `
     <a class="c-card" href="?course=${course.id}">
-      <span class="c-code mono">${escapeHtml(course.code || '')}</span>
-      <span class="c-title">${pickText(course.title)}</span>
-      ${course.cohortTitle ? `<span class="c-sub">${pickText(course.cohortTitle)}</span>` : ''}
-      <span class="meter" aria-hidden="true"><span style="width:${p.pct}%"></span></span>
-      <span class="c-prog">${p.done} of ${p.total} lessons</span>
+      ${coverArt(course, 'c-cover')}
+      <span class="c-body">
+        <span class="c-code mono">${escapeHtml(course.code || '')}</span>
+        <span class="c-title">${pickText(course.title)}</span>
+        ${course.cohortTitle ? `<span class="c-sub">${pickText(course.cohortTitle)}</span>` : ''}
+        <span class="meter" aria-hidden="true"><span style="width:${p.pct}%"></span></span>
+        <span class="c-prog">${p.done} of ${p.total} lessons</span>
+      </span>
     </a>`;
 }
 
@@ -222,14 +239,17 @@ async function renderCourse(courseId) {
 
   const pane = `
     <div class="course-hero">
-      <span class="c-code mono">${escapeHtml(course.code || '')}</span>
-      <h1>${pickText(course.title)}</h1>
-      ${course.cohortTitle ? `<p class="muted" style="margin-top:-2px">${pickText(course.cohortTitle)}</p>` : ''}
-      <div class="meter big" style="margin-top:14px" aria-hidden="true"><span style="width:${p.pct}%"></span></div>
-      <p class="muted" style="margin-top:6px">${p.done} of ${p.total} lessons complete${p.pct === 100 ? ' \u00b7 done \u2713' : ''}</p>
-      ${next
-        ? `<p style="margin-top:16px"><a class="btn" href="?lesson=${next.id}">${p.done ? 'Continue' : 'Start'}: ${pickText(next.title)}</a></p>`
-        : '<p class="muted" style="margin-top:12px">No open lessons yet.</p>'}
+      ${coverArt(course, 'course-cover')}
+      <div class="course-hero-body">
+        <span class="c-code mono">${escapeHtml(course.code || '')}</span>
+        <h1>${pickText(course.title)}</h1>
+        ${course.cohortTitle ? `<p class="muted" style="margin-top:-2px">${pickText(course.cohortTitle)}</p>` : ''}
+        <div class="meter big" style="margin-top:14px" aria-hidden="true"><span style="width:${p.pct}%"></span></div>
+        <p class="muted" style="margin-top:6px">${p.done} of ${p.total} lessons complete${p.pct === 100 ? ' \u00b7 done \u2713' : ''}</p>
+        ${next
+          ? `<p style="margin-top:16px"><a class="btn" href="?lesson=${next.id}">${p.done ? 'Continue' : 'Start'}: ${pickText(next.title)}</a></p>`
+          : '<p class="muted" style="margin-top:12px">No open lessons yet.</p>'}
+      </div>
     </div>
     <p class="quiet" style="font-size:13px;margin-top:20px">Use the course outline to jump to any lesson${(course.quizzes || []).length ? ' or quiz' : ''}.</p>`;
 

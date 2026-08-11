@@ -173,3 +173,16 @@ ul.lessons{list-style:none;margin:0;padding:0}
   .hero h1{font-size:23px}
   .home{padding:18px 16px 72px}
 }
+
+/* ===================== Course cover images ===================== */
+.c-card{padding:0;gap:0;overflow:hidden}
+.c-cover{display:block;height:104px;background-size:cover;background-position:center;background-color:#2a3050}
+.c-cover.gen{display:flex;align-items:center;justify-content:center}
+.c-body{display:flex;flex-direction:column;gap:5px;padding:14px 16px}
+.mono-badge{font-family:var(--serif);color:rgba(255,255,255,.92);line-height:1;font-size:30px}
+
+.course-hero{padding:0;overflow:hidden}
+.course-cover{display:block;height:150px;background-size:cover;background-position:center;background-color:#2a3050}
+.course-cover.gen{display:flex;align-items:center;justify-content:center}
+.course-cover.gen .mono-badge{font-size:46px}
+.course-hero-body{padding:22px 24px}
