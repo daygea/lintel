@@ -8,166 +8,218 @@
  */
 
 const root = document.getElementById('root');
-let STATE = { csrf: '', institution: '', lessonTitles: {} };
+let STATE = { csrf: '', institution: '', lessonTitles: {}, courses: null, loaded: false };
 
 async function boot() {
   if ('serviceWorker' in navigator) {
     try { await navigator.serviceWorker.register('/sw.js'); } catch {}
   }
 
-  // Deep link to a single lesson or quiz, else the learner's home.
-  const params = new URLSearchParams(location.search);
-  const lessonId = params.get('lesson');
-  const quizId = params.get('quiz');
-  if (lessonId) return renderLesson(lessonId);
-  if (quizId) return renderQuiz(quizId);
-  return renderHome();
+  wireRouter();
+  route();
+}
+
+/* --------------------------------------------------------------------- home */
+
+/* ------------------------------------------------------------------- data */
+
+// The learner's whole picture in one call: courses → modules → lessons (+quizzes),
+// with held/progress state. Cached on STATE so the outline is built once per view.
+async function loadLearning(force) {
+  if (STATE.loaded && !force) return STATE.courses;
+  const res = await fetch('/api/v1/me/learning', { headers: { Accept: 'application/json' } });
+  if (res.status === 401) { window.location.href = '/login'; return null; }
+  const data = await res.json();
+  STATE.csrf = data.csrfToken || '';
+  setCsrfMeta(STATE.csrf);
+  STATE.institution = data.institution || '';
+  STATE.courses = data.courses || [];
+  STATE.loaded = true;
+  indexLessonTitles(STATE.courses);
+  return STATE.courses;
+}
+
+const findCourse = (id) => (STATE.courses || []).find((c) => String(c.id) === String(id));
+
+function courseOfLesson(lessonId) {
+  for (const c of STATE.courses || []) {
+    for (const m of c.modules || []) {
+      if ((m.lessons || []).some((l) => String(l.id) === String(lessonId))) return c;
+    }
+  }
+  return null;
+}
+
+function flatLessons(course) {
+  const out = [];
+  for (const m of course.modules || []) for (const l of m.lessons || []) out.push(l);
+  return out;
+}
+
+function courseProgress(course) {
+  const all = flatLessons(course);
+  const done = all.filter((l) => l.progress === 'complete').length;
+  return { done, total: all.length, pct: all.length ? Math.round((done / all.length) * 100) : 0 };
+}
+
+/* ------------------------------------------------------------------ shell */
+
+function shell(sideHtml, paneHtml) {
+  return `
+    <div class="shell">
+      <aside class="side" id="side" aria-label="Course navigation">${sideHtml}</aside>
+      <div class="pane" id="pane">${paneHtml}</div>
+    </div>
+    <div class="scrim" id="scrim" aria-hidden="true"></div>`;
+}
+
+function solo(html) { return `<div class="solo">${html}</div>`; }
+
+function wireShell() {
+  const toggle = document.getElementById('nav-toggle');
+  const scrim = document.getElementById('scrim');
+  if (toggle) toggle.onclick = () => document.body.classList.toggle('nav-open');
+  if (scrim) scrim.onclick = () => document.body.classList.remove('nav-open');
+  // Any navigation inside the drawer should close it.
+  document.querySelectorAll('.side a').forEach((a) => a.addEventListener('click', () => document.body.classList.remove('nav-open')));
+}
+
+/* --------------------------------------------------------------- sidebars */
+
+function sideCourseList(courses, activeId) {
+  const items = (courses || []).map((c) => {
+    const p = courseProgress(c);
+    const active = String(c.id) === String(activeId) ? ' active' : '';
+    return `<a class="side-item${active}" href="?course=${c.id}">
+      <span class="o-title">${pickText(c.title)}</span>
+      <span class="side-sub">${p.done}/${p.total}</span></a>`;
+  }).join('');
+  return `<div class="side-head">My courses</div>
+    ${items || '<p class="muted" style="padding:0 16px">No courses yet.</p>'}
+    <a class="side-cta btn ghost" href="/apply">Browse open programmes</a>`;
+}
+
+function sideOutline(course, activeLessonId) {
+  const modules = (course.modules || []).map((m) => {
+    const lessons = (m.lessons || []).map((l) => outlineLesson(l, activeLessonId)).join('');
+    return `<div class="side-mod"><div class="side-mod-title">${pickText(m.title)}</div>${lessons}</div>`;
+  }).join('');
+  const quizzes = (course.quizzes || []).length
+    ? `<div class="side-mod"><div class="side-mod-title">Quizzes</div>${course.quizzes.map(outlineQuiz).join('')}</div>`
+    : '';
+  return `<a class="side-back" href="/app/">← My courses</a>
+    <div class="side-course">${pickText(course.title)}</div>
+    ${modules}${quizzes}`;
+}
+
+function outlineLesson(l, activeId) {
+  const active = String(l.id) === String(activeId) ? ' active' : '';
+  const icon = l.held
+    ? '<span class="o-dot held" title="Held"></span>'
+    : l.progress === 'complete'
+      ? '<span class="o-check" aria-label="complete">✓</span>'
+      : '<span class="o-dot open"></span>';
+  return `<a class="o-item${active}${l.held ? ' is-held' : ''}" href="?lesson=${l.id}">${icon}<span class="o-title">${pickText(l.title)}</span></a>`;
+}
+
+function outlineQuiz(q) {
+  return `<a class="o-item" href="?quiz=${q.id}"><span class="o-dot open"></span><span class="o-title">${pickText(q.title)}</span></a>`;
 }
 
 /* --------------------------------------------------------------------- home */
 
 async function renderHome() {
-  root.innerHTML = `<p class="muted">Loading…</p>`;
-  let data;
-  try {
-    const res = await fetch('/api/v1/me/learning', { headers: { Accept: 'application/json' } });
-    if (res.status === 401) { window.location.href = '/login'; return; }
-    data = await res.json();
-  } catch {
-    return renderOfflineOnly();
-  }
+  root.innerHTML = `<p class="muted" style="padding:22px 18px">Loading…</p>`;
+  let courses;
+  try { courses = await loadLearning(); } catch { return renderOfflineOnly(); }
+  if (courses == null) return; // redirected to login
 
-  STATE.csrf = data.csrfToken || '';
-  STATE.institution = data.institution || '';
-  setCsrfMeta(STATE.csrf); // so push.js (and any POST) has a token
-  indexLessonTitles(data.courses);
+  const cards = courses.length
+    ? `<div class="grid">${courses.map(homeCard).join('')}</div>`
+    : `<div class="card"><p style="margin:0">You're not enrolled in anything yet.</p>
+        <p class="muted" style="margin:8px 0 0">Apply to an open programme, or a registrar can enrol you directly.</p></div>`;
 
-  const courses = data.courses || [];
-  let html = `<h1>Your learning</h1>`;
-  if (STATE.institution) html += `<p class="muted" style="margin-top:-6px">${escapeHtml(STATE.institution)}</p>`;
+  const pane = `
+    <h1>Your learning</h1>
+    ${STATE.institution ? `<p class="muted" style="margin-top:-6px">${escapeHtml(STATE.institution)}</p>` : ''}
+    ${cards}
+    <p style="margin-top:18px"><a class="btn" href="/apply">Browse open programmes</a></p>
+    <div id="offline" style="margin-top:26px"></div>`;
 
-  if (!courses.length) {
-    html += `
-      <div class="card">
-        <p style="margin:0">You're not enrolled in anything yet.</p>
-        <p class="muted" style="margin:8px 0 0">Apply to an open programme below, or a registrar can enrol you directly.</p>
-      </div>`;
-  } else {
-    html += courses.map(courseCard).join('');
-  }
-
-  html += `<p style="margin-top:18px"><a class="btn" href="/apply">Browse open programmes</a></p>`;
-
-  html += `<div id="offline" style="margin-top:26px"></div>`;
-  root.innerHTML = html;
-  wireHome();
+  root.innerHTML = shell(sideCourseList(courses, null), pane);
+  wireShell();
   renderOfflineList();
 }
 
-function courseCard(course) {
-  const total = course.lessonCount || 0;
-  const open = course.openCount || 0;
-  const meter = total
-    ? `<div class="meter" aria-hidden="true"><span style="width:${Math.round((open / total) * 100)}%"></span></div>
-       <div class="muted" style="margin-top:4px">${open} of ${total} open</div>`
-    : `<div class="muted">No lessons yet.</div>`;
+function homeCard(course) {
+  const p = courseProgress(course);
+  return `
+    <a class="c-card" href="?course=${course.id}">
+      <span class="c-code mono">${escapeHtml(course.code || '')}</span>
+      <span class="c-title">${pickText(course.title)}</span>
+      ${course.cohortTitle ? `<span class="c-sub">${pickText(course.cohortTitle)}</span>` : ''}
+      <span class="meter" aria-hidden="true"><span style="width:${p.pct}%"></span></span>
+      <span class="c-prog">${p.done} of ${p.total} lessons</span>
+    </a>`;
+}
 
-  const modules = (course.modules || []).map(moduleBlock).join('');
+/* ------------------------------------------------------------------- course */
+
+async function renderCourse(courseId) {
+  root.innerHTML = `<p class="muted" style="padding:22px 18px">Loading…</p>`;
+  let courses;
+  try { courses = await loadLearning(); } catch { return renderOfflineOnly(); }
+  if (courses == null) return;
+  const course = findCourse(courseId);
+  if (!course) { root.innerHTML = shell('', `<p class="err">Course not found.</p><p><a class="btn ghost" href="/app/">← My courses</a></p>`); wireShell(); return; }
+
+  const p = courseProgress(course);
+  const flat = flatLessons(course);
+  const next = flat.find((l) => !l.held && l.progress !== 'complete') || flat.find((l) => !l.held);
   const quizzes = (course.quizzes || []).length
-    ? `<div class="module"><h3>Quizzes</h3><ul class="lessons">${course.quizzes.map(quizRow).join('')}</ul></div>`
+    ? `<div class="section"><h2>Quizzes</h2><ul class="q-list">${course.quizzes.map(courseQuizRow).join('')}</ul></div>`
     : '';
 
-  return `
-    <section class="course">
-      <div class="course-head">
-        <span class="code mono">${escapeHtml(course.code || '')}</span>
-        <h2>${pickText(course.title)}</h2>
-        ${course.cohortTitle ? `<div class="muted">${pickText(course.cohortTitle)}</div>` : ''}
-      </div>
-      ${meter}
-      <div class="modules">${modules || '<p class="muted">No lessons yet.</p>'}${quizzes}</div>
-    </section>`;
+  const pane = `
+    <div class="c-head">
+      <span class="c-code mono">${escapeHtml(course.code || '')}</span>
+      <h1>${pickText(course.title)}</h1>
+      ${course.cohortTitle ? `<p class="muted" style="margin-top:-4px">${pickText(course.cohortTitle)}</p>` : ''}
+    </div>
+    <div class="meter big" aria-hidden="true"><span style="width:${p.pct}%"></span></div>
+    <p class="muted" style="margin-top:6px">${p.done} of ${p.total} lessons complete</p>
+    ${next ? `<p style="margin-top:16px"><a class="btn" href="?lesson=${next.id}">${p.done ? 'Continue' : 'Start'}: ${pickText(next.title)}</a></p>` : '<p class="muted">No open lessons yet.</p>'}
+    ${quizzes}`;
+
+  root.innerHTML = shell(sideOutline(course, null), pane);
+  wireShell();
 }
 
-function quizRow(q) {
+function courseQuizRow(q) {
   const left = Math.max(0, (q.attemptsAllowed || 1) - (q.attemptsUsed || 0));
-  const meta = `<span class="muted">${q.questionCount} question${q.questionCount === 1 ? '' : 's'}</span>`;
-  if (left <= 0) {
-    return `
-      <li class="lesson is-open">
-        <span class="lesson-open" style="cursor:default">
-          <span class="thr-dot open"></span>
-          <span class="lesson-title">${pickText(q.title)}</span>
-          <span class="lesson-meta">${meta} <span class="chip done-chip">completed</span></span>
-        </span>
-      </li>`;
-  }
-  return `
-    <li class="lesson is-open">
-      <a class="lesson-open" href="?quiz=${q.id}">
-        <span class="thr-dot open"></span>
-        <span class="lesson-title">${pickText(q.title)}</span>
-        <span class="lesson-meta">${meta} <span class="chip open-chip">${left} attempt${left === 1 ? '' : 's'} left</span></span>
-      </a>
-    </li>`;
+  const tag = left <= 0
+    ? '<span class="chip done-chip">completed</span>'
+    : `<span class="chip open-chip">${left} attempt${left === 1 ? '' : 's'} left</span>`;
+  const inner = `<span class="lesson-title">${pickText(q.title)}</span>
+    <span class="lesson-meta"><span class="muted">${q.questionCount} question${q.questionCount === 1 ? '' : 's'}</span> ${tag}</span>`;
+  return left <= 0
+    ? `<li class="q-row">${inner}</li>`
+    : `<li class="q-row"><a href="?quiz=${q.id}">${inner}</a></li>`;
 }
 
-function moduleBlock(mod) {
-  const lessons = (mod.lessons || []).map(lessonRow).join('');
-  return `
-    <div class="module">
-      <h3>${pickText(mod.title)}</h3>
-      <ul class="lessons">${lessons}</ul>
-    </div>`;
-}
+/* ------------------------------------------------------- lesson prev / next */
 
-function lessonRow(lesson) {
-  const mins = lesson.estimatedMinutes ? `<span class="muted">${lesson.estimatedMinutes} min</span>` : '';
-  const chip = lesson.held
-    ? `<span class="chip held-chip">held</span>`
-    : progressChip(lesson.progress);
-
-  if (lesson.held) {
-    // A held teaching is a door, not an error. Show the institution's words on tap.
-    return `
-      <li class="lesson is-held" data-held-msg="${escapeAttr(lesson.message || '')}">
-        <button class="lesson-open" aria-expanded="false">
-          <span class="thr-dot held"></span>
-          <span class="lesson-title">${pickText(lesson.title)}</span>
-          <span class="lesson-meta">${mins} ${chip}</span>
-        </button>
-        <div class="held-note" hidden></div>
-      </li>`;
-  }
-
-  return `
-    <li class="lesson is-open">
-      <a class="lesson-open" href="?lesson=${lesson.id}">
-        <span class="thr-dot open"></span>
-        <span class="lesson-title">${pickText(lesson.title)}</span>
-        <span class="lesson-meta">${mins} ${chip}</span>
-      </a>
-    </li>`;
-}
-
-function progressChip(state) {
-  if (state === 'complete') return `<span class="chip done-chip">done</span>`;
-  if (state === 'in_progress') return `<span class="chip prog-chip">in progress</span>`;
-  return `<span class="chip open-chip">open</span>`;
-}
-
-function wireHome() {
-  // Held lessons expand to reveal the institution's denial message.
-  root.querySelectorAll('.lesson.is-held .lesson-open').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const li = btn.closest('.lesson');
-      const note = li.querySelector('.held-note');
-      const open = !note.hidden;
-      note.hidden = open;
-      btn.setAttribute('aria-expanded', String(!open));
-      if (!open && !note.textContent) note.textContent = li.dataset.heldMsg || 'This teaching is held until your standing is attested.';
-    });
-  });
+function lessonNav(course, lessonId) {
+  if (!course) return '';
+  const flat = flatLessons(course);
+  const i = flat.findIndex((l) => String(l.id) === String(lessonId));
+  if (i < 0) return '';
+  const prev = flat[i - 1];
+  const next = flat[i + 1];
+  return `<div class="lnav">
+    ${prev ? `<a class="btn ghost" href="?lesson=${prev.id}">← ${pickText(prev.title)}</a>` : '<span></span>'}
+    ${next ? `<a class="btn" href="?lesson=${next.id}">${pickText(next.title)} →</a>` : '<span></span>'}
+  </div>`;
 }
 
 /* --------------------------------------------------------------------- quiz */
@@ -181,18 +233,18 @@ async function renderQuiz(quizId) {
     if (!res.ok) throw new Error('unavailable');
     data = await res.json();
   } catch {
-    root.innerHTML = backLink() + `<div class="err">This quiz isn't available.</div>`;
+    root.innerHTML = solo(backLink() + `<div class="err">This quiz isn't available.</div>`);
     return;
   }
   if (data.csrfToken) { STATE.csrf = data.csrfToken; setCsrfMeta(data.csrfToken); }
 
   const questions = data.questions || [];
   const body = questions.map((q, i) => renderQuestion(q, i)).join('');
-  root.innerHTML = backLink() +
+  root.innerHTML = solo(backLink() +
     `<h1>${pickText(data.title)}</h1>
      <div id="quiz-questions">${body || '<p class="muted">This quiz has no questions.</p>'}</div>
      <div class="card"><button class="btn" id="quiz-submit">Submit answers</button>
-       <span id="quiz-msg" class="muted" style="margin-left:10px"></span></div>`;
+       <span id="quiz-msg" class="muted" style="margin-left:10px"></span></div>`);
 
   document.getElementById('quiz-submit').addEventListener('click', () => submitQuiz(quizId, questions));
 }
@@ -264,6 +316,7 @@ async function submitQuiz(quizId, questions) {
       throw new Error(err.error || err.message || 'Could not submit');
     }
     const { attempt } = await res.json();
+    STATE.loaded = false;
     renderQuizResult(attempt);
   } catch (e) {
     btn.disabled = false;
@@ -276,19 +329,26 @@ function renderQuizResult(attempt) {
   const manual = attempt.needsManualMarking
     ? `<p class="muted">Some answers (written responses) will be marked by an assessor — this score is provisional.</p>`
     : '';
-  root.innerHTML = backLink() + `
+  root.innerHTML = solo(backLink() + `
     <div class="card">
       <h1 style="margin-top:0">Submitted</h1>
       <p style="font-size:22px;margin:6px 0"><strong>${attempt.autoScore} / ${attempt.maxScore}</strong> <span class="muted">(${pct}%)</span></p>
       ${manual}
       <a class="btn ghost" href="/app/" style="margin-top:8px">Back to your learning</a>
-    </div>`;
+    </div>`);
 }
 
 /* ------------------------------------------------------------------- lesson */
 
 async function renderLesson(lessonId) {
-  root.innerHTML = `<p class="muted">Loading lesson…</p>`;
+  if (!STATE.loaded) { try { await loadLearning(); } catch { /* offline handled below */ } }
+  const course = courseOfLesson(lessonId);
+  const side = course ? sideOutline(course, lessonId) : sideCourseList(STATE.courses || [], null);
+
+  root.innerHTML = shell(side, `<p class="muted">Loading lesson…</p>`);
+  wireShell();
+  const pane = document.getElementById('pane');
+
   let data;
   try {
     const res = await fetch(`/api/v1/lessons/${lessonId}/view`, { headers: { Accept: 'application/json' } });
@@ -297,26 +357,26 @@ async function renderLesson(lessonId) {
   } catch {
     const pack = await window.lintelPacks.get(lessonId);
     if (pack) return renderPack(pack);
-    root.innerHTML = backLink() + `<div class="err">You are offline and this lesson is not saved for offline use.</div>`;
+    pane.innerHTML = `<div class="err">You are offline and this lesson is not saved for offline use.</div>`;
     return;
   }
 
   if (data.csrfToken) { STATE.csrf = data.csrfToken; setCsrfMeta(data.csrfToken); }
 
   if (data.held) {
-    root.innerHTML = backLink() + `
-      <div class="held" role="status" aria-live="polite">
-        <blockquote>${escapeHtml(data.message)}</blockquote>
-      </div>
-      <p class="muted" style="margin-top:14px">This teaching is held. When your standing is attested, it will open here.</p>`;
+    pane.innerHTML = `
+      <h1>${pickText(data.lesson.title)}</h1>
+      <div class="held" role="status" aria-live="polite"><blockquote>${escapeHtml(data.message)}</blockquote></div>
+      <p class="muted" style="margin-top:14px">This teaching is held. When your standing is attested, it will open here.</p>
+      ${lessonNav(course, lessonId)}`;
     return;
   }
 
-  root.innerHTML = backLink() + `<h1>${pickText(data.lesson.title)}</h1><div id="blocks"></div>`;
+  pane.innerHTML = `<h1>${pickText(data.lesson.title)}</h1><div id="blocks"></div><div id="lnav"></div>`;
   const container = document.getElementById('blocks');
   for (const block of data.blocks) container.appendChild(renderBlock(block, lessonId));
-
   if (data.enrollmentId) container.appendChild(completeControl(lessonId, data.enrollmentId));
+  document.getElementById('lnav').innerHTML = lessonNav(course, lessonId);
 }
 
 function completeControl(lessonId, enrollmentId) {
@@ -336,12 +396,27 @@ function completeControl(lessonId, enrollmentId) {
       if (!res.ok) throw new Error('Could not save');
       btn.textContent = 'Completed ✓';
       btn.classList.add('offline-ok');
+      STATE.loaded = false;          // progress changed — refetch the outline next view
+      markOutlineComplete(lessonId); // reflect it instantly in the sidebar
     } catch (err) {
       btn.disabled = false;
       btn.textContent = 'Try again';
     }
   });
   return wrap;
+}
+
+// Tick the current lesson in the cached outline and in the live sidebar, so the
+// checkmark appears immediately without waiting for the next fetch.
+function markOutlineComplete(lessonId) {
+  for (const c of STATE.courses || []) {
+    for (const m of c.modules || []) {
+      const l = (m.lessons || []).find((x) => String(x.id) === String(lessonId));
+      if (l) l.progress = 'complete';
+    }
+  }
+  const active = document.querySelector('.o-item.active .o-dot, .o-item.active .o-check');
+  if (active) active.outerHTML = '<span class="o-check" aria-label="complete">✓</span>';
 }
 
 function renderBlock(block, lessonId) {
@@ -424,7 +499,7 @@ function renderBlock(block, lessonId) {
 }
 
 function renderPack(pack) {
-  root.innerHTML = backLink() + `<h1>${pickText(pack.title)}</h1><p class="offline-ok">Saved offline</p><div id="blocks"></div>`;
+  root.innerHTML = solo(backLink() + `<h1>${pickText(pack.title)}</h1><p class="offline-ok">Saved offline</p><div id="blocks"></div>`);
   const c = document.getElementById('blocks');
   for (const b of pack.blocks) {
     const el = document.createElement('div');
@@ -453,9 +528,9 @@ async function renderOfflineList() {
 async function renderOfflineOnly() {
   const saved = await window.lintelPacks.list();
   let html = `<h1>Your learning</h1><div class="err">You're offline. Showing lessons saved to this device.</div>`;
-  if (!saved.length) { root.innerHTML = html + `<p class="muted">Nothing is saved offline yet.</p>`; return; }
+  if (!saved.length) { root.innerHTML = solo(html + `<p class="muted">Nothing is saved offline yet.</p>`); return; }
   html += saved.map((s) => `<div class="card"><a href="?lesson=${s.lessonId}">${escapeHtml(STATE.lessonTitles[s.lessonId] || 'Saved lesson')}</a></div>`).join('');
-  root.innerHTML = html;
+  root.innerHTML = solo(html);
 }
 
 /* ------------------------------------------------------------------- shared */
@@ -517,5 +592,50 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 function escapeAttr(s) { return escapeHtml(s); }
+
+/* ------------------------------------------------------------------- router */
+
+function currentView() {
+  const params = new URLSearchParams(location.search);
+  const lesson = params.get('lesson');
+  const quiz = params.get('quiz');
+  const course = params.get('course');
+  if (lesson) return () => renderLesson(lesson);
+  if (quiz) return () => renderQuiz(quiz);
+  if (course) return () => renderCourse(course);
+  return renderHome;
+}
+
+async function route() {
+  window.scrollTo(0, 0);
+  await currentView()();
+}
+
+function navigate(href) {
+  document.body.classList.remove('nav-open');
+  history.pushState({}, '', href);
+  route();
+}
+
+// Instant in-app navigation: intercept clicks on /app/ links (home + ?course /
+// ?lesson / ?quiz) and swap views via the History API. Anything else — /apply,
+// /login, external links, downloads, new-tab, modified clicks — loads normally.
+function wireRouter() {
+  document.addEventListener('click', (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest('a');
+    if (!a) return;
+    const raw = a.getAttribute('href');
+    if (!raw || raw.startsWith('#') || a.target === '_blank' || a.hasAttribute('download')) return;
+    const url = new URL(a.href, location.href);
+    if (url.origin !== location.origin) return;
+    if (url.pathname === '/app/' || url.pathname === '/app/index.html') {
+      e.preventDefault();
+      navigate(url.pathname + url.search);
+    }
+  });
+  window.addEventListener('popstate', route);
+}
+
 
 boot();
