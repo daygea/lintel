@@ -38,13 +38,38 @@ async function cohortFee(cohortId) {
  * The learner's own invoices, newest first, each with what's still outstanding.
  * This is the data behind the learner "My fees" page.
  */
+// A listing must never 500 on one bad row. Historical/hand-edited invoices can
+// carry a missing or wrong-currency money value; coerce each to a safe, valid,
+// same-currency pair so neither subtract() nor the view's format() can throw.
+const VALID_CURRENCY = new Set(money.SUPPORTED);
+function safeDue(m) {
+  const currency = m && VALID_CURRENCY.has(m.currency) ? m.currency : 'NGN';
+  const amount = m && Number.isFinite(m.amount) ? m.amount : 0;
+  return { amount, currency };
+}
+function paidIn(m, currency) {
+  // count a paid amount only when it's in the invoice's own currency; else treat as 0
+  const amount = m && Number.isFinite(m.amount) && m.currency === currency ? m.amount : 0;
+  return { amount, currency };
+}
+function safeMoney(invoice) {
+  const amountDue = safeDue(invoice.amountDue);
+  const amountPaid = paidIn(invoice.amountPaid, amountDue.currency);
+  return { amountDue, amountPaid, outstanding: money.subtract(amountDue, amountPaid) };
+}
+
 async function myInvoices(userId) {
   const invoices = await Invoice.find({ userId }).sort({ createdAt: -1 }).exec();
-  return invoices.map((inv) => ({
-    invoice: inv,
-    outstanding: money.subtract(inv.amountDue, inv.amountPaid),
-    settled: money.isFree(money.subtract(inv.amountDue, inv.amountPaid)) || inv.state === 'waived',
-  }));
+  return invoices.map((inv) => {
+    const { amountDue, amountPaid, outstanding } = safeMoney(inv);
+    return {
+      invoice: inv,
+      amountDue,
+      amountPaid,
+      outstanding,
+      settled: money.isFree(outstanding) || inv.state === 'waived',
+    };
+  });
 }
 
 /**
@@ -318,7 +343,7 @@ async function invoiceView(id) {
     User.findById(invoice.userId).exec(),
     paymentsFor(invoice._id),
   ]);
-  return { invoice, user, payments, outstanding: money.subtract(invoice.amountDue, invoice.amountPaid) };
+  return { invoice, user, payments, outstanding: safeMoney(invoice).outstanding };
 }
 
 /**

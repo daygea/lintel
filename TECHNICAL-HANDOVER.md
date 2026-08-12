@@ -585,4 +585,33 @@ There is **one** platform-level `PAYSTACK_SECRET_KEY` — Lintel's account handl
 
 ---
 
+# Part XIII — Learner experience: the dashboard, and course covers (August 2026, cont.)
+
+The learner PWA (`public/app/`) is a hand-rolled SPA — no framework, a `route()` dispatcher, and views built as template strings into `#root`. Two changes here bring the learner surface up to what people expect from a modern LMS.
+
+## The two-pane shell is for *inside a course*, not the dashboard
+
+The app has a two-pane **shell** — a persistent course-outline sidebar next to a content pane — which is right for lessons (outline = navigation, pane = the lesson). The mistake that had crept in: the **home dashboard** also used the shell, so the sidebar's course list and the main pane's course grid showed *the same courses*. Duplicated navigation, and an empty-feeling page.
+
+The rule now: **the outline sidebar appears only inside a course or lesson.** The dashboard is full-width.
+
+- `renderHome()` no longer calls `shell()`. It renders a full-width `<div class="home">` with three things, in the order the best learner apps use them: a **hero** (a branded panel greeting the learner by name — `learnerName` now rides along in the `/api/v1/me/learning` payload), a **"Continue learning"** card (`pickResume()` finds the most-progressed in-progress course, `continueCard()` links straight to the next lesson), then the **course grid**.
+- The hamburger is scoped with a body class: `route()` clears `has-shell` on every navigation, `wireShell()` re-adds it, and CSS shows `.nav-toggle` only under `body.has-shell`. So the menu button appears in a course and not on the dashboard, where there's nothing to toggle.
+- `renderCourse()`'s main pane is now a clean **overview** (title, big progress bar, a Continue button) rather than a second copy of the outline — the quiz list that used to duplicate the outline's Quizzes section was removed; the sidebar handles all lesson + quiz navigation.
+
+If you add a new learner view: decide first whether it's *navigation-alongside-content* (use `shell()` + `wireShell()`) or *a standalone page* (full-width, leave `has-shell` off). Don't reflexively wrap everything in the shell — that's exactly what caused the duplication.
+
+## Course cover images
+
+Courses can carry an optional cover image, with a fallback so nothing ever looks unfinished.
+
+- **Model** — `Course.coverAssetId` references an image `Asset`. Covers reuse the whole media pipeline (upload to R2 in the media library, then pick one) rather than a parallel uploader.
+- **Serving** — `learner.service.myLearning` signs the cover per course (`storage.signGet` → `coverUrl` in the payload). R2 is private, so this is a short-lived signed URL refreshed each time the learning data loads — the same discipline as lesson media. Don't try to store a permanent URL; sign per-fetch.
+- **Authoring** — the course page (`curriculum/course.ejs`) has a "Cover image" section: the current cover, a thumbnail picker of the institution's image assets, and a link to the media library. `setCover` is a thin `updateCourse(id, { coverAssetId })`. **Gotcha:** pass `null`, never `''`, to clear it — an empty string casts to an `ObjectId` and throws.
+- **The fallback matters** — `coverArt(course, cls)` in `app.js` returns the image when there is one, and otherwise a **deterministic gradient + monogram** (hue seeded from the course code, initial from the title). So a course with no cover still renders an intentional-looking card from day one, and real covers slot in as institutions add them. Used by both `homeCard` and the course hero.
+
+**PWA reminder, again:** any change to `app.js` / `app.css` / `sw.js` / the app shell means bumping the service-worker `BUILD` in `public/sw.js`, or devices keep the old cached bundle. It's at `v0.16.0` after this work. There's no new database index — covers add a single field to `Course`.
+
+---
+
 *If you are inheriting this codebase: the invariants in Part I are not style preferences. Several of them are the entire reason the product exists. Read them, then read `src/plugins/tenant-guard.js` and `src/services/eligibility/evaluator.js` — those two files are the spine.*

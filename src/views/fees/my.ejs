@@ -1,0 +1,48 @@
+<% var pageTitle = 'My fees'; %>
+<%- include("../layouts/public-head") %>
+<div class="pub-wide">
+  <div class="page-head">
+    <div class="eyebrow"><%= typeof tenant !== 'undefined' && tenant ? tenant.name.toUpperCase() : 'LINTEL' %></div>
+    <h1 style="font-size:26px">My fees</h1>
+    <p class="lede" style="font-size:14px">Pay your programme fees securely. Access to paid lessons opens once your payment is confirmed.</p>
+  </div>
+
+  <p style="margin:-4px 0 18px"><a class="quiet mono" style="font-size:12px" href="/app/">← my learning</a></p>
+
+  <% if (paid) { %><div class="notice ok" style="margin-bottom:16px"><span class="badge ok">received</span> Thank you — we'll confirm your payment shortly and open your access.</div><% } %>
+  <% if (error) { %><div class="notice err" role="alert" style="margin-bottom:16px"><%= error %></div><% } %>
+
+  <% if (!(rows || []).length) { %>
+    <div class="thr" style="padding:14px 0 14px 16px"><span class="quiet">You have no fees to pay.</span></div>
+  <% } else { %>
+    <table class="table">
+      <thead><tr><th>Amount</th><th>Paid</th><th>Outstanding</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      <% rows.forEach(function (r) { var inv = r.invoice; %>
+        <tr>
+          <td class="mono"><%= format(r.amountDue) %></td>
+          <td class="mono quiet"><%= format(r.amountPaid) %></td>
+          <td class="mono"><%= format(r.outstanding) %></td>
+          <td>
+            <% if (inv.state === 'waived') { %><span class="badge ok">waived</span>
+            <% } else if (r.settled) { %><span class="badge ok">paid</span>
+            <% } else if (inv.state === 'part' || inv.state === 'deposit') { %><span class="badge">part-paid</span>
+            <% } else if (inv.state === 'overdue') { %><span class="badge held">overdue</span>
+            <% } else { %><span class="badge">unpaid</span><% } %>
+          </td>
+          <td>
+            <% if (!r.settled) { %>
+              <form method="post" action="/my/fees/<%= inv._id %>/pay" style="margin:0">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn" type="submit">Pay <%= format(r.outstanding) %></button>
+              </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
+    <p class="quiet" style="font-size:12px;margin-top:10px">Payments are processed securely by the institution's payment provider.</p>
+  <% } %>
+</div>
+<%- include("../layouts/public-foot") %>
