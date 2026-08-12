@@ -3,24 +3,109 @@
 <div class="page-head">
   <div class="eyebrow">PLATFORM</div>
   <h1>Overview</h1>
-  <p class="lede">The whole system at a glance — every institution, operator, and pending request.</p>
+  <p class="lede">The whole system at a glance — institutions, recurring value, and what needs attention.</p>
 </div>
+
+<%
+  var suspended = (overview.byStatus.find(function(s){return s._id==='suspended';})||{}).n || 0;
+  var attention = overview.trialsExpiring + overview.subsLapsing + suspended + overview.pendingApps;
+  var ngn = function(minor){ return format({ amount: minor, currency: 'NGN' }); };
+%>
+
 <div class="stats">
-  <div class="stat"><div class="n"><%= overview.tenants %></div><div class="l">Institutions</div></div>
-  <div class="stat"><div class="n"><%= overview.users %></div><div class="l">People</div></div>
+  <div class="stat"><div class="n"><%= overview.tenants %></div><div class="l">Institutions <% if (overview.newTenants) { %><span style="color:var(--ok,#3a7d44)">+<%= overview.newTenants %>/30d</span><% } %></div></div>
+  <div class="stat"><div class="n"><%= overview.users %></div><div class="l">People <% if (overview.newUsers) { %><span style="color:var(--ok,#3a7d44)">+<%= overview.newUsers %>/30d</span><% } %></div></div>
+  <div class="stat"><div class="n"><%= ngn(overview.mrr) %></div><div class="l">Recurring / mo</div></div>
   <div class="stat"><div class="n"><%= overview.pendingApps %></div><div class="l">Pending applications</div></div>
-  <div class="stat"><div class="n"><%= overview.superadmins %></div><div class="l">Operators</div></div>
 </div>
+
 <div class="section">
-  <h2>Institutions by status</h2>
-  <table class="table" style="max-width:360px">
-    <thead><tr><th>Status</th><th>Count</th></tr></thead>
+  <h2>Needs attention</h2>
+  <% if (!attention) { %>
+    <p class="quiet">All clear — no trials or subscriptions lapsing this week, nothing suspended, no pending applications.</p>
+  <% } else { %>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <% if (overview.trialsExpiring) { %><a href="/console/institutions" class="badge held" style="text-decoration:none;padding:7px 12px"><%= overview.trialsExpiring %> trial<%= overview.trialsExpiring>1?'s':'' %> ending &le;7 days</a><% } %>
+      <% if (overview.subsLapsing) { %><a href="/console/institutions" class="badge held" style="text-decoration:none;padding:7px 12px"><%= overview.subsLapsing %> subscription<%= overview.subsLapsing>1?'s':'' %> lapsing &le;7 days</a><% } %>
+      <% if (suspended) { %><a href="/console/institutions?archived=1" class="badge held" style="text-decoration:none;padding:7px 12px"><%= suspended %> suspended</a><% } %>
+      <% if (overview.pendingApps) { %><a href="/console/applications" class="badge" style="text-decoration:none;padding:7px 12px"><%= overview.pendingApps %> pending application<%= overview.pendingApps>1?'s':'' %></a><% } %>
+    </div>
+  <% } %>
+</div>
+
+<div class="section">
+  <h2>Billing</h2>
+  <p style="margin:0 0 6px">
+    <span class="quiet mono" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em">Revenue &middot; last 30 days</span><br>
+    <% if (!overview.revenue.length) { %><span class="quiet">No subscription payments in the last 30 days.</span>
+    <% } else { %><% overview.revenue.forEach(function(r, i){ %><%= i? ' · ':'' %><strong><%= format({ amount: r.total, currency: r._id }) %></strong><% }); %><% } %>
+  </p>
+  <% if (overview.recentPayments.length) { %>
+    <table class="table" style="max-width:560px;margin-top:12px">
+      <thead><tr><th>Institution</th><th>Plan</th><th>Amount</th><th>Paid</th></tr></thead>
+      <tbody>
+      <% overview.recentPayments.forEach(function(p){ %>
+        <tr>
+          <td><%= p.tenant %></td>
+          <td class="quiet"><%= p.plan %></td>
+          <td class="mono"><%= format(p.amount) %></td>
+          <td class="quiet"><%= p.paidAt ? new Date(p.paidAt).toLocaleDateString() : '—' %></td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+
+<div class="cols" style="display:flex;gap:28px;flex-wrap:wrap">
+  <div class="section" style="flex:1;min-width:280px">
+    <h2>Institutions by status</h2>
+    <table class="table" style="max-width:360px">
+      <thead><tr><th>Status</th><th>Count</th></tr></thead>
+      <tbody>
+      <% overview.byStatus.forEach(function(s){ %>
+        <tr><td><span class="badge <%= s._id==='active'?'ok':(s._id==='suspended'?'held':'flat') %>"><%= s._id %></span></td><td class="mono"><%= s.n %></td></tr>
+      <% }); %>
+      <% if(!overview.byStatus.length){ %><tr class="empty"><td colspan="2">No institutions yet.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+  <div class="section" style="flex:1;min-width:280px">
+    <h2>Live institutions by plan</h2>
+    <table class="table" style="max-width:360px">
+      <thead><tr><th>Plan</th><th>Count</th></tr></thead>
+      <tbody>
+      <% overview.byPlan.forEach(function(p){ %>
+        <tr><td class="quiet"><%= p._id %></td><td class="mono"><%= p.n %></td></tr>
+      <% }); %>
+      <% if(!overview.byPlan.length){ %><tr class="empty"><td colspan="2">No live institutions.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<% if (overview.recentDeletions.length) { %>
+<div class="section">
+  <h2>Recently deleted <span class="quiet" style="font-size:13px;font-weight:normal">&mdash; <%= overview.deletedCount %> total, hidden from the main list</span></h2>
+  <table class="table" style="max-width:560px">
+    <thead><tr><th>Institution</th><th>Address</th><th>Deleted</th><th></th></tr></thead>
     <tbody>
-    <% overview.byStatus.forEach(function(s){ %>
-      <tr><td><span class="badge <%= s._id==='active'?'ok':(s._id==='suspended'?'held':'flat') %>"><%= s._id %></span></td><td class="mono"><%= s.n %></td></tr>
+    <% overview.recentDeletions.forEach(function(d){ %>
+      <tr class="quiet">
+        <td><a href="/console/institutions/<%= d.id %>"><%= d.name %></a></td>
+        <td class="mono" style="font-size:12.5px"><%= d.slug %></td>
+        <td class="quiet"><%= d.deletedAt ? new Date(d.deletedAt).toLocaleDateString() : '—' %></td>
+        <td style="text-align:right">
+          <form method="post" action="/console/institutions/<%= d.id %>/restore" style="margin:0" onsubmit="return confirm('Restore this institution as suspended?');">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button class="btn ghost small" type="submit" style="font-size:12px">Restore</button>
+          </form>
+        </td>
+      </tr>
     <% }); %>
-    <% if(!overview.byStatus.length){ %><tr class="empty"><td colspan="2">No institutions yet.</td></tr><% } %>
     </tbody>
   </table>
+  <p style="margin-top:8px"><a class="quiet mono" style="font-size:12px" href="/console/institutions?archived=1">View all archived &rarr;</a></p>
 </div>
+<% } %>
 <%- include("foot") %>

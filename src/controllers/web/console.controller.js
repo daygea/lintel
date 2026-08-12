@@ -5,6 +5,7 @@ const platform = require('../../services/platform.service');
 const signup = require('../../services/signup.service');
 const { PLANS } = require('../../config/plans');
 const { pick } = require('../../plugins/locale-map');
+const { format } = require('../../lib/money');
 
 const h = (fn) => async (req, res, next) => { try { await fn(req, res); } catch (err) { next(err); } };
 
@@ -32,7 +33,7 @@ exports.logout = (req, res) => { req.session.destroy(() => res.redirect('/consol
 
 exports.dashboard = h(async (req, res) => {
   const overview = await platform.overview();
-  res.render('console/dashboard', { overview });
+  res.render('console/dashboard', { overview, format });
 });
 
 exports.institutions = h(async (req, res) => {

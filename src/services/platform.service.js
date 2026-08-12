@@ -1,6 +1,6 @@
 'use strict';
 
-const { Tenant, User, Membership, PlatformAuditLog, TenantApplication, AbuseReport, BreakglassGrant } = require('../models');
+const { Tenant, User, Membership, PlatformAuditLog, PlatformPayment, TenantApplication, AbuseReport, BreakglassGrant } = require('../models');
 const { Course, Lesson, ContentBlock, Asset } = require('../models');
 const storage = require('../lib/storage');
 const { runAsPlatform, currentUserId } = require('../lib/context');
@@ -29,14 +29,70 @@ function audit(action, subjectType, subjectId, meta) {
 
 async function overview() {
   return runAsPlatform('platform overview', async () => {
-    const [tenants, users, pendingApps, superadmins] = await Promise.all([
-      Tenant.countDocuments({ status: { $nin: ['closed', 'deleted'] } }).exec(),
-      User.countDocuments({}).exec(),
-      TenantApplication.countDocuments({ status: 'pending' }).exec(),
-      User.countDocuments({ platformRole: 'superadmin' }).exec(),
-    ]);
+    const now = new Date();
+    const soon = new Date(now.getTime() + 7 * 864e5);
+    const since = new Date(now.getTime() - 30 * 864e5);
+
+    const [tenants, users, pendingApps, superadmins, newTenants, newUsers, trialsExpiring, subsLapsing] =
+      await Promise.all([
+        Tenant.countDocuments({ status: { $nin: ['closed', 'deleted'] } }).exec(),
+        User.countDocuments({}).exec(),
+        TenantApplication.countDocuments({ status: 'pending' }).exec(),
+        User.countDocuments({ platformRole: 'superadmin' }).exec(),
+        Tenant.countDocuments({ createdAt: { $gte: since }, status: { $ne: 'deleted' } }).exec(),
+        User.countDocuments({ createdAt: { $gte: since } }).exec(),
+        Tenant.countDocuments({ status: 'trial', trialEndsAt: { $gte: now, $lte: soon } }).exec(),
+        Tenant.countDocuments({ status: 'active', currentPeriodEnd: { $gte: now, $lte: soon } }).exec(),
+      ]);
+
     const byStatus = await Tenant.aggregate([{ $group: { _id: '$status', n: { $sum: 1 } } }]);
-    return { tenants, users, pendingApps, superadmins, byStatus };
+    const byPlan = await Tenant.aggregate([
+      { $match: { status: { $nin: ['closed', 'deleted'] } } },
+      { $group: { _id: '$plan', n: { $sum: 1 } } },
+      { $sort: { n: -1 } },
+    ]);
+
+    // Recurring monthly value from ACTIVE paid subscriptions only (NGN minor units).
+    // Suspended/trial tenants aren't currently paying, so they don't count.
+    const activePlans = await Tenant.aggregate([
+      { $match: { status: 'active' } },
+      { $group: { _id: '$plan', n: { $sum: 1 } } },
+    ]);
+    let mrr = 0;
+    for (const row of activePlans) {
+      const spec = PLANS[row._id];
+      if (spec && spec.price && spec.price.amount) mrr += spec.price.amount * row.n;
+    }
+
+    // Subscription revenue booked in the last 30 days, grouped by currency.
+    const revenue = await PlatformPayment.aggregate([
+      { $match: { paidAt: { $gte: since } } },
+      { $group: { _id: '$amount.currency', total: { $sum: '$amount.amount' } } },
+    ]);
+
+    const [recentPayments, recentDeletions] = await Promise.all([
+      PlatformPayment.find({}).sort({ paidAt: -1 }).limit(5).exec(),
+      Tenant.find({ status: 'deleted' }).sort({ deletedAt: -1 }).limit(5).exec(),
+    ]);
+
+    // Resolve tenant names for the recent-payments table in one query.
+    const payTenantIds = [...new Set(recentPayments.map((p) => String(p.tenantId)))];
+    const payTenants = payTenantIds.length
+      ? await Tenant.find({ _id: { $in: payTenantIds } }).select('name').exec()
+      : [];
+    const nameOf = Object.fromEntries(payTenants.map((t) => [String(t._id), t.name]));
+
+    const deletedCount = (byStatus.find((s) => s._id === 'deleted') || {}).n || 0;
+
+    return {
+      tenants, users, pendingApps, superadmins,
+      newTenants, newUsers, trialsExpiring, subsLapsing,
+      byStatus, byPlan, mrr, revenue, deletedCount,
+      recentPayments: recentPayments.map((p) => ({
+        tenant: nameOf[String(p.tenantId)] || '—', plan: p.plan, amount: p.amount, paidAt: p.paidAt,
+      })),
+      recentDeletions: recentDeletions.map((t) => ({ id: t._id, name: t.name, slug: t.slug, deletedAt: t.deletedAt })),
+    };
   });
 }
 
