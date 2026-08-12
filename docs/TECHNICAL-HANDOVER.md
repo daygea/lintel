@@ -614,4 +614,42 @@ Courses can carry an optional cover image, with a fallback so nothing ever looks
 
 ---
 
+# Part XIV — Deleting institutions, a money-schema trap, and the operator dashboard (August 2026, cont.)
+
+## Deleting an institution (soft-delete)
+
+There are now two ways an institution leaves the active roster, and they are different:
+
+- **Close** (`closeTenant`) — terminal offboarding. The institution is a former customer, kept on the books; status `closed`.
+- **Delete** (`deleteTenant`) — an administrative removal for test accounts, mistakes, or anything that shouldn't exist; status `deleted`, with a `deletedAt`.
+
+Both are **soft** — no data is destroyed, because the append-only constitution (Part I) forbids hard-deleting audit logs, payments, and the rest. A `deleted` institution is hidden from the console list *and stops resolving* (the tenant-resolver excludes `closed` and `deleted`), so its subdomain goes dark. It's reversible: `restoreTenant` brings it back as **suspended**, so a restored institution only goes live again through an explicit reactivation rather than silently.
+
+Two things to know:
+
+- **The list now hides archived institutions by default.** `listTenants({ includeArchived })` excludes both `closed` and `deleted` unless asked. This honours what the Close action always *claimed* ("removed from all listings") but never did — previously `listTenants` returned everything, so closed institutions lingered. The list has a "Show archived" toggle; deleted rows there carry a Restore button.
+- **A true hard-purge does not exist yet.** If you ever need data actually erased (a real test account, a legal erasure request), that's a separate, guarded operation — a cascade across ~15 collections, some append-only — and it should be built deliberately with a type-to-confirm and an explicit carve-out from the append-only rule. Don't bolt it onto `deleteTenant`.
+
+## A money-schema trap worth internalising (refunds)
+
+`MoneySchema` in `lib/money.js` enforces **`amount: { min: 0 }`**. That is correct for almost everything — a price, a fee, an invoice total is never negative. But a **refund is recorded as a negative `Payment`** (append-only: the reversal is a new row, never a mutation), and `Payment.amount` originally reused `MoneySchema` — so writing a refund threw `amount ... less than minimum allowed value (0)`. Refunds were silently impossible until this was caught by the DB test suite.
+
+The fix: a second schema, **`SignedMoneySchema`** (identical shape, no `min: 0`), used *only* by `Payment.amount`. Everywhere else money stays `≥ 0`. If you add a model that legitimately holds a negative money value (an adjustment, a credit note), use `SignedMoneySchema`; otherwise use `MoneySchema` and keep the floor.
+
+The broader lesson, because it bit twice: **model-level validation (min/enum/required) is not exercised until the database test suite runs.** Static checks and module-load smoke tests won't catch a schema that rejects a value the code tries to write. When writing anything unusual — a negative amount, a new enum value, a null where a ref is expected — check it against the actual schema, not the surrounding comment.
+
+## The operator dashboard
+
+`platform.service.overview()` feeds the console home, and it's now built around what an operator acts on rather than raw counts:
+
+- **Recurring value (MRR)** — summed from `PLANS[plan].price` over **active** tenants only. Suspended and trial tenants aren't paying, so they're excluded; this means MRR drops the moment the daily sweep suspends a lapsed subscription, which is the honest signal. If you ever want "contracted" MRR (everyone on a paid plan regardless of standing), it's a one-line change to the aggregation match.
+- **Revenue (30 days)** — summed from `PlatformPayment`, grouped by currency (multi-currency-safe even though everything is NGN today).
+- **Needs attention** — trials ending ≤7 days, subscriptions lapsing ≤7 days, suspended institutions, pending applications; each links to where you'd act. "All clear" when empty.
+- **Growth** — new institutions and people over 30 days.
+- **Deletions** — the status breakdown includes `deleted`/`closed`, and a "Recently deleted" section lists the latest with Restore buttons.
+
+Everything here is **point-in-time**. Trends — MRR over time, churn, a signups sparkline — need either periodic snapshots (a small daily `PlatformMetric` document) or time-bucketed aggregation over `createdAt`/`PlatformPayment.paidAt`. The current overview is the right foundation for that when you want it; don't try to reconstruct history from the live counts.
+
+---
+
 *If you are inheriting this codebase: the invariants in Part I are not style preferences. Several of them are the entire reason the product exists. Read them, then read `src/plugins/tenant-guard.js` and `src/services/eligibility/evaluator.js` — those two files are the spine.*

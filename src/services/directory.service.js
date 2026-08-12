@@ -5,6 +5,10 @@ const { ValidationError } = require('../lib/errors');
 const { currentUserId, runAsPlatform } = require('../lib/context');
 const { pick } = require('../plugins/locale-map');
 
+// Institutions in these states must never appear in the public directory, even
+// with a published listing: suspended = locked out, closed/deleted = gone.
+const DIRECTORY_HIDDEN_STATUSES = ['suspended', 'closed', 'deleted'];
+
 /* --------------------------------------------------------- tenant-side edit */
 
 const getOwnListing = () => DirectoryListing.findOne({}).exec();
@@ -64,6 +68,9 @@ async function publicView(handle) {
     if (!listing || !listing.publishedAt) return null; // not published = not found
 
     const tenant = await Tenant.findById(listing.tenantId).exec();
+    // An institution that is suspended, closed, or deleted is not operational —
+    // don't surface it publicly even though its listing is still marked published.
+    if (!tenant || DIRECTORY_HIDDEN_STATUSES.includes(tenant.status)) return null;
 
     // Course TITLES only, and only the ones featured AND marked directory-visible.
     // A course the institution didn't feature, or didn't set to directory
@@ -98,7 +105,11 @@ async function publicView(handle) {
  */
 async function browse({ q, limit = 50 } = {}) {
   return runAsPlatform('public directory browse (no session)', async () => {
-    const filter = { publishedAt: { $exists: true } };
+    // Exclude institutions that aren't operational (suspended/closed/deleted),
+    // even if their listing is still marked published, so the limit applies to
+    // visible ones only. The hidden set is small (non-live tenants).
+    const hidden = await Tenant.find({ status: { $in: DIRECTORY_HIDDEN_STATUSES } }).select('_id').exec();
+    const filter = { publishedAt: { $exists: true }, tenantId: { $nin: hidden.map((t) => t._id) } };
     const listings = await DirectoryListing.find(filter).sort({ publishedAt: -1 }).limit(limit).exec();
     const rows = listings.map((l) => ({
       handle: l.handle,

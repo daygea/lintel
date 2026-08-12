@@ -5,24 +5,52 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lintel — teaching, held and opened by those with the standing to decide</title>
   <meta name="description" content="A learning platform for institutions whose access to teaching depends on who the learner is — verified standing, not merely a paid enrolment.">
+  <link rel="canonical" href="https://lintel.africa/">
+  <meta name="theme-color" content="#F5F4F1">
+  <meta name="robots" content="index,follow">
+  <!-- Open Graph / social sharing -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Lintel">
+  <meta property="og:url" content="https://lintel.africa/">
+  <meta property="og:title" content="Lintel — teaching, held and opened by those with the standing to decide">
+  <meta property="og:description" content="A learning platform for institutions whose access to teaching depends on who the learner is — a verified, revocable standing conferred by a named authority.">
+  <meta property="og:image" content="https://lintel.africa/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Lintel — access to teaching, held and opened by those with the standing to decide">
+  <meta name="twitter:description" content="A learning platform for institutions that guard their teaching. Access by verified standing, not merely payment.">
+  <meta name="twitter:image" content="https://lintel.africa/og.png">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2' y='1' width='11' height='3' fill='%238A6D3B'/%3E%3Crect x='5' y='4' width='3' height='11' fill='%23161A2E'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/css/lintel.css">
   <style>
     /* Home-only layout. Extends the app's tokens; adds the threshold hero. */
-    .home { --gutter: 40px; }
-    .home-nav { display:flex; align-items:center; justify-content:space-between; padding:22px var(--gutter); max-width:1120px; margin:0 auto; }
+    .home { --gutter: clamp(28px, 6.5vw, 44px); }
+    .home-nav { position:sticky; top:0; z-index:50; background:var(--paper); border-bottom:1px solid transparent; transition:border-color .2s ease, box-shadow .2s ease; }
+    .home-nav.scrolled { border-bottom-color:var(--rule); box-shadow:0 6px 22px -16px rgba(20,22,40,.4); }
+    .nav-in { display:flex; align-items:center; justify-content:space-between; padding:18px var(--gutter); max-width:1120px; margin:0 auto; }
     .home-nav .brand { display:inline-flex; align-items:baseline; gap:9px; font-family:var(--serif); font-size:21px; font-weight:600; }
     .home-nav .brand .mark { display:inline-block; width:15px; height:15px; position:relative; }
     .home-nav .brand .mark::before { content:""; position:absolute; left:2px; top:0; width:11px; height:3px; background:var(--brass); }
     .home-nav .brand .mark::after  { content:""; position:absolute; left:4px; top:3px; width:3px; height:12px; background:var(--ink-soft); }
     .home-nav .links { display:flex; gap:26px; align-items:center; font-size:14px; }
     .home-nav .links a { color:var(--ink-soft); }
+    /* Hamburger — hidden on desktop, revealed on mobile */
+    .nav-toggle { display:none; width:44px; height:44px; padding:0; border:0; background:none; cursor:pointer; align-items:center; justify-content:center; color:var(--ink); }
+    .nav-toggle .bars, .nav-toggle .bars::before, .nav-toggle .bars::after { display:block; width:22px; height:2px; background:currentColor; border-radius:2px; transition:transform .2s ease, opacity .15s ease; }
+    .nav-toggle .bars { position:relative; }
+    .nav-toggle .bars::before { content:""; position:absolute; top:-7px; }
+    .nav-toggle .bars::after  { content:""; position:absolute; top:7px; }
+    .home-nav.open .nav-toggle .bars { background:transparent; }
+    .home-nav.open .nav-toggle .bars::before { transform:translateY(7px) rotate(45deg); }
+    .home-nav.open .nav-toggle .bars::after  { transform:translateY(-7px) rotate(-45deg); }
 
     .wrapc { max-width:1120px; margin:0 auto; padding:0 var(--gutter); }
 
     /* Hero — the threshold. A held door and an opened door, side by side. */
     .hero { padding:76px 0 64px; display:grid; grid-template-columns:1.15fr .85fr; gap:56px; align-items:center; }
     .hero .eyebrow { font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--brass); margin-bottom:20px; }
-    .hero h1 { font-family:var(--serif); font-size:52px; line-height:1.06; letter-spacing:-.015em; font-weight:600; margin:0 0 22px; }
+    .hero h1 { font-family:var(--serif); font-size:clamp(31px, 6vw, 52px); line-height:1.07; letter-spacing:-.015em; font-weight:600; margin:0 0 22px; text-wrap:balance; }
     .hero h1 .held { color:var(--held); }
     .hero h1 .open { color:var(--brass); }
     .hero .sub { font-size:18px; line-height:1.6; color:var(--ink-soft); max-width:46ch; margin:0 0 30px; }
@@ -75,35 +103,95 @@
     .btn.onink:hover { background:#20263F; }
 
     .home-foot { border-top:1px solid var(--rule); padding:30px var(--gutter); }
-    .home-foot .in { max-width:1120px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--muted); }
+    .home-foot .in { max-width:1120px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; font-size:13px; color:var(--muted); }
     .home-foot .in .mono { font-family:var(--mono); font-size:12px; }
+    .home-foot .flinks { display:flex; gap:20px; flex-wrap:wrap; }
+    .home-foot .flinks a { color:var(--ink-soft); }
 
-    @media (max-width:900px) {
-      .hero { grid-template-columns:1fr; gap:40px; padding:48px 0 40px; }
-      .hero h1 { font-size:40px; }
-      .caps, .whom-grid { grid-template-columns:1fr; }
-      .band { grid-template-columns:1fr; }
-      .home-nav .links a:not(.btn) { display:none; }
+    /* Accessibility helpers */
+    html { scroll-padding-top:76px; } /* in-page anchors clear the sticky header */
+    .home { overflow-x:clip; } /* contain the opened-door transform without breaking position:sticky */
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    .skip { position:fixed; left:12px; top:-48px; z-index:60; background:var(--ink); color:#fff; padding:10px 16px; border-radius:6px; transition:top .15s; }
+    .skip:focus { top:12px; }
+
+    /* Tablet & below — collapse the nav into a hamburger menu */
+    @media (max-width:960px) {
+      .hero { grid-template-columns:1fr; gap:36px; padding:52px 0 40px; }
+      .hero .doors { justify-content:flex-start; }
+      .band { grid-template-columns:1fr; gap:22px; padding:40px 34px; }
+      .band .actions { flex-direction:row; flex-wrap:wrap; }
+      .nav-toggle { display:inline-flex; }
+      .home-nav .links {
+        display:none; position:absolute; top:100%; left:0; right:0; z-index:30;
+        flex-direction:column; align-items:stretch; gap:0;
+        padding:6px var(--gutter) 18px; font-size:16px;
+        background:var(--paper-2); border-bottom:1px solid var(--rule);
+        box-shadow:0 16px 30px -16px rgba(20,22,40,.28);
+      }
+      .home-nav.open .links { display:flex; }
+      .home-nav .links a:not(.btn) { padding:14px 2px; border-bottom:1px solid var(--rule); }
+      .home-nav .links a.btn { margin-top:14px; justify-content:center; min-height:46px; font-size:15px; }
     }
-    @media (prefers-reduced-motion: reduce) { .door.open .leaf { transform:none; } }
+
+    /* Large phone — stack the card grids */
+    @media (max-width:680px) {
+      .caps, .whom-grid { grid-template-columns:1fr; }
+      .belief { padding:34px 0; }
+      .belief p { font-size:20px; }
+      .caps { padding:44px 0; }
+      .forwhom { padding:12px 0 56px; }
+      .forwhom h2 { font-size:26px; }
+    }
+
+    /* Phone — drop forced line breaks, make CTAs full-width & thumb-sized */
+    @media (max-width:520px) {
+      .nav-in { padding:14px var(--gutter); }
+      .hero { padding:36px 0 32px; }
+      .hero h1 br { display:none; } /* let the headline wrap naturally instead of breaking mid-phrase */
+      .hero .sub { font-size:16.5px; }
+      .cta { flex-direction:column; align-items:stretch; }
+      .cta .btn { justify-content:center; min-height:46px; }
+      .band { padding:32px 22px; }
+      .band .actions { flex-direction:column; }
+      .band .actions .btn { justify-content:center; min-height:46px; }
+      .doors { transform:scale(.82); transform-origin:left center; margin:-14px 0; }
+      .cap { padding:26px 24px; }
+    }
+
+    /* Small phone — the doors are decorative; reclaim the space */
+    @media (max-width:380px) {
+      .hero .doors { display:none; }
+    }
+
+    @media (prefers-reduced-motion: no-preference) { html { scroll-behavior:smooth; } }
+    @media (prefers-reduced-motion: reduce) {
+      .door.open .leaf { transform:none; }
+      .nav-toggle .bars, .nav-toggle .bars::before, .nav-toggle .bars::after { transition:none; }
+    }
   </style>
 </head>
 <body class="home">
+  <a class="skip" href="#main">Skip to content</a>
   <header class="home-nav">
-    <span class="brand"><span class="mark"></span> Lintel</span>
-    <nav class="links">
-      <a href="/directory">Directory</a>
-      <a href="#capabilities">How it works</a>
-      <a href="#institutions">Who it's for</a>
-      <a href="/directory" class="nav-signin">Find your institution</a>
-      <a class="btn ghost small" href="/signup">Request access</a>
-    </nav>
+    <div class="nav-in">
+      <span class="brand"><span class="mark"></span> Lintel</span>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="home-menu" aria-label="Menu"><span class="bars"></span></button>
+      <nav class="links" id="home-menu" aria-label="Primary">
+        <a href="/directory">Directory</a>
+        <a href="#capabilities">How it works</a>
+        <a href="#institutions">Who it's for</a>
+        <a href="/directory" class="nav-signin">Find your institution</a>
+        <a class="btn ghost small" href="/signup">Request access</a>
+      </nav>
+    </div>
   </header>
 
+  <main id="main">
   <section class="wrapc hero">
     <div>
-      <div class="eyebrow">A platform for institutions that guard their teaching</div>
-      <h1>Some teaching is <span class="held">held</span><br>until you have the standing<br>to be <span class="open">let in</span>.</h1>
+      <div class="eyebrow">A learning platform for institutions that guard their teaching</div>
+      <h1>Some teaching is <span class="held">held</span> <br>until you have the standing <br>to be <span class="open">let in</span>.</h1>
       <p class="sub">Lintel is a learning platform for institutions whose access to teaching depends on <em>who</em> a learner is — a verified, revocable standing conferred by a named authority — not merely on who has paid.</p>
       <div class="cta">
         <a class="btn brass" href="/signup">Request access</a>
@@ -129,6 +217,7 @@
   </section>
 
   <section class="wrapc caps" id="capabilities">
+    <h2 class="sr-only">How it works</h2>
     <div class="cap">
       <div class="n">01 · STANDING</div>
       <h3>Access by attestation</h3>
@@ -178,11 +267,42 @@
     </div>
   </section>
 
+  </main>
+
   <footer class="home-foot">
     <div class="in">
       <span>Lintel — access to teaching, held and opened by those with the standing to decide.</span>
-      <span class="mono">hello@lintel.africa</span>
+      <nav class="flinks" aria-label="Footer">
+        <a href="/directory">Directory</a>
+        <a href="/verify">Verify a credential</a>
+        <a href="/signup">Request access</a>
+        <a href="mailto:hello@lintel.africa" class="mono">hello@lintel.africa</a>
+      </nav>
     </div>
   </footer>
+  <script>
+    (function () {
+      var nav = document.querySelector('.home-nav');
+      var btn = nav && nav.querySelector('.nav-toggle');
+      var menu = document.getElementById('home-menu');
+      if (nav) {
+        var onScroll = function () { nav.classList.toggle('scrolled', window.scrollY > 4); };
+        onScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+      }
+      if (!btn || !menu) return;
+      function setOpen(open) {
+        nav.classList.toggle('open', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+      btn.addEventListener('click', function () {
+        setOpen(btn.getAttribute('aria-expanded') !== 'true');
+      });
+      // close on link tap, on Escape, and on outside click
+      menu.addEventListener('click', function (e) { if (e.target.closest('a')) setOpen(false); });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setOpen(false); });
+      document.addEventListener('click', function (e) { if (!nav.contains(e.target)) setOpen(false); });
+    })();
+  </script>
 </body>
 </html>
