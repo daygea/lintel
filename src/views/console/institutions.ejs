@@ -5,18 +5,36 @@
   <h1>Institutions</h1>
   <p class="lede">Every institution on Lintel. Open one to manage its plan or standing.</p>
 </div>
+<p style="margin:-6px 0 14px">
+  <% if (includeArchived) { %>
+    <a class="quiet mono" style="font-size:12px" href="/console/institutions">← hide archived</a>
+    <span class="quiet" style="font-size:12px"> · showing closed &amp; deleted</span>
+  <% } else { %>
+    <a class="quiet mono" style="font-size:12px" href="/console/institutions?archived=1">Show archived (closed &amp; deleted) →</a>
+  <% } %>
+</p>
 <table class="table">
-  <thead><tr><th>Institution</th><th>Address</th><th>Plan</th><th>Status</th></tr></thead>
+  <thead><tr><th>Institution</th><th>Address</th><th>Plan</th><th>Status</th><% if (includeArchived) { %><th></th><% } %></tr></thead>
   <tbody>
   <% tenants.forEach(function(t){ %>
-    <tr>
+    <tr<%= t.status==='deleted' ? ' class="quiet"' : '' %>>
       <td><a href="/console/institutions/<%= t._id %>"><%= t.name %></a></td>
       <td class="mono quiet" style="font-size:12.5px"><%= t.slug %></td>
       <td class="quiet"><%= t.plan %></td>
       <td><span class="badge <%= t.status==='active'?'ok':(t.status==='suspended'?'held':'flat') %>"><%= t.status %></span></td>
+      <% if (includeArchived) { %>
+      <td style="text-align:right">
+        <% if (t.status==='deleted') { %>
+          <form method="post" action="/console/institutions/<%= t._id %>/restore" style="margin:0" onsubmit="return confirm('Restore this institution as suspended?');">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button class="btn ghost small" type="submit" style="font-size:12px">Restore</button>
+          </form>
+        <% } %>
+      </td>
+      <% } %>
     </tr>
   <% }); %>
-  <% if(!tenants.length){ %><tr class="empty"><td colspan="4">No institutions yet.</td></tr><% } %>
+  <% if(!tenants.length){ %><tr class="empty"><td colspan="<%= includeArchived ? 5 : 4 %>">No institutions<%= includeArchived ? '' : ' — try “Show archived”' %>.</td></tr><% } %>
   </tbody>
 </table>
 <%- include("foot") %>

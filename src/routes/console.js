@@ -29,6 +29,8 @@ router.post('/console/institutions/:id/reactivate', c.reactivate);
 router.post('/console/institutions/:id/plan', c.setPlan);
 router.post('/console/institutions/:id/edit', c.editInstitution);
 router.post('/console/institutions/:id/close', c.closeInstitution);
+router.post('/console/institutions/:id/delete', c.deleteInstitution);
+router.post('/console/institutions/:id/restore', c.restoreInstitution);
 
 router.get('/console/applications', c.applications);
 router.post('/console/applications/:id/approve', c.approveApplication);

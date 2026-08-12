@@ -42,8 +42,8 @@ module.exports = async function tenantResolver(req, res, next) {
   let tenant = null;
   try {
     tenant = slug
-      ? await Tenant.findOne({ slug, status: { $ne: 'closed' } })
-      : await Tenant.findOne({ domains: String(host || '').split(':')[0].toLowerCase(), status: { $ne: 'closed' } });
+      ? await Tenant.findOne({ slug, status: { $nin: ['closed', 'deleted'] } })
+      : await Tenant.findOne({ domains: String(host || '').split(':')[0].toLowerCase(), status: { $nin: ['closed', 'deleted'] } });
   } catch (err) {
     return next(err);
   }

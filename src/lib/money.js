@@ -29,6 +29,21 @@ const MoneySchema = new Schema(
 );
 
 const zero = (currency) => ({ amount: 0, currency });
+
+// Same shape as MoneySchema but WITHOUT the min:0 floor — for ledger reversals,
+// where a refund is recorded as a negative Payment. Only Payment.amount uses this;
+// everywhere else money stays >= 0.
+const SignedMoneySchema = new Schema(
+  {
+    amount: {
+      type: Number,
+      required: true,
+      validate: { validator: Number.isInteger, message: 'amount must be an integer of minor units' },
+    },
+    currency: { type: String, required: true, enum: SUPPORTED, uppercase: true },
+  },
+  { _id: false }
+);
 const isFree = (money) => !money || money.amount === 0;
 
 function assertSameCurrency(a, b) {
@@ -49,4 +64,4 @@ function format(money, locale = 'en-NG') {
   }).format(money.amount / 10 ** exp);
 }
 
-module.exports = { MoneySchema, SUPPORTED, zero, isFree, add, subtract, format };
+module.exports = { MoneySchema, SignedMoneySchema, SUPPORTED, zero, isFree, add, subtract, format };

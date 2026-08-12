@@ -30,7 +30,7 @@ function audit(action, subjectType, subjectId, meta) {
 async function overview() {
   return runAsPlatform('platform overview', async () => {
     const [tenants, users, pendingApps, superadmins] = await Promise.all([
-      Tenant.countDocuments({ status: { $ne: 'closed' } }).exec(),
+      Tenant.countDocuments({ status: { $nin: ['closed', 'deleted'] } }).exec(),
       User.countDocuments({}).exec(),
       TenantApplication.countDocuments({ status: 'pending' }).exec(),
       User.countDocuments({ platformRole: 'superadmin' }).exec(),
@@ -42,8 +42,13 @@ async function overview() {
 
 /* ---- Institutions ---------------------------------------------------------- */
 
-const listTenants = () =>
-  runAsPlatform('list tenants', () => Tenant.find({}).sort({ createdAt: -1 }).limit(500).exec());
+const listTenants = ({ includeArchived = false } = {}) =>
+  runAsPlatform('list tenants', () =>
+    Tenant.find(includeArchived ? {} : { status: { $nin: ['closed', 'deleted'] } })
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .exec()
+  );
 
 async function tenantDetail(tenantId) {
   return runAsPlatform('tenant detail', async () => {
@@ -164,6 +169,35 @@ async function closeTenant(tenantId, reason, actingUserId) {
     if (tenant.status === 'closed') throw new ValidationError('Already closed.');
     await Tenant.updateOne({ _id: tenant._id }, { status: 'closed' }).exec();
     await audit('tenant.closed', 'Tenant', tenant._id, { reason, from: tenant.status });
+    return { ok: true };
+  }, actingUserId);
+}
+
+/**
+ * Soft-delete: hide the institution from the console entirely and stop its
+ * subdomain resolving. Data is retained (append-only history is never destroyed),
+ * so a delete is reversible via restoreTenant. Distinct from close, which keeps
+ * the institution on the books as a former customer.
+ */
+async function deleteTenant(tenantId, reason, actingUserId) {
+  return runAsPlatform('delete tenant', async () => {
+    const tenant = await Tenant.findById(tenantId).exec();
+    if (!tenant) throw new ValidationError('No such institution');
+    if (tenant.status === 'deleted') throw new ValidationError('Already deleted.');
+    await Tenant.updateOne({ _id: tenant._id }, { status: 'deleted', deletedAt: new Date() }).exec();
+    await audit('tenant.deleted', 'Tenant', tenant._id, { reason, from: tenant.status });
+    return { ok: true };
+  }, actingUserId);
+}
+
+/** Bring a soft-deleted institution back as suspended, so it's re-enabled only by an explicit reactivation. */
+async function restoreTenant(tenantId, actingUserId) {
+  return runAsPlatform('restore tenant', async () => {
+    const tenant = await Tenant.findById(tenantId).exec();
+    if (!tenant) throw new ValidationError('No such institution');
+    if (tenant.status !== 'deleted') throw new ValidationError('Only a deleted institution can be restored.');
+    await Tenant.updateOne({ _id: tenant._id }, { status: 'suspended', deletedAt: null }).exec();
+    await audit('tenant.restored', 'Tenant', tenant._id, {});
     return { ok: true };
   }, actingUserId);
 }
@@ -380,7 +414,7 @@ const recentAudit = (limit = 100) =>
 module.exports = {
   overview,
   listTenants, tenantDetail, suspendTenant, reactivateTenant, setPlan,
-  editTenantMetadata, closeTenant,
+  editTenantMetadata, closeTenant, deleteTenant, restoreTenant,
   suspendUser, reactivateUser, forceLogout, sendPasswordReset,
   fileReport, listReports, reportDetail, resolveReport,
   openBreakglass, revokeBreakglass, listBreakglass, breakglassRead, breakglassLesson,

@@ -39,7 +39,8 @@ const TenantSchema = new Schema(
       },
     },
 
-    status: { type: String, enum: ['trial', 'active', 'suspended', 'closed'], default: 'trial' },
+    status: { type: String, enum: ['trial', 'active', 'suspended', 'closed', 'deleted'], default: 'trial' },
+    deletedAt: { type: Date }, // set when soft-deleted; the tenant is hidden from the console and stops resolving
     trialEndsAt: { type: Date },   // when a trial lapses (set at provision for trial plans)
     trialWarnedAt: { type: Date }, // set once when the "trial ending" notice is sent
     currentPeriodEnd: { type: Date }, // paid plans: when the current paid period lapses

@@ -36,8 +36,19 @@ exports.dashboard = h(async (req, res) => {
 });
 
 exports.institutions = h(async (req, res) => {
-  const tenants = await platform.listTenants();
-  res.render('console/institutions', { tenants });
+  const includeArchived = req.query.archived === '1';
+  const tenants = await platform.listTenants({ includeArchived });
+  res.render('console/institutions', { tenants, includeArchived });
+});
+
+exports.deleteInstitution = h(async (req, res) => {
+  await platform.deleteTenant(req.params.id, req.body.reason, req.user._id);
+  res.redirect('/console/institutions');
+});
+
+exports.restoreInstitution = h(async (req, res) => {
+  await platform.restoreTenant(req.params.id, req.user._id);
+  res.redirect('/console/institutions?archived=1');
 });
 
 exports.institution = h(async (req, res) => {

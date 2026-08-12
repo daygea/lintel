@@ -57,7 +57,7 @@
   </form>
 </div>
 
-<% if (tenant.status !== 'closed') { %>
+<% if (tenant.status !== 'closed' && tenant.status !== 'deleted') { %>
 <div class="section">
   <h2>Close institution</h2>
   <p class="hint">Terminal, unlike suspend. A closed institution is removed from all listings and its people cannot sign in. Data is retained — closing is the decision, not the deletion.</p>
@@ -65,6 +65,27 @@
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div class="field"><label for="closereason">Reason</label><input id="closereason" name="reason" placeholder="e.g. offboarding, lapsed trial"></div>
     <button class="btn ghost small" type="submit" style="border-color:var(--held);color:var(--held)">Close institution</button>
+  </form>
+</div>
+<% } %>
+
+<% if (tenant.status === 'deleted') { %>
+<div class="section">
+  <h2>Restore institution</h2>
+  <p class="hint">This institution is deleted — hidden from the console and its address no longer resolves. Data was retained. Restoring brings it back as <strong>suspended</strong>, ready to be reactivated.</p>
+  <form method="post" action="/console/institutions/<%= tenant._id %>/restore" onsubmit="return confirm('Restore this institution as suspended?');">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button class="btn ghost small" type="submit">Restore institution</button>
+  </form>
+</div>
+<% } else { %>
+<div class="section">
+  <h2>Delete institution</h2>
+  <p class="hint">Removes this institution from the console entirely and stops its address resolving — unlike closing, it appears in no listing. Data is retained, and a delete can be undone from <strong>Show archived</strong>.</p>
+  <form method="post" action="/console/institutions/<%= tenant._id %>/delete" style="max-width:440px" onsubmit="return confirm('Delete this institution? It will be hidden from the console. This can be restored later.');">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field"><label for="delreason">Reason</label><input id="delreason" name="reason" placeholder="e.g. test account, created in error"></div>
+    <button class="btn ghost small" type="submit" style="border-color:var(--err,#B9483E);color:var(--err,#B9483E)">Delete institution</button>
   </form>
 </div>
 <% } %>

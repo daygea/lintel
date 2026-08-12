@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 const tenantGuard = require('../plugins/tenant-guard');
 const appendOnly = require('../plugins/append-only');
-const { MoneySchema } = require('../lib/money');
+const { SignedMoneySchema } = require('../lib/money');
 
 /**
  * A payment against an invoice. APPEND-ONLY — a ledger entry is a matter of
@@ -22,7 +22,7 @@ const PaymentSchema = new Schema(
     invoiceId: { type: Schema.Types.ObjectId, ref: 'Invoice', required: true, index: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
 
-    amount: { type: MoneySchema, required: true }, // negative for a refund
+    amount: { type: SignedMoneySchema, required: true }, // negative for a refund
     method: { type: String, enum: ['paystack', 'bank_transfer', 'cash', 'waiver', 'refund'], required: true },
 
     provider: { type: String, enum: ['paystack', 'flutterwave', 'stripe', 'manual'], default: 'manual' },
