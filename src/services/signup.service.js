@@ -3,7 +3,7 @@
 const { TenantApplication, Tenant, User, Membership } = require('../models');
 const { provision } = require('./tenant.service');
 const { sendAccountDetails } = require('./onboarding.service');
-const { notify } = require('./notification');
+const { notify, sendDirectEmail } = require('./notification');
 const { runAsPlatform, runWithTenant, currentUserId } = require('../lib/context');
 const { ValidationError } = require('../lib/errors');
 const env = require('../config/env');
@@ -58,19 +58,58 @@ async function apply({ institutionName, requestedSlug, contactName, contactEmail
     })
   );
 
+  // Console tier: tell the platform a request came in (both paths). Best-effort.
+  await notifySuperadminsOfApplication(application);
+
   if (env.autoProvisionTenants) {
     const result = await approve({ applicationId: application._id, systemApproved: true });
     return { application, ...result, instant: true };
   }
 
-  // Review path: acknowledge to the applicant, flag for the platform.
-  await runAsPlatform('signup ack', async () => {
-    // A lightweight applicant-facing user may not exist yet; acknowledge by email
-    // directly through the channel is out of scope here — the ack email is sent
-    // on approval. We simply record the pending application.
+  // Institution tier: acknowledge the applicant so they're not left in silence —
+  // on the review path there's no other email until a decision is made.
+  await sendDirectEmail({
+    to: application.contactEmail,
+    subject: `We've received your Lintel request for ${application.institutionName}`,
+    text:
+      `Hi ${application.contactName},\n\n` +
+      `Thanks for requesting access to Lintel for ${application.institutionName} ` +
+      `(${application.requestedSlug}.${env.rootDomain}). Our team will review your request ` +
+      `and reply to this address.\n\n— Lintel`,
   });
 
   return { application, instant: false };
+}
+
+/** Email every superadmin (or the bootstrap address) that a new institution applied. */
+async function notifySuperadminsOfApplication(application) {
+  try {
+    const admins = await runAsPlatform('superadmin recipients', () =>
+      User.find({ platformRole: 'superadmin' }).select('email').exec()
+    );
+    let recipients = admins.map((a) => a.email).filter(Boolean);
+    if (!recipients.length && process.env.SUPERADMIN_EMAIL) recipients = [process.env.SUPERADMIN_EMAIL];
+
+    const link = `https://${env.rootDomain}/console/applications`;
+    const subject = `New institution request: ${application.institutionName}`;
+    const text = [
+      `A new institution has requested access to Lintel${env.autoProvisionTenants ? ' (auto-provisioned)' : ' (pending review)'}.`,
+      '',
+      `Institution: ${application.institutionName}`,
+      `Address:     ${application.requestedSlug}.${env.rootDomain}`,
+      `Contact:     ${application.contactName} <${application.contactEmail}>`,
+      application.country ? `Country:     ${application.country}` : null,
+      application.about ? `About:       ${application.about}` : null,
+      '',
+      `Review: ${link}`,
+    ].filter((l) => l !== null).join('\n');
+
+    for (const to of recipients) {
+      await sendDirectEmail({ to, subject, text });
+    }
+  } catch (err) {
+    // best-effort — a mail failure must never block the application itself
+  }
 }
 
 /**

@@ -144,6 +144,25 @@ async function selfRegister({ email, name }) {
     meta: { role: ROLES.LEARNER },
   });
 
+  // Tell the people who can admit — best-effort, never blocks the registration.
+  try {
+    const { notify } = require('./notification');
+    const admitters = await Membership.find({
+      roles: { $in: [ROLES.OWNER, ROLES.ADMIN, ROLES.REGISTRAR] },
+      status: 'active',
+    }).exec();
+    for (const m of admitters) {
+      await notify({
+        userId: m.userId,
+        template: 'member.awaiting_admission',
+        channels: ['email'],
+        data: { learnerName: name, learnerEmail: clean },
+      });
+    }
+  } catch (err) {
+    // notification is best-effort; a failure must not fail the registration
+  }
+
   // New accounts get a set-password link so they can sign in once admitted.
   if (created) {
     await sendAccountDetails({

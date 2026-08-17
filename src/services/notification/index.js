@@ -40,6 +40,12 @@ const CHANNELS = {
  * these once the authoring UI for templates lands.
  */
 const TEMPLATES = {
+  'member.awaiting_admission': {
+    subject: { en: (d) => `New learner awaiting admission: ${d.learnerName}` },
+    text: {
+      en: (d) => `${d.learnerName} (${d.learnerEmail}) has registered and is awaiting admission. Open your dashboard to review pending members and admit or decline.`,
+    },
+  },
   'subscription.lapsed': {
     subject: { en: (d) => `Your ${d.institutionName || 'Lintel'} subscription has lapsed` },
     text: {
@@ -183,4 +189,23 @@ const mark = (record, status, fields = {}) =>
 const history = (filter = {}) =>
   Notification.find(filter).sort({ createdAt: -1 }).limit(100).exec();
 
-module.exports = { notify, history, CHANNELS, TEMPLATES };
+/**
+ * Send a one-off transactional email to a raw address, for recipients that aren't
+ * a tenant User with a notification inbox — a superadmin being told about a
+ * not-yet-provisioned institution, or an applicant who has no account yet. It
+ * skips the tenant-scoped Notification record and goes straight to the email
+ * channel (which logs in dev/test). Best-effort: it never throws to the caller,
+ * so a mail hiccup can't block a signup.
+ */
+async function sendDirectEmail({ to, subject, text }) {
+  if (!to) return { skipped: 'no recipient' };
+  try {
+    const out = await CHANNELS.email.send({ to, subject, text });
+    return { sent: true, providerRef: out && out.providerRef };
+  } catch (err) {
+    logger.warn({ to, subject, err: err.message }, 'direct email failed');
+    return { failed: err.message };
+  }
+}
+
+module.exports = { notify, sendDirectEmail, history, CHANNELS, TEMPLATES };
