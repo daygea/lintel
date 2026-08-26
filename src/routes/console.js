@@ -22,6 +22,7 @@ router.post('/console/logout', c.logout);
 router.use('/console', requireSuperadmin);
 
 router.get('/console', c.dashboard);
+router.get('/console/help', c.help);
 router.get('/console/institutions', c.institutions);
 router.get('/console/institutions/:id', c.institution);
 router.post('/console/institutions/:id/suspend', c.suspend);

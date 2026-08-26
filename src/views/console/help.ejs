@@ -1,0 +1,35 @@
+<% var nav='help'; var pageTitle='Help'; %>
+<%- include("head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<div class="page-head">
+  <div class="eyebrow">PLATFORM</div>
+  <h1>Help & guides</h1>
+  <p class="lede">How to run the platform — applications, institution lifecycle, break-glass, and the overview.</p>
+</div>
+
+<div class="help-list">
+  <% topics.forEach(function (t, i) { %>
+    <details class="help-topic"<%= i === 0 ? ' open' : '' %>>
+      <summary>
+        <span class="help-t"><%= t.title %></span>
+        <span class="help-s"><%= t.summary %></span>
+      </summary>
+      <ul>
+        <% t.points.forEach(function (p) { %><li><%= p %></li><% }); %>
+      </ul>
+    </details>
+  <% }); %>
+</div>
+
+<style>
+  .help-list { max-width:720px; }
+  .help-topic { border:1px solid #2a3050; border-radius:8px; margin-bottom:10px; background:#1b2036; }
+  .help-topic > summary { cursor:pointer; padding:14px 18px; list-style:none; display:flex; flex-direction:column; gap:2px; position:relative; padding-right:40px; }
+  .help-topic > summary::-webkit-details-marker { display:none; }
+  .help-topic > summary::after { content:"+"; position:absolute; right:20px; color:#8E91A3; font-family:var(--mono,monospace); }
+  .help-topic[open] > summary::after { content:"\2013"; }
+  .help-t { font-weight:600; color:#EDECE9; }
+  .help-s { font-size:13px; color:#9A9CAC; }
+  .help-topic ul { margin:0; padding:2px 20px 16px 36px; }
+  .help-topic li { margin:6px 0; color:#C9CAD4; line-height:1.55; }
+</style>
+<%- include("foot") %>

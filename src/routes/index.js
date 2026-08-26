@@ -7,6 +7,7 @@ const webTenant = require('../controllers/web/tenant.controller');
 const webInvite = require('../controllers/web/invite.controller');
 const webSecurity = require('../controllers/web/security.controller');
 const webSettings = require('../controllers/web/settings.controller');
+const webHelp = require('../controllers/web/help.controller');
 const webBilling = require('../controllers/web/billing.controller');
 const webApply = require('../controllers/web/apply.controller');
 const webFees = require('../controllers/web/fees.controller');
@@ -66,6 +67,7 @@ const assessor = [requireUser, requireMember, requireRole(ROLES.OWNER, ROLES.ADM
 
 /* ------------------------------------------------------------------- people */
 router.get('/', requireUser, requireMember, webTenant.dashboard);
+router.get('/help', requireUser, requireMember, webHelp.show);
 router.get('/api/v1/members', ...staff, apiMembership.list);
 router.post('/members/:id/admit', ...staff, webTenant.admit);
 router.post('/api/v1/members/:id/admit', ...staff, apiMembership.admit);

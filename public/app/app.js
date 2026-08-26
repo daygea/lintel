@@ -35,6 +35,7 @@ async function loadLearning(force) {
   STATE.institution = data.institution || '';
   STATE.learnerName = data.learnerName || '';
   STATE.courses = data.courses || [];
+  STATE.help = data.help || [];
   STATE.loaded = true;
   indexLessonTitles(STATE.courses);
   return STATE.courses;
@@ -99,7 +100,8 @@ function sideCourseList(courses, activeId) {
   return `<div class="side-head">My courses</div>
     ${items || '<p class="muted" style="padding:0 16px">No courses yet.</p>'}
     <a class="side-cta btn ghost" href="/apply">Browse open programmes</a>
-    <a class="side-cta" href="/my/fees" style="font-size:13px">Fees &amp; payments</a>`;
+    <a class="side-cta" href="/my/fees" style="font-size:13px">Fees &amp; payments</a>
+    <a class="side-cta" href="?help" style="font-size:13px">Help</a>`;
 }
 
 function sideOutline(course, activeLessonId) {
@@ -159,7 +161,7 @@ async function renderHome() {
     ${hero}
     ${continueBlock}
     ${grid}
-    <p style="margin-top:22px"><a class="btn" href="/apply">Browse open programmes</a> <a class="btn ghost" href="/my/fees" style="margin-left:8px">Fees &amp; payments</a></p>
+    <p style="margin-top:22px"><a class="btn" href="/apply">Browse open programmes</a> <a class="btn ghost" href="/my/fees" style="margin-left:8px">Fees &amp; payments</a> <a class="btn ghost" href="?help" style="margin-left:8px">Help</a></p>
     <div id="offline" style="margin-top:26px"></div>
   </div>`;
   renderOfflineList();
@@ -662,10 +664,28 @@ function currentView() {
   const lesson = params.get('lesson');
   const quiz = params.get('quiz');
   const course = params.get('course');
+  if (params.get('help') !== null) return renderHelp;
   if (lesson) return () => renderLesson(lesson);
   if (quiz) return () => renderQuiz(quiz);
   if (course) return () => renderCourse(course);
   return renderHome;
+}
+
+async function renderHelp() {
+  root.innerHTML = `<p class="muted" style="padding:22px 18px">Loading…</p>`;
+  try { await loadLearning(); } catch { /* fall through to whatever's cached */ }
+  const topics = STATE.help || [];
+  const items = topics.map((t) => `
+    <details class="help-topic">
+      <summary><span class="help-t">${escapeHtml(t.title)}</span>${t.summary ? `<span class="help-s">${escapeHtml(t.summary)}</span>` : ''}</summary>
+      <ul>${(t.points || []).map((p) => `<li>${escapeHtml(p)}</li>`).join('')}</ul>
+    </details>`).join('');
+  root.innerHTML = `<div class="home">
+    <a class="btn ghost" href="/app/" style="margin-bottom:18px">← Back</a>
+    <h1 class="section-h" style="margin-top:0">Help</h1>
+    <p class="quiet" style="margin-top:-6px">How to find your way around and get the most from your courses.</p>
+    <div class="help-list">${items || '<p class="muted">No help topics yet.</p>'}</div>
+  </div>`;
 }
 
 async function route() {

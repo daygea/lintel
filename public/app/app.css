@@ -186,3 +186,15 @@ ul.lessons{list-style:none;margin:0;padding:0}
 .course-cover.gen{display:flex;align-items:center;justify-content:center}
 .course-cover.gen .mono-badge{font-size:46px}
 .course-hero-body{padding:22px 24px}
+
+/* ===================== Help view ===================== */
+.help-list { max-width:640px; }
+.help-topic { border:1px solid var(--rule); border-radius:8px; margin-bottom:10px; background:var(--paper); }
+.help-topic > summary { cursor:pointer; padding:14px 16px; list-style:none; display:flex; flex-direction:column; gap:2px; position:relative; padding-right:38px; }
+.help-topic > summary::-webkit-details-marker { display:none; }
+.help-topic > summary::after { content:"+"; position:absolute; right:18px; color:var(--muted); font-family:var(--mono); }
+.help-topic[open] > summary::after { content:"\2013"; }
+.help-topic .help-t { font-weight:600; }
+.help-topic .help-s { font-size:13px; color:var(--muted); }
+.help-topic ul { margin:0; padding:2px 18px 14px 34px; }
+.help-topic li { margin:6px 0; color:var(--ink-soft); line-height:1.55; }

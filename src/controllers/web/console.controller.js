@@ -4,6 +4,7 @@ const auth = require('../../services/auth.service');
 const platform = require('../../services/platform.service');
 const signup = require('../../services/signup.service');
 const { PLANS } = require('../../config/plans');
+const help = require('../../config/help');
 const { pick } = require('../../plugins/locale-map');
 const { format } = require('../../lib/money');
 
@@ -13,6 +14,7 @@ const plans = () => Object.keys(PLANS);
 
 /* ---- Console auth (apex — a superadmin has no tenant to log in through) ---- */
 exports.showLogin = (req, res) => res.render('console/login', { error: null });
+exports.help = (req, res) => res.render('console/help', { topics: help.platform });
 
 exports.login = h(async (req, res) => {
   try {

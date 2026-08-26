@@ -23,6 +23,7 @@ exports.myLearning = h(async (req, res) =>
     csrfToken: req.session.csrfToken,
     institution: req.tenant.name,
     learnerName: req.user && req.user.name,
+    help: require('../../config/help').learner,
   })
 );
 
