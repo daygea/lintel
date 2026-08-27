@@ -21,6 +21,9 @@
     .c-rail nav a:hover { background:#20263e; color:#fff; text-decoration:none; }
     .c-rail nav a.active { background:#262c48; color:#fff; }
     .c-rail nav a.active::before { content:""; display:inline-block; width:3px; height:14px; background:var(--brass); border-radius:2px; margin-right:8px; vertical-align:-2px; }
+    .c-rail nav a.help-link { margin-top:10px; border-top:1px solid #2a3050; padding-top:12px; color:#E7E8EE; display:flex; align-items:center; gap:9px; }
+    .c-rail nav a.help-link .help-ico { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; border:1.5px solid var(--brass); color:var(--brass); font-size:11px; font-weight:700; line-height:1; flex:0 0 auto; }
+    .c-rail nav a.help-link:hover .help-ico { border-color:#fff; color:#fff; }
     .c-content { min-width:0; }
     .c-top { display:flex; align-items:center; justify-content:space-between; padding:0 40px; height:60px; border-bottom:1px solid var(--rule); }
     .c-top .who { font-size:13px; color:var(--muted); }
@@ -59,7 +62,7 @@
       <a href="/console/reports" class="<%= active==='reports'?'active':'' %>">Reports</a>
       <a href="/console/breakglass" class="<%= active==='breakglass'?'active':'' %>">Break-glass</a>
       <a href="/console/audit" class="<%= active==='audit'?'active':'' %>">Audit</a>
-      <a href="/console/help" class="<%= active==='help'?'active':'' %>">Help</a>
+      <a href="/console/help" class="help-link <%= active==='help'?'active':'' %>"><span class="help-ico" aria-hidden="true">?</span> Help</a>
     </nav>
   </aside>
   <div class="c-rail-scrim" aria-hidden="true" onclick="document.body.classList.remove('nav-open')"></div>

@@ -48,9 +48,9 @@
           <a href="<%= item[1] %>" class="<%= active === item[0] ? 'active' : '' %>"><%= item[2] %></a>
         <% }); %>
       <% }); %>
+      <a href="/help" class="help-link <%= active === 'help' ? 'active' : '' %>"><span class="help-ico" aria-hidden="true">?</span> Help &amp; guides</a>
     </nav>
     <div class="foot">
-      <a href="/help" class="<%= active === 'help' ? 'active' : '' %>">Help &amp; guides</a>
       <a href="/api/v1/export" style="color:#8A8DA0">Export data</a>
     </div>
   </aside>
