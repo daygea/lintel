@@ -43,13 +43,13 @@
   <% tenant.locales.forEach(function (loc) { %>
     <div class="field">
       <label for="tagline_<%= loc %>">Tagline <span class="quiet mono" style="font-size:11px">(<%= loc %>)</span></label>
-      <input id="tagline_<%= loc %>" name="tagline_<%= loc %>" value="<%= listing && listing.tagline ? (listing.tagline[loc] || '') : '' %>" placeholder="One line about your institution">
+      <input id="tagline_<%= loc %>" name="tagline_<%= loc %>" value="<%= listing ? pick(listing.tagline, loc) : '' %>" placeholder="One line about your institution">
     </div>
   <% }); %>
   <% tenant.locales.forEach(function (loc) { %>
     <div class="field">
       <label for="about_<%= loc %>">About <span class="quiet mono" style="font-size:11px">(<%= loc %>)</span></label>
-      <textarea id="about_<%= loc %>" name="about_<%= loc %>" rows="3"><%= listing && listing.about ? (listing.about[loc] || '') : '' %></textarea>
+      <textarea id="about_<%= loc %>" name="about_<%= loc %>" rows="3"><%= listing ? pick(listing.about, loc) : '' %></textarea>
     </div>
   <% }); %>
 

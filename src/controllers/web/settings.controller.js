@@ -10,6 +10,16 @@ exports.showBranding = (req, res) => {
   res.render('tenant/branding', { t: req.tenant, saved: req.query.saved || null, error: null });
 };
 
+exports.showAccess = (req, res) => {
+  res.render('tenant/access', { t: req.tenant, saved: req.query.saved || null });
+};
+
+exports.saveAccess = h(async (req, res) => {
+  // An unchecked checkbox sends no field; presence of the value means "on".
+  await tenant.updateAccess({ openLessonsForMembers: req.body.openLessonsForMembers === 'on' });
+  res.redirect('/settings/access?saved=1');
+});
+
 exports.saveBranding = h(async (req, res) => {
   const locales = String(req.body.locales || '')
     .split(',').map((s) => s.trim()).filter(Boolean);

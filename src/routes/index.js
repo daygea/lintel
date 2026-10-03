@@ -88,6 +88,8 @@ router.post('/security/mfa/confirm', requireUser, webSecurity.confirmMfa);
 router.post('/security/mfa/disable', requireUser, webSecurity.disableMfa);
 router.get('/settings/branding', ...staff, webSettings.showBranding);
 router.post('/settings/branding', ...staff, webSettings.saveBranding);
+router.get('/settings/access', ...staff, webSettings.showAccess);
+router.post('/settings/access', ...staff, webSettings.saveAccess);
 router.get('/settings/billing', ...staff, webBilling.show);
 router.post('/settings/billing/subscribe', ...staff, webBilling.subscribe);
 router.post('/settings/billing/payouts', ...staff, webBilling.savePayouts);

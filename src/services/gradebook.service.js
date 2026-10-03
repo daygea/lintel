@@ -10,9 +10,13 @@ const { pick } = require('../plugins/locale-map');
 const listSchemes = () => GradeScheme.find({}).sort({ slug: 1 }).exec();
 async function upsertScheme(data) {
   if (!data.slug || !data.label) throw new ValidationError('A scheme needs a slug and a label');
-  return GradeScheme.findOneAndUpdate({ slug: data.slug }, data, {
-    upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true,
-  }).exec();
+  // label is a locale Map — a query-update drops it (no Map cast, no localeMap hook).
+  // Load-or-new + Object.assign + save so editing a scheme actually persists its label.
+  const existing = await GradeScheme.findOne({ slug: data.slug }).exec();
+  const scheme = existing || new GradeScheme({ slug: data.slug });
+  Object.assign(scheme, data);
+  await scheme.save();
+  return scheme;
 }
 
 /* ---------------------------------------------------------------- line items */

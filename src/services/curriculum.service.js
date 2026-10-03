@@ -45,8 +45,14 @@ async function createCourse({ programId, code, title, summary, session }) {
 }
 
 async function updateCourse(id, patch) {
-  const course = await Course.findByIdAndUpdate(id, patch, { new: true, runValidators: true }).exec();
+  // Load + Object.assign + save, not findByIdAndUpdate: title and summary are locale
+  // Maps, and a query-update neither casts them nor rebuilds the search shadow — so a
+  // title/summary edit would silently drop. save() handles Maps and scalars (e.g.
+  // coverAssetId, visibility) alike.
+  const course = await Course.findById(id).exec();
   if (!course) throw new ValidationError('No such course');
+  Object.assign(course, patch);
+  await course.save();
   await audit('course.updated', 'Course', course._id, { fields: Object.keys(patch) });
   return course;
 }

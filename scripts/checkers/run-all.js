@@ -9,6 +9,7 @@ const CHECKERS = [
   ['no-tenant-terms', require('./check-no-tenant-terms')],
   ['money', require('./check-money')],
   ['locale-fields', require('./check-locale-fields')],
+  ['locale-render', require('./check-locale-render')],
   ['api-parity', require('./check-api-parity')],
   ['route-handlers', require('./check-route-handlers')],
   ['ejs-syntax', require('./check-ejs-syntax')],

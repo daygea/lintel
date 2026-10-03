@@ -65,4 +65,15 @@ async function updateBranding({ name, branding, locales }) {
   );
 }
 
-module.exports = { provision, setPlan, updateBranding };
+async function updateAccess({ openLessonsForMembers }) {
+  const tenantId = require('../lib/context').currentTenantId();
+  return runAsPlatform('tenant admin updating own access policy', () =>
+    Tenant.findByIdAndUpdate(
+      tenantId,
+      { 'access.openLessonsForMembers': !!openLessonsForMembers },
+      { new: true }
+    )
+  );
+}
+
+module.exports = { provision, setPlan, updateBranding, updateAccess };

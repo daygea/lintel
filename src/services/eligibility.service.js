@@ -6,9 +6,11 @@ const {
   Course,
   Enrollment,
   AccessLog,
+  Tenant,
+  Membership,
 } = require('../models');
 const { evaluate } = require('./eligibility/evaluator');
-const { currentUserId } = require('../lib/context');
+const { currentUserId, currentTenantId } = require('../lib/context');
 
 /* ------------------------------------------------------------------ policies */
 
@@ -19,11 +21,15 @@ async function upsertPolicy(data) {
   if (!data.slug || !data.label || !data.denialMessage) {
     throw new Error('A policy needs a slug, a label and a denial message');
   }
-  return EligibilityPolicy.findOneAndUpdate(
-    { slug: data.slug },
-    data,
-    { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
-  ).exec();
+  // Load-or-new + Object.assign + save: label and denialMessage are locale Maps, and
+  // a query-update (findOneAndUpdate) neither casts a plain object into a Map nor runs
+  // the localeMap validate hook that builds the search shadow — so editing a policy's
+  // label/message through the update path silently dropped them. save() does both.
+  const existing = await EligibilityPolicy.findOne({ slug: data.slug }).exec();
+  const policy = existing || new EligibilityPolicy({ slug: data.slug });
+  Object.assign(policy, data);
+  await policy.save();
+  return policy;
 }
 
 /* ------------------------------------------------------------- the decision */
@@ -65,10 +71,19 @@ async function previewAccess({ lesson, userId, locale = 'en' }) {
   // member. "Enrolment alone suffices" means enrolment is still required. Fail closed.
   const hasPolicy = policy && Array.isArray(policy.rules) && policy.rules.length > 0;
   if (!hasPolicy) {
-    const verdict = enrollment
-      ? { allowed: true, failedRules: [], message: '' }
-      : { allowed: false, failedRules: ['enrolled'], message: 'You need to be enrolled in this course to open this lesson.' };
-    return { verdict, policy };
+    if (enrollment) return { verdict: { allowed: true, failedRules: [], message: '' }, policy };
+
+    // No enrolment and no policy: by default fail closed. An institution may opt in
+    // (Settings → Access) to let any active member open un-gated "open teaching".
+    const tenant = await Tenant.findById(currentTenantId()).exec();
+    if (tenant?.access?.openLessonsForMembers) {
+      const member = await Membership.findOne({ userId, status: 'active' }).exec();
+      if (member) return { verdict: { allowed: true, failedRules: [], message: '' }, policy };
+    }
+    return {
+      verdict: { allowed: false, failedRules: ['enrolled'], message: 'You need to be enrolled in this course to open this lesson.' },
+      policy,
+    };
   }
 
   const verdict = await evaluate(policy, { userId, enrollment, locale });

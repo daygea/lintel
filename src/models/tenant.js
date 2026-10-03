@@ -48,6 +48,15 @@ const TenantSchema = new Schema(
     // receives learner payments directly (Lintel keeps a plan-based cut). Unset =
     // payments settle to Lintel's account as before.
     paystackSubaccount: { type: String, trim: true },
+
+    // Access policy the institution controls for itself.
+    access: {
+      // When a lesson has NO eligibility policy: default (false) requires an active
+      // enrolment to open it (fail closed); true lets ANY active member of the
+      // institution open such "open teaching" without enrolling. OISS stays strict;
+      // a more open institution can opt in. Policied lessons are unaffected either way.
+      openLessonsForMembers: { type: Boolean, default: false },
+    },
   },
   { timestamps: true }
 );

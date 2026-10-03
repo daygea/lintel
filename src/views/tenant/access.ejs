@@ -1,0 +1,23 @@
+<% var nav = 'settings'; var pageTitle = 'Access'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'SETTINGS'; var heading = 'Access'; var lede = 'How this institution opens its teaching. Lessons with an eligibility policy are always governed by that policy — these settings only affect lessons with no policy.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+
+<% if (saved) { %><div class="ok-note" style="margin:12px 0"><span class="badge ok">saved</span> Access settings updated.</div><% } %>
+
+<form method="post" action="/settings/access" class="card" style="max-width:580px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <label style="display:flex; gap:12px; align-items:flex-start; cursor:pointer">
+    <input type="checkbox" name="openLessonsForMembers" <%= (t.access && t.access.openLessonsForMembers) ? 'checked' : '' %> style="margin-top:3px; width:18px; height:18px; flex:0 0 auto">
+    <span>
+      <span style="font-weight:600; display:block">Open un-gated lessons to all members</span>
+      <span class="quiet" style="font-size:13px">When a lesson has <strong>no</strong> eligibility policy, let any active member of this institution open it without being enrolled in the course. Leave this off to require an active enrolment (the default — a lesson stays closed until someone is enrolled or their standing is attested).</span>
+    </span>
+  </label>
+
+  <div style="margin-top:18px"><button class="btn" type="submit">Save access settings</button></div>
+</form>
+
+<p class="quiet" style="font-size:12.5px; max-width:580px; margin-top:14px">This never overrides an eligibility policy: a held lesson stays held until its rules are satisfied, whatever this setting says.</p>
+<%- include("../layouts/foot") %>
