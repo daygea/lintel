@@ -1,6 +1,7 @@
 'use strict';
 
 const { User, Membership } = require('../models');
+const { store } = require('../lib/context');
 const { NotAuthenticatedError, NotAuthorisedError } = require('../lib/errors');
 const { has } = require('../lib/roles');
 
@@ -16,6 +17,15 @@ async function loadSession(req, res, next) {
       req.session.destroy(() => {});
       return next();
     }
+    req.user = user;
+    res.locals.user = user;
+
+    // Apex (marketing host / platform console): the resolver let this request
+    // through WITHOUT a tenant context. There is no Membership to load here, and a
+    // tenant-scoped query would throw NoTenantContextError (a 500). The user is
+    // enough for the platform surface; tenant hosts fall through to load membership.
+    if (!store()) return next();
+
     const membership = await Membership.findOne({ userId: user._id, status: 'active' }).exec();
     // When there's no ACTIVE membership, find out whether the person is a pending
     // self-registrant (awaiting admission) versus a genuine non-member. Only one
@@ -26,10 +36,8 @@ async function loadSession(req, res, next) {
       const any = await Membership.findOne({ userId: user._id }).sort({ createdAt: -1 }).exec();
       membershipStatus = any ? any.status : null;
     }
-    req.user = user;
     req.membership = membership;
     req.membershipStatus = membershipStatus;
-    res.locals.user = user;
     res.locals.membership = membership;
     res.locals.membershipStatus = membershipStatus;
     return next();

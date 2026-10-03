@@ -33,12 +33,27 @@ function completeLogin(req, res, next, user) {
   });
 }
 
+/**
+ * On the apex (no institution on this host) there is no tenant to log in through —
+ * a tenant login needs a tenant context, and attempting one here throws. The only
+ * legitimate sign-in on the apex is the platform console, so send people there.
+ * This also makes the superadmin login discoverable at the obvious /login.
+ */
+function apexRedirect(req, res) {
+  if (req.tenant) return false;
+  const dest = req.user && req.user.platformRole === 'superadmin' ? '/console' : '/console/login';
+  res.redirect(dest);
+  return true;
+}
+
 exports.showLogin = (req, res) => {
+  if (apexRedirect(req, res)) return undefined;
   if (req.user) return res.redirect('/');
   return res.render('auth/login', { error: null, mfaRequired: false, email: '' });
 };
 
 exports.login = async (req, res, next) => {
+  if (apexRedirect(req, res)) return undefined;
   try {
     // Step two: a code for a login whose password already verified this request cycle.
     if (req.session.mfaPending) {

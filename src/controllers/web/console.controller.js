@@ -13,22 +13,29 @@ const h = (fn) => async (req, res, next) => { try { await fn(req, res); } catch 
 const plans = () => Object.keys(PLANS);
 
 /* ---- Console auth (apex — a superadmin has no tenant to log in through) ---- */
-exports.showLogin = (req, res) => res.render('console/login', { error: null });
+const { rootDomain } = require('../../config/env');
+exports.showLogin = (req, res) => res.render('console/login', { error: null, rootDomain });
 exports.help = (req, res) => res.render('console/help', { topics: help.platform });
 
 exports.login = h(async (req, res) => {
+  let user;
   try {
-    const user = await auth.authenticate(req.body);
-    if (user.platformRole !== 'superadmin') {
-      // Do not reveal that the console exists to a non-operator who guessed the URL.
-      return res.status(404).render('error', { status: 404, message: 'Not found' });
-    }
+    user = await auth.authenticate(req.body);
+  } catch (err) {
+    return res.status(401).render('console/login', { error: 'Those credentials are not right.' });
+  }
+  if (user.platformRole !== 'superadmin') {
+    // Do not reveal that the console exists to a non-operator who guessed the URL.
+    return res.status(404).render('error', { status: 404, message: 'Not found' });
+  }
+  // Regenerate before establishing identity — defeats session fixation on the
+  // highest-privilege account, matching the tenant login's behaviour.
+  return req.session.regenerate((err) => {
+    if (err) return res.status(500).render('console/login', { error: 'Something went wrong. Please try again.' });
     req.session.userId = String(user._id);
     req.session.epoch = user.sessionEpoch || 0;
-    res.redirect('/console');
-  } catch (err) {
-    res.status(401).render('console/login', { error: 'Those credentials are not right.' });
-  }
+    return res.redirect('/console');
+  });
 });
 
 exports.logout = (req, res) => { req.session.destroy(() => res.redirect('/console/login')); };

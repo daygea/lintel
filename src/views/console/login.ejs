@@ -19,6 +19,8 @@
     .box input:focus{border-color:var(--brass);outline:none}
     .box button{width:100%;padding:10px;background:var(--brass);color:#fff;border:0;border-radius:4px;font-size:14px;font-weight:500;cursor:pointer}
     .box .err{background:#3a2740;border-left:3px solid var(--held);padding:10px 12px;border-radius:4px;font-size:13px;margin-bottom:16px;color:#e8d9e8}
+    .box .note{margin-top:22px;padding-top:18px;border-top:1px solid #2c3350;font-size:12.5px;line-height:1.55;color:#8A8DA0;text-align:center}
+    .box .note code{color:#C9A567;font-family:var(--mono);font-size:12px}
   </style>
 </head>
 <body>
@@ -36,6 +38,11 @@
       <input id="totp" name="totp" inputmode="numeric" autocomplete="one-time-code" placeholder="123456">
       <button type="submit">Sign in to console</button>
     </form>
+    <p class="note">
+      Signing in to an institution? Use your institution's web address —
+      <code><%= typeof rootDomain !== 'undefined' && rootDomain ? 'your-institution.' + rootDomain : 'your-institution.lintel.africa' %></code>
+      — not this page.
+    </p>
   </div>
 </body>
 </html>
