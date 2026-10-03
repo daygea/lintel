@@ -3,33 +3,116 @@
 <% var eyebrow = 'GUIDE'; var heading = 'Help & guides'; var lede = 'How Lintel works and how to use it. These guides are tailored to what your roles let you do.'; %>
 <%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
 
-<div class="help-list">
-  <% topics.forEach(function (t, i) { %>
-    <details class="help-topic"<%= i === 0 ? ' open' : '' %>>
-      <summary>
-        <span class="help-t"><%= t.title %></span>
-        <span class="help-s quiet"><%= t.summary %></span>
-      </summary>
-      <ul>
-        <% t.points.forEach(function (p) { %><li><%= p %></li><% }); %>
-      </ul>
-    </details>
-  <% }); %>
+<%
+  // Group the (already role-filtered) topics by category, in the order declared
+  // in config/help.js. Anything with an unlisted category falls into "More".
+  var cats = (typeof categories !== 'undefined' && categories) ? categories : [];
+  var byCat = {};
+  topics.forEach(function (t) { (byCat[t.category] = byCat[t.category] || []).push(t); });
+  var sections = cats
+    .map(function (c) { return { key: c.key, label: c.label, items: byCat[c.key] || [] }; })
+    .filter(function (s) { return s.items.length; });
+  var placed = {};
+  cats.forEach(function (c) { placed[c.key] = true; });
+  var leftovers = topics.filter(function (t) { return !placed[t.category]; });
+  if (leftovers.length) sections.push({ key: '_more', label: 'More', items: leftovers });
+  var firstOpen = true;
+%>
+
+<div class="help-search">
+  <label for="help-q" class="sr-only">Search help</label>
+  <input id="help-q" type="search" placeholder="Search help — e.g. “invite”, “refund”, “standing”" autocomplete="off" aria-controls="help-sections">
+  <p class="help-none" id="help-none" hidden>No guides match that. Try a different word, or email <a href="mailto:hello@lintel.africa">hello@lintel.africa</a>.</p>
 </div>
 
-<p class="quiet" style="font-size:13px;margin-top:20px">Still stuck? Reach the Lintel team at <a href="mailto:hello@lintel.africa">hello@lintel.africa</a>.</p>
+<% if (sections.length > 1) { %>
+<nav class="help-toc" aria-label="Help sections">
+  <% sections.forEach(function (s) { %><a href="#sec-<%= s.key %>"><%= s.label %></a><% }); %>
+</nav>
+<% } %>
+
+<div id="help-sections">
+<% sections.forEach(function (s) { %>
+  <section class="help-sec" id="sec-<%= s.key %>">
+    <h2 class="help-sec-h"><%= s.label %></h2>
+    <div class="help-list">
+      <% s.items.forEach(function (t) { %>
+        <details class="help-topic"<%= firstOpen ? ' open' : '' %>>
+          <summary>
+            <span class="help-t"><%= t.title %></span>
+            <span class="help-s quiet"><%= t.summary %></span>
+          </summary>
+          <% if (t.steps && t.steps.length) { %>
+            <p class="help-lbl">How to</p>
+            <ol class="help-steps">
+              <% t.steps.forEach(function (p) { %><li><%= p %></li><% }); %>
+            </ol>
+          <% } %>
+          <% if (t.points && t.points.length) { %>
+            <% if (t.steps && t.steps.length) { %><p class="help-lbl">Good to know</p><% } %>
+            <ul class="help-points">
+              <% t.points.forEach(function (p) { %><li><%= p %></li><% }); %>
+            </ul>
+          <% } %>
+        </details>
+        <% firstOpen = false; %>
+      <% }); %>
+    </div>
+  </section>
+<% }); %>
+</div>
+
+<p class="quiet" style="font-size:13px;margin-top:24px">Still stuck? Reach the Lintel team at <a href="mailto:hello@lintel.africa">hello@lintel.africa</a>.</p>
 
 <style>
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  .help-search { max-width:760px; margin-bottom:8px; }
+  .help-search input { width:100%; padding:11px 14px; border:1px solid var(--rule); border-radius:8px; background:var(--paper); color:var(--ink); font-size:14.5px; }
+  .help-search input:focus { border-color:var(--brass); outline:none; }
+  .help-none { font-size:13.5px; color:var(--muted); margin:10px 2px 0; }
+  .help-toc { max-width:760px; display:flex; flex-wrap:wrap; gap:8px 10px; margin:14px 0 22px; }
+  .help-toc a { font-size:12.5px; color:var(--ink-soft); border:1px solid var(--rule); border-radius:999px; padding:5px 12px; text-decoration:none; }
+  .help-toc a:hover { border-color:var(--brass); color:var(--ink); }
+  .help-sec { max-width:760px; margin-bottom:26px; scroll-margin-top:80px; }
+  .help-sec-h { font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:0 0 10px; font-weight:600; }
   .help-list { max-width:760px; }
   .help-topic { border:1px solid var(--rule); border-radius:8px; margin-bottom:10px; background:var(--paper-2); }
-  .help-topic > summary { cursor:pointer; padding:14px 18px; list-style:none; display:flex; flex-direction:column; gap:2px; }
+  .help-topic > summary { cursor:pointer; padding:14px 18px; list-style:none; display:flex; flex-direction:column; gap:2px; position:relative; padding-right:40px; }
   .help-topic > summary::-webkit-details-marker { display:none; }
-  .help-topic > summary::after { content:"+"; position:absolute; right:20px; color:var(--muted); font-family:var(--mono); }
+  .help-topic > summary::after { content:"+"; position:absolute; right:20px; top:14px; color:var(--muted); font-family:var(--mono); }
   .help-topic[open] > summary::after { content:"–"; }
-  .help-topic > summary { position:relative; padding-right:40px; }
   .help-t { font-weight:600; }
   .help-s { font-size:13px; }
-  .help-topic ul { margin:0; padding:2px 20px 16px 36px; }
+  .help-lbl { margin:12px 20px 2px; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+  .help-topic ol, .help-topic ul { margin:2px 0 0; padding:2px 20px 16px 38px; }
   .help-topic li { margin:6px 0; color:var(--ink-soft); line-height:1.55; }
+  .help-steps li { padding-left:4px; }
+  .help-topic.is-hidden { display:none; }
 </style>
+
+<script>
+  (function () {
+    var q = document.getElementById('help-q');
+    if (!q) return;
+    var topics = Array.prototype.slice.call(document.querySelectorAll('.help-topic'));
+    var sections = Array.prototype.slice.call(document.querySelectorAll('.help-sec'));
+    var none = document.getElementById('help-none');
+    q.addEventListener('input', function () {
+      var term = q.value.trim().toLowerCase();
+      var anyShown = false;
+      topics.forEach(function (el) {
+        var hit = !term || el.textContent.toLowerCase().indexOf(term) !== -1;
+        el.classList.toggle('is-hidden', !hit);
+        if (hit) anyShown = true;
+        if (term && hit) el.setAttribute('open', ''); // expand matches so the hit is visible
+      });
+      // Hide a section whose every topic is filtered out.
+      sections.forEach(function (sec) {
+        var visible = sec.querySelectorAll('.help-topic:not(.is-hidden)').length;
+        sec.style.display = visible ? '' : 'none';
+      });
+      if (none) none.hidden = anyShown;
+    });
+  })();
+</script>
 <%- include("../layouts/foot") %>

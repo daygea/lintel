@@ -36,6 +36,7 @@ async function loadLearning(force) {
   STATE.learnerName = data.learnerName || '';
   STATE.courses = data.courses || [];
   STATE.help = data.help || [];
+  STATE.helpCategories = data.helpCategories || [];
   STATE.loaded = true;
   indexLessonTitles(STATE.courses);
   return STATE.courses;
@@ -682,21 +683,76 @@ function currentView() {
   return renderHome;
 }
 
+function renderHelpTopic(t) {
+  const steps = (t.steps && t.steps.length)
+    ? `<p class="help-lbl">How to</p><ol class="help-steps">${t.steps.map((p) => `<li>${escapeHtml(p)}</li>`).join('')}</ol>`
+    : '';
+  const knowLbl = (t.steps && t.steps.length && t.points && t.points.length) ? '<p class="help-lbl">Good to know</p>' : '';
+  const points = (t.points && t.points.length)
+    ? `${knowLbl}<ul class="help-points">${t.points.map((p) => `<li>${escapeHtml(p)}</li>`).join('')}</ul>`
+    : '';
+  return `<details class="help-topic">
+    <summary><span class="help-t">${escapeHtml(t.title)}</span>${t.summary ? `<span class="help-s">${escapeHtml(t.summary)}</span>` : ''}</summary>
+    ${steps}${points}
+  </details>`;
+}
+
 async function renderHelp() {
   root.innerHTML = `<p class="muted" style="padding:22px 18px">Loading…</p>`;
   try { await loadLearning(); } catch { /* fall through to whatever's cached */ }
   const topics = STATE.help || [];
-  const items = topics.map((t) => `
-    <details class="help-topic">
-      <summary><span class="help-t">${escapeHtml(t.title)}</span>${t.summary ? `<span class="help-s">${escapeHtml(t.summary)}</span>` : ''}</summary>
-      <ul>${(t.points || []).map((p) => `<li>${escapeHtml(p)}</li>`).join('')}</ul>
-    </details>`).join('');
+  const cats = STATE.helpCategories || [];
+
+  // Group by category in declared order; anything uncategorised goes under "More".
+  const placed = {};
+  cats.forEach((c) => { placed[c.key] = true; });
+  let sections = cats
+    .map((c) => ({ label: c.label, items: topics.filter((t) => t.category === c.key) }))
+    .filter((s) => s.items.length);
+  const leftovers = topics.filter((t) => !placed[t.category]);
+  if (leftovers.length) sections.push({ label: 'More', items: leftovers });
+  // No category metadata (older cache): show a single flat list.
+  if (!sections.length && topics.length) sections = [{ label: '', items: topics }];
+
+  const body = sections.map((s) => `
+    <section class="help-sec">
+      ${s.label ? `<h2 class="help-sec-h">${escapeHtml(s.label)}</h2>` : ''}
+      <div class="help-list">${s.items.map(renderHelpTopic).join('')}</div>
+    </section>`).join('');
+
   root.innerHTML = `<div class="home">
     <a class="btn ghost" href="/app/" style="margin-bottom:18px">← Back</a>
     <h1 class="section-h" style="margin-top:0">Help</h1>
     <p class="quiet" style="margin-top:-6px">How to find your way around and get the most from your courses.</p>
-    <div class="help-list">${items || '<p class="muted">No help topics yet.</p>'}</div>
+    <div class="help-search">
+      <label for="help-q" class="sr-only">Search help</label>
+      <input id="help-q" type="search" placeholder="Search help" autocomplete="off">
+      <p class="help-none" id="help-none" hidden>No guides match that.</p>
+    </div>
+    ${body || '<p class="muted">No help topics yet.</p>'}
   </div>`;
+
+  const q = document.getElementById('help-q');
+  if (q) {
+    const items = Array.prototype.slice.call(document.querySelectorAll('.help-topic'));
+    const secs = Array.prototype.slice.call(document.querySelectorAll('.help-sec'));
+    const none = document.getElementById('help-none');
+    q.addEventListener('input', () => {
+      const term = q.value.trim().toLowerCase();
+      let anyShown = false;
+      items.forEach((el) => {
+        const hit = !term || el.textContent.toLowerCase().indexOf(term) !== -1;
+        el.classList.toggle('is-hidden', !hit);
+        if (hit) anyShown = true;
+        if (term && hit) el.setAttribute('open', '');
+      });
+      secs.forEach((sec) => {
+        const visible = sec.querySelectorAll('.help-topic:not(.is-hidden)').length;
+        sec.style.display = visible ? '' : 'none';
+      });
+      if (none) none.hidden = anyShown;
+    });
+  }
 }
 
 async function route() {

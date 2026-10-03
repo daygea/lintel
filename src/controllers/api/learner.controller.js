@@ -24,6 +24,7 @@ exports.myLearning = h(async (req, res) =>
     institution: req.tenant.name,
     learnerName: req.user && req.user.name,
     help: require('../../config/help').learner,
+    helpCategories: require('../../config/help').categories.learner,
   })
 );
 

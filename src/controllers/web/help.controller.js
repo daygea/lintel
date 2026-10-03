@@ -11,5 +11,5 @@ exports.show = (req, res) => {
   const topics = help.staff.filter(
     (t) => !t.roles || !t.roles.length || t.roles.some((r) => roles.includes(r))
   );
-  res.render('tenant/help', { topics });
+  res.render('tenant/help', { topics, categories: help.categories.staff });
 };

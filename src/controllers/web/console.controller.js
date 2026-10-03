@@ -15,7 +15,7 @@ const plans = () => Object.keys(PLANS);
 /* ---- Console auth (apex — a superadmin has no tenant to log in through) ---- */
 const { rootDomain } = require('../../config/env');
 exports.showLogin = (req, res) => res.render('console/login', { error: null, rootDomain });
-exports.help = (req, res) => res.render('console/help', { topics: help.platform });
+exports.help = (req, res) => res.render('console/help', { topics: help.platform, categories: help.categories.platform });
 
 exports.login = h(async (req, res) => {
   let user;
