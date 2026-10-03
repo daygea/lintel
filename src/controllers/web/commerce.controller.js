@@ -70,12 +70,24 @@ exports.raiseInvoice = h(async (req, res) => {
 });
 
 exports.showInvoice = h(async (req, res) => {
+  // Verify-on-return for a staff-initiated online payment (same backstop as the
+  // learner page). Confirms the reference server-side before rendering.
+  const reference = req.query.reference || req.query.trxref || null;
+  let payStatus = null;
+  if (reference) {
+    try {
+      const { paid } = await commerce.confirmByReference(reference);
+      payStatus = paid ? 'confirmed' : 'pending';
+    } catch { payStatus = 'pending'; }
+  }
+
   const view = await commerce.invoiceView(req.params.id);
   if (!view) return res.status(404).render('error', { status: 404, message: 'Invoice not found' });
   res.render('commerce/invoice', {
     ...view, format, currencies: SUPPORTED, pick,
     online: commerce.PROVIDERS.paystack.isConfigured(),
     refunded: req.query.refunded || null,
+    payStatus,
     error: req.query.err || null,
   });
 });
@@ -92,7 +104,10 @@ exports.recordInvoicePayment = h(async (req, res) => {
 });
 
 exports.payInvoice = h(async (req, res) => {
-  const { authorizationUrl } = await commerce.beginPayment({ invoiceId: req.params.id });
+  const host = req.get('host');
+  const proto = host && host.includes('localhost') ? 'http' : 'https';
+  const returnUrl = `${proto}://${host}/invoices/${req.params.id}`;
+  const { authorizationUrl } = await commerce.beginPayment({ invoiceId: req.params.id, returnUrl });
   res.redirect(authorizationUrl); // Paystack checkout (or a dev stub URL when unconfigured)
 });
 

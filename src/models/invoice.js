@@ -25,6 +25,15 @@ const InvoiceSchema = new Schema(
     /** Schedule of instalment due dates, if a plan was chosen. */
     dueDates: [{ amount: { type: MoneySchema }, dueAt: Date, _id: false }],
 
+    /**
+     * The most recent online-payment reference minted for this invoice
+     * (`‹tenantId›_‹invoiceId›_‹rand›`). Persisted so a return-from-checkout or a
+     * reconcile sweep can re-verify it with the provider when a webhook is slow or
+     * lost. Cleared once a payment for it is recorded.
+     */
+    pendingReference: { type: String },
+    pendingReferenceAt: { type: Date },
+
     state: {
       type: String,
       enum: ['unpaid', 'deposit', 'part', 'full', 'waived', 'overdue'],
@@ -40,5 +49,7 @@ InvoiceSchema.plugin(tenantGuard);
 
 InvoiceSchema.index({ tenantId: 1, enrollmentId: 1 }, { unique: true });
 InvoiceSchema.index({ tenantId: 1, userId: 1, state: 1 });
+// Supports the reconcile sweep: unsettled invoices carrying a stale pending ref.
+InvoiceSchema.index({ tenantId: 1, state: 1, pendingReferenceAt: 1 });
 
 module.exports = mongoose.model('Invoice', InvoiceSchema);

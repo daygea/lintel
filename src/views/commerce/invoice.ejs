@@ -20,6 +20,8 @@
 </div>
 
 <% if (typeof refunded !== 'undefined' && refunded) { %><div class="ok-note" style="margin:12px 0"><span class="badge ok">refunded</span> Refund recorded against this invoice.</div><% } %>
+<% if (typeof payStatus !== 'undefined' && payStatus === 'confirmed') { %><div class="ok-note" style="margin:12px 0"><span class="badge ok">received</span> Payment confirmed and recorded.</div><% } %>
+<% if (typeof payStatus !== 'undefined' && payStatus === 'pending') { %><div class="notice" style="margin:12px 0"><span class="badge">confirming</span> Payment not confirmed yet — it will appear once it clears (or the reconcile sweep records it).</div><% } %>
 <% if (typeof error !== 'undefined' && error) { %><div class="notice err" role="alert" style="margin:12px 0"><%= error %></div><% } %>
 
 <div class="section" style="margin-top:22px">

@@ -4,6 +4,10 @@ const crypto = require('node:crypto');
 const { PaymentProvider } = require('./base');
 const logger = require('../../../lib/logger');
 
+// Read NODE_ENV at call time, not a boolean frozen at import — so the fail-closed
+// branch is both reliable in production and testable without re-importing config.
+const inProduction = () => process.env.NODE_ENV === 'production';
+
 /**
  * Paystack. Amounts to Paystack are in kobo/minor units — which is exactly how
  * Money stores them, so no float ever appears. In development, with no secret
@@ -26,6 +30,9 @@ class PaystackProvider extends PaymentProvider {
 
   async initialize({ amount, email, reference, callbackUrl, subaccount, transactionCharge }) {
     if (!this.isConfigured()) {
+      // In production an unset key must not silently hand the payer a fake checkout
+      // URL — that would strand real money. Fail loudly; the dev stub is dev-only.
+      if (inProduction()) throw new Error('Paystack is not configured (PAYSTACK_SECRET_KEY missing)');
       logger.info({ reference }, 'paystack initialize (dev stub)');
       return { authorizationUrl: `https://checkout.paystack.test/${reference}`, reference };
     }
@@ -64,9 +71,22 @@ class PaystackProvider extends PaymentProvider {
 
   /** Paystack signs webhooks with HMAC-SHA512 of the raw body using the secret. */
   verifyWebhook(rawBody, signature) {
-    if (!this.isConfigured()) return true; // dev: accept, so the path is testable
+    if (!this.isConfigured()) {
+      // FAIL CLOSED in production. With no secret there is nothing to verify, so a
+      // forged `charge.success` would otherwise be accepted and mark invoices (and
+      // subscriptions) paid. Only dev/test may accept unsigned, to exercise the path.
+      if (inProduction()) {
+        logger.error('paystack webhook received but PAYSTACK_SECRET_KEY is not set — rejecting (cannot verify signature)');
+        return false;
+      }
+      return true;
+    }
+    if (!signature) return false;
     const hash = crypto.createHmac('sha512', this.secret).update(rawBody).digest('hex');
-    return hash === signature;
+    // Constant-time compare — never leak timing on a signature check.
+    const a = Buffer.from(hash);
+    const b = Buffer.from(String(signature));
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
   }
 
   parseWebhook(body) {

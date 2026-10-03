@@ -325,11 +325,17 @@ router.post(
       const rawBody = req.body instanceof Buffer ? req.body.toString('utf8') : JSON.stringify(req.body);
       const parsed = JSON.parse(rawBody);
       // A webhook has no tenant context from a session; the reference carries the
-      // tenantId, and recordPayment resolves the invoice within that tenant.
+      // routing. Route EXPLICITLY by prefix rather than assuming the first segment
+      // is a tenant id: a subscription ref is `sub_‹tenantId›_…`, so a blind
+      // split('_')[0] yields the literal "sub" and runs under a bogus context.
       const { runWithTenant } = require('../lib/context');
-      const tenantId = String(parsed.data?.reference || '').split('_')[0];
-      if (!tenantId) return res.status(400).json({ error: 'bad reference' });
-      const result = await runWithTenant(tenantId, null, () =>
+      const ref = String(parsed.data?.reference || '');
+      if (!ref) return res.status(400).json({ error: 'bad reference' });
+      const dispatch = (fn) =>
+        ref.startsWith('sub_')
+          ? fn()                                  // platform subscription: billing re-enters runAsPlatform
+          : runWithTenant(ref.split('_')[0], null, fn); // learner invoice: run in that tenant
+      const result = await dispatch(() =>
         commerceService.handleWebhook({
           providerKey: 'paystack',
           rawBody,

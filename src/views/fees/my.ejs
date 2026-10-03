@@ -9,7 +9,11 @@
 
   <p style="margin:-4px 0 18px"><a class="quiet mono" style="font-size:12px" href="/app/">← my learning</a></p>
 
-  <% if (paid) { %><div class="notice ok" style="margin-bottom:16px"><span class="badge ok">received</span> Thank you — we'll confirm your payment shortly and open your access.</div><% } %>
+  <% if (typeof payStatus !== 'undefined' && payStatus === 'confirmed') { %>
+    <div class="notice ok" style="margin-bottom:16px"><span class="badge ok">received</span> Payment confirmed — your access is open.</div>
+  <% } else if (typeof payStatus !== 'undefined' && payStatus === 'pending') { %>
+    <div class="notice" style="margin-bottom:16px"><span class="badge">confirming</span> Thanks — we're confirming your payment. This page will show it as paid once it clears; refresh in a moment if it hasn't yet.</div>
+  <% } %>
   <% if (error) { %><div class="notice err" role="alert" style="margin-bottom:16px"><%= error %></div><% } %>
 
   <% if (!(rows || []).length) { %>

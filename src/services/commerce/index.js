@@ -189,6 +189,14 @@ async function beginPayment({ invoiceId, providerKey = 'paystack', returnUrl, re
     transactionCharge,
   });
 
+  // Persist the reference so a return-from-checkout or the reconcile sweep can
+  // re-verify it if the webhook is slow or never arrives. This is what makes the
+  // webhook a fast path rather than the only path.
+  await Invoice.updateOne(
+    { _id: invoice._id },
+    { pendingReference: init.reference, pendingReferenceAt: new Date() }
+  ).exec();
+
   return { authorizationUrl: init.authorizationUrl, reference: init.reference };
 }
 
@@ -249,16 +257,34 @@ async function recordPayment({ invoiceId, amount, method, provider = 'manual', p
     ({ state } = await resyncInvoice(invoice));
   } else {
     // Normal path: move the running tally by this payment (a refund is negative).
+    const outstandingBefore = money.subtract(invoice.amountDue, invoice.amountPaid);
     const newPaid = money.add(invoice.amountPaid, amount);
     state = invoice.state === 'waived' ? 'waived' : deriveState(invoice.amountDue, newPaid);
-    await Invoice.updateOne({ _id: invoice._id }, { amountPaid: newPaid, state }).exec();
+
+    // Flag an online payment that doesn't match what we asked for (#5). It's not an
+    // error — instalments underpay by design — but a silent mismatch should be
+    // visible, so it lands in the audit meta and the log rather than vanishing.
+    const isOnline = provider === 'paystack';
+    const mismatch = isOnline && amount.amount !== outstandingBefore.amount;
+    if (mismatch) {
+      logger.warn(
+        { invoiceId: String(invoice._id), expected: outstandingBefore.amount, paid: amount.amount, providerRef },
+        'online payment amount does not match outstanding balance'
+      );
+    }
+
+    const patch = { amountPaid: newPaid, state };
+    // A recorded online payment consumes its pending reference — clear it so the
+    // reconcile sweep doesn't keep re-verifying a reference already settled.
+    if (providerRef) { patch.pendingReference = null; patch.pendingReferenceAt = null; }
+    await Invoice.updateOne({ _id: invoice._id }, patch).exec();
     await syncEnrollmentState(invoice.enrollmentId, state);
     await AuditLog.create({
       actorUserId: currentUserId(),
       action: 'payment.recorded',
       subjectType: 'Payment',
       subjectId: payment._id,
-      meta: { method, amount: amount.amount, state },
+      meta: { method, amount: amount.amount, state, expected: outstandingBefore.amount, mismatch },
     });
   }
 
@@ -351,6 +377,76 @@ async function handleWebhook({ providerKey = 'paystack', rawBody, signature, bod
   });
 }
 
+/* -------------------------------------------------- verify-on-return / reconcile */
+
+/**
+ * Confirm a payment by its provider reference, server-side (#2, #3). The webhook is
+ * the primary confirmation; this is the backstop for when it is slow or lost. Safe
+ * to call from the payer's return-from-checkout and from the reconcile sweep: it
+ * asks the provider whether the reference actually succeeded, and only then records
+ * — through the same idempotent recordPayment, so running alongside the webhook can
+ * never double-count.
+ *
+ * Runs inside a tenant context. The reference carries its tenant (`‹tenantId›_…`);
+ * a reference for another tenant is ignored rather than acted on.
+ */
+async function confirmByReference(reference, { requireOwnerId, providerKey = 'paystack' } = {}) {
+  if (!reference) return { paid: false, ignored: 'no_reference' };
+  const parts = String(reference).split('_');
+  if (parts[0] !== String(currentTenantId())) return { paid: false, ignored: 'foreign_tenant' };
+
+  const invoiceId = parts[1];
+  const invoice = await Invoice.findById(invoiceId).exec();
+  if (!invoice) return { paid: false, ignored: 'no_invoice' };
+  // On a learner's return we pass their id; a reference must resolve to their own
+  // invoice. (Staff/reconcile omit this — they act for the whole tenant.)
+  if (requireOwnerId && String(invoice.userId) !== String(requireOwnerId)) {
+    return { paid: false, ignored: 'not_owner' };
+  }
+
+  const provider = PROVIDERS[providerKey];
+  if (!provider) return { paid: false, ignored: 'unknown_provider' };
+
+  const result = await provider.verify(reference);
+  if (!result.paid) return { paid: false, invoice };
+
+  const { invoice: updated } = await recordPayment({
+    invoiceId,
+    amount: result.amount,
+    method: providerKey,
+    provider: providerKey,
+    providerRef: result.providerRef,
+  });
+  return { paid: true, invoice: updated };
+}
+
+/**
+ * Sweep unsettled invoices that carry a pending online reference older than a grace
+ * window, re-verify each with the provider, and record any that have actually
+ * succeeded. The safety net under the webhook: a payment that completed while the
+ * webhook was dropped or our endpoint was briefly down still reconciles. Runs inside
+ * a tenant context (the cron iterates tenants). Idempotent throughout.
+ */
+async function reconcilePendingPayments({ olderThanMinutes = 10, providerKey = 'paystack' } = {}) {
+  const cutoff = new Date(Date.now() - olderThanMinutes * 60000);
+  const pending = await Invoice.find({
+    state: { $in: ['unpaid', 'part', 'deposit', 'overdue'] },
+    pendingReference: { $type: 'string' },
+    pendingReferenceAt: { $lte: cutoff },
+  }).exec();
+
+  let recovered = 0;
+  for (const inv of pending) {
+    try {
+      const r = await confirmByReference(inv.pendingReference, { providerKey });
+      if (r.paid) recovered += 1;
+    } catch (err) {
+      logger.warn({ invoiceId: String(inv._id), err: err.message }, 'reconcile: verify failed, will retry next sweep');
+    }
+  }
+  return { checked: pending.length, recovered };
+}
+
 /* ------------------------------------------------------------------- helpers */
 
 function deriveState(due, paid) {
@@ -426,6 +522,6 @@ module.exports = {
   listSchedules, createSchedule, scheduleForCohort, cohortFee,
   raiseInvoice, invoiceFor, invoiceView, myInvoices, ensureInvoiceForEnrolment,
   beginPayment, recordPayment, confirmBankTransfer, waive, refund, paymentsFor,
-  handleWebhook,
+  handleWebhook, confirmByReference, reconcilePendingPayments,
   PROVIDERS,
 };

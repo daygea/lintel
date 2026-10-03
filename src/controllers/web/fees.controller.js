@@ -8,10 +8,26 @@ const h = (fn) => async (req, res, next) => {
 };
 
 exports.mine = h(async (req, res) => {
+  // Verify-on-return. Paystack appends ?reference=/&trxref= to the callback; confirm
+  // it server-side so the learner's access opens immediately rather than waiting on
+  // the webhook — and so the banner tells the truth instead of trusting the redirect.
+  const reference = req.query.reference || req.query.trxref || null;
+  let payStatus = null; // 'confirmed' | 'pending' | null
+  if (reference) {
+    try {
+      const { paid } = await commerce.confirmByReference(reference, { requireOwnerId: req.user._id });
+      payStatus = paid ? 'confirmed' : 'pending';
+    } catch {
+      payStatus = 'pending'; // verification hiccup — the webhook/reconcile will still catch it
+    }
+  } else if (req.query.paid) {
+    payStatus = 'pending'; // returned from checkout without a reference to verify yet
+  }
+
   const rows = await commerce.myInvoices(req.user._id);
   res.render('fees/my', {
     rows, format,
-    paid: req.query.paid || null,
+    payStatus,
     error: req.query.err || null,
   });
 });
