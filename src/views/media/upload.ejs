@@ -12,7 +12,7 @@
   <button class="btn" id="startBtn" type="button">Upload</button>
 
   <div id="progress" style="display:none;margin-top:20px;max-width:520px">
-    <div class="mono quiet" style="font-size:12px" id="statusText">Preparing…</div>
+    <div class="mono quiet" style="font-size:12px" id="statusText" role="status" aria-live="polite">Preparing…</div>
     <div style="height:6px;background:var(--rule);border-radius:3px;margin-top:8px;overflow:hidden">
       <div id="bar" style="height:100%;width:0;background:var(--brass);transition:width .2s"></div>
     </div>

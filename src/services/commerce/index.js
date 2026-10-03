@@ -67,7 +67,7 @@ async function myInvoices(userId) {
       amountDue,
       amountPaid,
       outstanding,
-      settled: money.isFree(outstanding) || inv.state === 'waived',
+      settled: outstanding.amount <= 0 || inv.state === 'waived',
     };
   });
 }
@@ -146,15 +146,23 @@ async function raiseInvoice({ enrollmentId, feeScheduleId, planId }) {
  * Begin an online payment. Returns a provider authorization URL. The reference is
  * ours and unique, so the webhook can find the invoice again.
  */
-async function beginPayment({ invoiceId, providerKey = 'paystack', returnUrl }) {
+async function beginPayment({ invoiceId, providerKey = 'paystack', returnUrl, requireOwnerId }) {
   const invoice = await Invoice.findById(invoiceId).exec();
   if (!invoice) throw new ValidationError('No such invoice');
+
+  // Ownership. A learner may only pay their OWN invoice. When a learner-facing
+  // route calls this it passes requireOwnerId = req.user._id; staff routes omit it
+  // (staff may raise a checkout link for any invoice in their tenant). Without this,
+  // a learner could begin payment against — and probe the amount/status of — anyone's invoice.
+  if (requireOwnerId && String(invoice.userId) !== String(requireOwnerId)) {
+    throw new NotAuthorisedError('That invoice is not yours');
+  }
 
   const provider = PROVIDERS[providerKey];
   if (!provider) throw new ValidationError(`Unknown provider: ${providerKey}`);
 
   const outstanding = money.subtract(invoice.amountDue, invoice.amountPaid);
-  if (money.isFree(outstanding)) throw new ValidationError('This invoice is already settled');
+  if (outstanding.amount <= 0) throw new ValidationError('This invoice is already settled');
 
   const user = await User.findById(invoice.userId).exec();
   const reference = `${currentTenantId()}_${invoice._id}_${crypto.randomBytes(4).toString('hex')}`;
@@ -194,52 +202,88 @@ async function recordPayment({ invoiceId, amount, method, provider = 'manual', p
   const invoice = await Invoice.findById(invoiceId).exec();
   if (!invoice) throw new ValidationError('No such invoice');
 
-  // Idempotency guard: if this ref is already recorded, return quietly.
-  if (providerRef) {
-    const seen = await Payment.findOne({ providerRef }).exec();
-    if (seen) {
-      logger.info({ providerRef }, 'payment already recorded — ignoring replay');
-      return { invoice, payment: seen, replay: true };
+  // Reject a currency mismatch BEFORE writing anything. Otherwise the Payment row is
+  // created and the later tally (money.add) throws on mismatched currency — leaving the
+  // invoice un-synced while the replay guard short-circuits every retry, so a learner
+  // who has paid stays locked out forever. Fail before the row exists.
+  if (amount && amount.currency !== invoice.amountDue.currency) {
+    throw new ValidationError(
+      `Payment currency ${amount && amount.currency} does not match invoice currency ${invoice.amountDue.currency}`
+    );
+  }
+
+  // Idempotency: one Payment per providerRef.
+  let payment = providerRef ? await Payment.findOne({ providerRef }).exec() : null;
+  let replay = !!payment;
+
+  if (!payment) {
+    const manual = ['bank_transfer', 'cash', 'waiver', 'refund'].includes(method);
+    try {
+      payment = await Payment.create({
+        invoiceId,
+        userId: invoice.userId,
+        amount,
+        method,
+        provider,
+        providerRef,
+        confirmedByUserId: manual ? currentUserId() : undefined,
+        note,
+      });
+    } catch (err) {
+      if (err.code === 11000 && providerRef) {
+        payment = await Payment.findOne({ providerRef }).exec();
+        replay = true;
+      } else {
+        throw err;
+      }
     }
   }
 
-  const manual = ['bank_transfer', 'cash', 'waiver', 'refund'].includes(method);
-  let payment;
-  try {
-    payment = await Payment.create({
-      invoiceId,
-      userId: invoice.userId,
-      amount,
-      method,
-      provider,
-      providerRef,
-      confirmedByUserId: manual ? currentUserId() : undefined,
-      note,
+  let state;
+  if (replay) {
+    // The payment already existed — this is a duplicate/retried delivery, possibly
+    // after a previous attempt crashed between the row write and the invoice update.
+    // Re-derive the tally from ALL rows so the invoice + enrolment converge to the
+    // correct state instead of short-circuiting and leaving a paid learner locked out.
+    logger.info({ providerRef }, 'payment already recorded — re-syncing invoice (idempotent)');
+    ({ state } = await resyncInvoice(invoice));
+  } else {
+    // Normal path: move the running tally by this payment (a refund is negative).
+    const newPaid = money.add(invoice.amountPaid, amount);
+    state = invoice.state === 'waived' ? 'waived' : deriveState(invoice.amountDue, newPaid);
+    await Invoice.updateOne({ _id: invoice._id }, { amountPaid: newPaid, state }).exec();
+    await syncEnrollmentState(invoice.enrollmentId, state);
+    await AuditLog.create({
+      actorUserId: currentUserId(),
+      action: 'payment.recorded',
+      subjectType: 'Payment',
+      subjectId: payment._id,
+      meta: { method, amount: amount.amount, state },
     });
-  } catch (err) {
-    if (err.code === 11000 && providerRef) {
-      const seen = await Payment.findOne({ providerRef }).exec();
-      return { invoice, payment: seen, replay: true };
-    }
-    throw err;
   }
 
-  // Move the tally and recompute state.
-  const newPaid = money.add(invoice.amountPaid, amount);
-  const state = deriveState(invoice.amountDue, newPaid);
-  await Invoice.updateOne({ _id: invoice._id }, { amountPaid: newPaid, state }).exec();
+  return { invoice: await Invoice.findById(invoice._id).exec(), payment, replay };
+}
 
+/**
+ * Recompute an invoice's paid tally as the SUM of every payment recorded against it
+ * (a refund is a negative payment, so the sum is the true net paid), then persist the
+ * derived state and sync the enrolment. Idempotent — safe to call on every (re)delivery.
+ */
+async function resyncInvoice(invoice) {
+  const payments = await Payment.find({ invoiceId: invoice._id }).exec();
+  let paid = money.zero(invoice.amountDue.currency);
+  for (const p of payments) {
+    // Defensive: ignore any legacy row in a foreign currency so a resync can never
+    // throw and re-introduce the lockout it exists to prevent.
+    if (!p.amount || p.amount.currency !== paid.currency) continue;
+    paid = money.add(paid, p.amount);
+  }
+  // A waiver is a decision that outlives later ledger movement; a resync must not undo it.
+  const state = invoice.state === 'waived' ? 'waived' : deriveState(invoice.amountDue, paid);
+  await Invoice.updateOne({ _id: invoice._id }, { amountPaid: paid, state }).exec();
   await syncEnrollmentState(invoice.enrollmentId, state);
-
-  await AuditLog.create({
-    actorUserId: currentUserId(),
-    action: 'payment.recorded',
-    subjectType: 'Payment',
-    subjectId: payment._id,
-    meta: { method, amount: amount.amount, state },
-  });
-
-  return { invoice: await Invoice.findById(invoice._id).exec(), payment, replay: false };
+  return { paid, state };
 }
 
 /** A registrar confirms a bank transfer they have seen land. */

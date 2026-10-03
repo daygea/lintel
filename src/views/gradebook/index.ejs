@@ -69,16 +69,16 @@
     <h3 style="font-size:14px;margin-top:14px">Categories (weighted buckets)</h3>
     <% for (var i=0;i<3;i++) { %>
       <div style="display:flex;gap:6px;margin-bottom:6px">
-        <input name="cat_key" placeholder="key (recitation)" style="max-width:150px">
-        <input name="cat_label" placeholder="label" style="flex:1">
-        <input name="cat_weight" type="number" placeholder="wt" style="max-width:70px">
+        <input name="cat_key" placeholder="key (recitation)" aria-label="Category key" style="max-width:150px">
+        <input name="cat_label" placeholder="label" aria-label="Category label" style="flex:1">
+        <input name="cat_weight" type="number" placeholder="wt" aria-label="Category weight" style="max-width:70px">
       </div>
     <% } %>
     <h3 style="font-size:14px;margin-top:14px">Bands (grade thresholds)</h3>
     <% for (var i=0;i<3;i++) { %>
       <div style="display:flex;gap:6px;margin-bottom:6px">
-        <input name="band_label" placeholder="label (Distinction)" style="flex:1">
-        <input name="band_min" type="number" placeholder="min %" style="max-width:90px">
+        <input name="band_label" placeholder="label (Distinction)" aria-label="Band label" style="flex:1">
+        <input name="band_min" type="number" placeholder="min %" aria-label="Band minimum percent" style="max-width:90px">
       </div>
     <% } %>
     <div class="field" style="margin-top:10px"><label for="sch_pass">Pass percent</label><input id="sch_pass" name="passPercent" type="number" value="50" min="0" max="100" style="max-width:100px"></div>

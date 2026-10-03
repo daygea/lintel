@@ -16,7 +16,8 @@ async function register({ email, name, password }) {
   if (password.length < 10) throw new ValidationError('Use at least 10 characters');
 
   const existing = await User.findOne({ email: email.toLowerCase() });
-  if (existing) throw new ValidationError('An account already exists for that email');
+  // Neutral message — do not confirm to an anonymous caller whether an email is registered.
+  if (existing) throw new ValidationError('That email can’t be registered. If it’s yours, sign in instead.');
 
   const user = await User.create({
     email: email.toLowerCase(),
@@ -27,21 +28,74 @@ async function register({ email, name, password }) {
   return user;
 }
 
-async function authenticate({ email, password, totp }) {
+/**
+ * Step one of sign-in: verify the password only. Returns the user and whether a
+ * second factor is still required. Never reveals whether the email exists — an
+ * unknown email spends the same bcrypt time (dummyVerify) and yields the same
+ * generic error as a wrong password, closing the enumeration + timing oracle.
+ */
+async function authenticatePassword({ email, password }) {
   const user = await User.findOne({ email: String(email || '').toLowerCase() }).select('+passwordHash +mfa.secret');
-  if (!user) throw new NotAuthenticatedError();
-
+  if (!user) {
+    await User.dummyVerify(); // equalise timing for a non-existent account
+    throw new NotAuthenticatedError();
+  }
   const ok = await user.verifyPassword(password || '');
   if (!ok) throw new NotAuthenticatedError();
+  return { user, mfaRequired: !!user.mfa?.enabled };
+}
 
-  if (user.mfa?.enabled) {
-    if (!totp) throw new ValidationError('Enter the code from your authenticator app');
-    if (!authenticator.check(String(totp), user.mfa.secret)) throw new NotAuthenticatedError();
+/**
+ * Step two: verify a TOTP code for an already password-verified user, and burn it.
+ * Single-use within its 30s step, so an observed code can't be replayed.
+ */
+async function verifyTotp({ user, totp }) {
+  // Always load the secret AND the last-used step, so single-use is enforced on
+  // every path (the one-shot authenticate() has the secret but not the step).
+  const fresh = await User.findById(user._id).select('+mfa.secret +mfa.lastTotpStep');
+  if (!fresh || !fresh.mfa?.secret) throw new NotAuthenticatedError();
+  if (!totp || !authenticator.check(String(totp), fresh.mfa.secret)) throw new NotAuthenticatedError();
+
+  const step = Math.floor(Date.now() / 30000);
+  if (fresh.mfa.lastTotpStep === step) {
+    throw new NotAuthenticatedError('That code was just used. Wait for the next one.');
   }
+  await User.updateOne({ _id: fresh._id }, { $set: { 'mfa.lastTotpStep': step } }).exec();
+  return true;
+}
 
-  user.lastSeenAt = new Date();
-  await user.save();
+/**
+ * One-shot authenticate (JSON API / tests): password + optional TOTP together.
+ * The web flow uses authenticatePassword + verifyTotp as two steps instead.
+ */
+async function authenticate({ email, password, totp }) {
+  const { user, mfaRequired } = await authenticatePassword({ email, password });
+  if (mfaRequired) {
+    if (!totp) throw new ValidationError('Enter the code from your authenticator app');
+    await verifyTotp({ user, totp });
+  }
+  await User.updateOne({ _id: user._id }, { $set: { lastSeenAt: new Date() } }).exec();
   return user;
+}
+
+/**
+ * Change a password for a signed-in user. Verifies the current password, applies
+ * the new one, clears the force-change flag, and bumps sessionEpoch so every OTHER
+ * session for this account is invalidated.
+ */
+async function changePassword({ userId, currentPassword, newPassword }) {
+  if (!newPassword || String(newPassword).length < 10) {
+    throw new ValidationError('Use at least 10 characters');
+  }
+  const user = await User.findById(userId).select('+passwordHash');
+  if (!user) throw new NotAuthenticatedError();
+  const ok = await user.verifyPassword(currentPassword || '');
+  if (!ok) throw new ValidationError('Your current password is not right');
+  await User.updateOne(
+    { _id: user._id },
+    { passwordHash: await User.hashPassword(newPassword), mustChangePassword: false, $inc: { sessionEpoch: 1 } }
+  ).exec();
+  return { ok: true, sessionEpoch: (user.sessionEpoch || 0) + 1 };
 }
 
 async function beginMfaSetup(user) {
@@ -177,4 +231,7 @@ async function selfRegister({ email, name }) {
   return { user, pending: true };
 }
 
-module.exports = { register, authenticate, beginMfaSetup, confirmMfa, disableMfa, invite, selfRegister };
+module.exports = {
+  register, authenticate, authenticatePassword, verifyTotp, changePassword,
+  beginMfaSetup, confirmMfa, disableMfa, invite, selfRegister,
+};

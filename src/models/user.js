@@ -34,6 +34,9 @@ const UserSchema = new Schema(
     mfa: {
       enabled: { type: Boolean, default: false },
       secret: { type: String, select: false },
+      // The 30s TOTP step last consumed for a successful login — makes a code
+      // single-use so a captured/observed code can't be replayed within its window.
+      lastTotpStep: { type: Number, select: false },
     },
 
     locale: { type: String, default: 'en' },
@@ -62,6 +65,12 @@ const UserSchema = new Schema(
 );
 
 UserSchema.statics.hashPassword = (plain) => bcrypt.hash(plain, 12);
+
+// A fixed bcrypt hash of a random value, computed once. Used to spend roughly the
+// same time verifying a login for an email that does NOT exist as for one that does,
+// so response timing can't be used to enumerate which emails have accounts.
+const DUMMY_HASH = bcrypt.hashSync(require('node:crypto').randomBytes(16).toString('hex'), 12);
+UserSchema.statics.dummyVerify = () => bcrypt.compare('not-a-real-password', DUMMY_HASH);
 
 UserSchema.methods.verifyPassword = function verifyPassword(plain) {
   if (!this.passwordHash) throw new Error('passwordHash not selected on this document');

@@ -24,7 +24,7 @@ exports.pay = h(async (req, res) => {
     const host = req.get('host');
     const proto = host && host.includes('localhost') ? 'http' : 'https';
     const returnUrl = `${proto}://${host}/my/fees?paid=1`;
-    const { authorizationUrl } = await commerce.beginPayment({ invoiceId: req.params.invoiceId, returnUrl });
+    const { authorizationUrl } = await commerce.beginPayment({ invoiceId: req.params.invoiceId, returnUrl, requireOwnerId: req.user._id });
     res.redirect(authorizationUrl);
   } catch (err) {
     if (err.status === 422 || err.name === 'ValidationError') {

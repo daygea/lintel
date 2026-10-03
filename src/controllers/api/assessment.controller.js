@@ -14,7 +14,7 @@ exports.getAssessment = h(async (req, res) => res.json({ assessment: await svc.g
 exports.createAssessment = h(async (req, res) => res.status(201).json({ assessment: await svc.createAssessment(req.body) }));
 
 exports.submit = h(async (req, res) =>
-  res.status(201).json({ submission: await svc.submit({ ...req.body, userId: req.body.userId || req.user._id }) })
+  res.status(201).json({ submission: await svc.submit({ ...req.body, userId: req.user._id }) })
 );
 exports.listSubmissions = h(async (req, res) => res.json({ submissions: await svc.listSubmissions(req.params.assessmentId) }));
 

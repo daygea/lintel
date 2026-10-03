@@ -139,13 +139,17 @@ describe('progress', () => {
       const mod = await Module.create({ courseId: course._id, title: { en: 'M' } });
       const l1 = await Lesson.create({ moduleId: mod._id, courseId: course._id, title: { en: 'L1' } });
       const l2 = await Lesson.create({ moduleId: mod._id, courseId: course._id, title: { en: 'L2' } });
-      await svc.markLesson({ enrollmentId: enrollment._id, lessonId: l1._id, state: 'complete' });
-      await svc.markLesson({ enrollmentId: enrollment._id, lessonId: l2._id, state: 'in_progress' });
-      return svc.progressFor(enrollment._id);
+      return { course, l1, l2 };
     });
+    // Progress is owner-only: run as the enrolled learner (the applicant), not the registrar.
+    const asApplicant = (fn) => runWithTenant(tenant._id, applicant._id, fn);
+    const { l1, l2 } = summary;
+    await asApplicant(() => svc.markLesson({ enrollmentId: enrollment._id, lessonId: l1._id, state: 'complete' }));
+    await asApplicant(() => svc.markLesson({ enrollmentId: enrollment._id, lessonId: l2._id, state: 'in_progress' }));
+    const progress = await asApplicant(() => svc.progressFor(enrollment._id));
 
-    expect(summary.total).toBe(2);
-    expect(summary.complete).toBe(1);
+    expect(progress.total).toBe(2);
+    expect(progress.complete).toBe(1);
   });
 });
 

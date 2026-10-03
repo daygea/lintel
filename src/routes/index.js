@@ -44,16 +44,24 @@ const commerceService = require('../services/commerce');
 
 const { requireUser, requireMember, requireRole } = require('../middleware/auth');
 const { requireFeature } = require('../middleware/require-feature');
+const { rateLimit, byIpAndEmail } = require('../middleware/rate-limit');
 const { ROLES } = require('../lib/roles');
 
 const router = express.Router();
 
+// Throttle credential-guessing: per IP+email, generous enough for a fat-fingered
+// human, tight enough to stop a brute-force or TOTP sweep.
+const loginLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 12, keyFn: byIpAndEmail,
+  message: 'Too many sign-in attempts. Please wait a few minutes and try again.' });
+
 /* ------------------------------------------------------------------ session */
 router.get('/login', webAuth.showLogin);
-router.post('/login', webAuth.login);
+router.post('/login', loginLimiter, webAuth.login);
 router.post('/logout', webAuth.logout);
+router.get('/account/password', requireUser, webAuth.showChangePassword);
+router.post('/account/password', requireUser, webAuth.changePassword);
 
-router.post('/api/v1/auth/login', apiAuth.login);
+router.post('/api/v1/auth/login', loginLimiter, apiAuth.login);
 router.post('/api/v1/auth/logout', apiAuth.logout);
 
 /* --------------------------------------------------------------------- gates */
@@ -204,8 +212,8 @@ router.get('/register', ...staff, webEligibility.register);
 router.post('/register/standings', ...staff, webEligibility.createStanding);
 router.post('/register/attestations', ...staff, webEligibility.issueAttestation);
 router.post('/register/attestations/:id/revoke', ...staff, webEligibility.revokeAttestation);
-router.get('/policies', ...staff, webEligibility.policies);
-router.post('/policies', ...staff, webEligibility.createPolicy);
+router.get('/policies', ...staff, requireFeature('eligibility'), webEligibility.policies);
+router.post('/policies', ...staff, requireFeature('eligibility'), webEligibility.createPolicy);
 router.get('/access-log', ...staff, webEligibility.accessLog);
 
 router.get('/api/v1/attestation-types', ...staff, apiEligibility.listTypes);
@@ -286,15 +294,15 @@ router.post('/api/v1/quizzes/:id/submit', requireUser, requireMember, requireFea
 router.get('/fees', ...staff, requireFeature('commerce'), webCommerce.fees);
 router.post('/fees/schedules', ...staff, requireFeature('commerce'), webCommerce.createSchedule);
 router.post('/fees/payments', ...staff, requireFeature('commerce'), webCommerce.recordPayment);
-router.post('/invoices', ...staff, webCommerce.raiseInvoice);
-router.get('/invoices/:id', ...staff, webCommerce.showInvoice);
-router.post('/invoices/:id/payments', ...staff, webCommerce.recordInvoicePayment);
-router.post('/invoices/:id/pay', ...staff, webCommerce.payInvoice);
-router.post('/invoices/:id/waive', ...staff, webCommerce.waiveInvoice);
-router.post('/invoices/:id/refund', ...staff, webCommerce.refundInvoice);
+router.post('/invoices', ...staff, requireFeature('commerce'), webCommerce.raiseInvoice);
+router.get('/invoices/:id', ...staff, requireFeature('commerce'), webCommerce.showInvoice);
+router.post('/invoices/:id/payments', ...staff, requireFeature('commerce'), webCommerce.recordInvoicePayment);
+router.post('/invoices/:id/pay', ...staff, requireFeature('commerce'), webCommerce.payInvoice);
+router.post('/invoices/:id/waive', ...staff, requireFeature('commerce'), webCommerce.waiveInvoice);
+router.post('/invoices/:id/refund', ...staff, requireFeature('commerce'), webCommerce.refundInvoice);
 
-router.get('/api/v1/fee-schedules', ...staff, apiCommerce.listSchedules);
-router.post('/api/v1/fee-schedules', ...staff, apiCommerce.createSchedule);
+router.get('/api/v1/fee-schedules', ...staff, requireFeature('commerce'), apiCommerce.listSchedules);
+router.post('/api/v1/fee-schedules', ...staff, requireFeature('commerce'), apiCommerce.createSchedule);
 router.post('/api/v1/invoices', ...staff, requireFeature('commerce'), apiCommerce.raiseInvoice);
 router.get('/api/v1/enrollments/:enrollmentId/invoice', ...staff, requireFeature('commerce'), apiCommerce.invoice);
 router.post('/api/v1/payments/begin', requireUser, requireMember, requireFeature('commerce'), apiCommerce.beginPayment);
@@ -383,7 +391,7 @@ router.post('/directory-listing/unpublish', ...staff, requireFeature('directory'
 
 /* ---- Learner self-registration into this institution (Sprint 12) ---- */
 router.get('/join', webSignup.registerForm);
-router.post('/join', webSignup.registerSubmit);
+router.post('/join', rateLimit({ windowMs: 10 * 60 * 1000, max: 6, keyFn: byIpAndEmail }), webSignup.registerSubmit);
 
 /* A signed-in user whose membership is still pending admission lands here —
    a truthful "awaiting admission" page, not a 403 that says they aren't a member. */

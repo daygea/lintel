@@ -81,6 +81,7 @@ module.exports = {
   // Platform console (Sprint 13)
   PlatformAuditLog: require('./platform-audit-log'),
   PlatformPayment: require('./platform-payment'),
+  RateHit: require('./rate-hit'),
 
   // Abuse response + break-glass (Sprint 14)
   AbuseReport: require('./abuse-report'),

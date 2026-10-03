@@ -16,6 +16,7 @@ const PLATFORM_SCOPED = [
   'abuse-report.js',
   'breakglass-grant.js',
   'platform-payment.js', // institution→Lintel subscription payment; Lintel's revenue, belongs to no tenant
+  'rate-hit.js', // brute-force throttle counter; precedes any session/tenant
 ];
 
 module.exports = function checkTenantGuard() {

@@ -81,10 +81,17 @@ function wireShell() {
   document.body.classList.add('has-shell');
   const toggle = document.getElementById('nav-toggle');
   const scrim = document.getElementById('scrim');
-  if (toggle) toggle.onclick = () => document.body.classList.toggle('nav-open');
-  if (scrim) scrim.onclick = () => document.body.classList.remove('nav-open');
+  const setOpen = (open) => {
+    document.body.classList.toggle('nav-open', open);
+    if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+  if (toggle) {
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.onclick = () => setOpen(!document.body.classList.contains('nav-open'));
+  }
+  if (scrim) scrim.onclick = () => setOpen(false);
   // Any navigation inside the drawer should close it.
-  document.querySelectorAll('.side a').forEach((a) => a.addEventListener('click', () => document.body.classList.remove('nav-open')));
+  document.querySelectorAll('.side a').forEach((a) => a.addEventListener('click', () => setOpen(false)));
 }
 
 /* --------------------------------------------------------------- sidebars */
@@ -314,7 +321,10 @@ async function renderQuiz(quizId) {
 }
 
 function renderQuestion(q, i) {
-  const prompt = `<div class="q-prompt"><span class="q-num">${i + 1}.</span> ${pickRaw(q.prompt)} <span class="muted">(${q.points} pt${q.points === 1 ? '' : 's'})</span></div>`;
+  // The group is named by its prompt (aria-labelledby), so a screen reader ties the
+  // controls to the question; single inputs reference the same prompt id.
+  const pid = `qp_${q.id}`;
+  const prompt = `<div class="q-prompt" id="${pid}"><span class="q-num">${i + 1}.</span> ${pickRaw(q.prompt)} <span class="muted">(${q.points} pt${q.points === 1 ? '' : 's'})</span></div>`;
   let field = '';
 
   if (q.type === 'mcq' || q.type === 'multi') {
@@ -325,21 +335,22 @@ function renderQuestion(q, i) {
   } else if (q.type === 'matching') {
     field = (q.lefts || []).map((l) =>
       `<div class="q-match"><span class="q-left">${escapeHtml(l)}</span>
-        <select data-match="${escapeAttr(l)}" name="q_${q.id}">
+        <select data-match="${escapeAttr(l)}" name="q_${q.id}" aria-label="${escapeAttr(l)}">
           <option value="">—</option>
           ${(q.rights || []).map((r) => `<option value="${escapeAttr(r)}">${escapeHtml(r)}</option>`).join('')}
         </select></div>`
     ).join('');
   } else if (q.type === 'numeric') {
-    field = `<input class="q-text" type="number" step="any" name="q_${q.id}">`;
+    field = `<input class="q-text" type="number" step="any" name="q_${q.id}" aria-labelledby="${pid}">`;
   } else if (q.type === 'essay') {
-    field = `<textarea class="q-text" name="q_${q.id}" rows="5" placeholder="Your answer"></textarea>`;
+    field = `<textarea class="q-text" name="q_${q.id}" rows="5" placeholder="Your answer" aria-labelledby="${pid}"></textarea>`;
   } else {
     // short / cloze
-    field = `<input class="q-text" type="text" name="q_${q.id}" placeholder="Your answer">`;
+    field = `<input class="q-text" type="text" name="q_${q.id}" placeholder="Your answer" aria-labelledby="${pid}">`;
   }
 
-  return `<div class="card q-block" data-qid="${q.id}" data-qtype="${q.type}">${prompt}<div class="q-field">${field}</div></div>`;
+  const groupRole = q.type === 'mcq' ? 'radiogroup' : 'group';
+  return `<div class="card q-block" role="${groupRole}" aria-labelledby="${pid}" data-qid="${q.id}" data-qtype="${q.type}">${prompt}<div class="q-field">${field}</div></div>`;
 }
 
 // Gather each question's response in the shape submit() expects, then POST.

@@ -12,6 +12,7 @@ function isApex(host) {
 }
 const webDirectory = require('../controllers/web/directory.controller');
 const webSignup = require('../controllers/web/signup.controller');
+const { rateLimit } = require('../middleware/rate-limit');
 
 /**
  * Routes that run WITHOUT tenant resolution. A credential is verified by its
@@ -51,10 +52,10 @@ router.get('/verify', (req, res) => res.render('credential/verify-landing'));
 /* ---- Institution signup (apex) ---- */
 router.get('/signup', (req, res, next) => { if (!isApex(req.headers.host)) return next(); webSignup.form(req, res, next); });
 router.get('/signup/check', webSignup.check);
-router.post('/signup', webSignup.submit);
+router.post('/signup', rateLimit({ windowMs: 60 * 60 * 1000, max: 8 }), webSignup.submit);
 
 /* ---- Onboarding: set password from emailed link (works on any host) ---- */
 router.get('/onboard/:token', webSignup.onboardForm);
-router.post('/onboard/:token', webSignup.onboardSubmit);
+router.post('/onboard/:token', rateLimit({ windowMs: 10 * 60 * 1000, max: 12 }), webSignup.onboardSubmit);
 
 module.exports = router;

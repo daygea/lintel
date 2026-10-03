@@ -51,20 +51,31 @@ async function issueOnboarding({ userId, tenantId, withTempPassword = false, pur
  * consumed and cannot be replayed. Runs as platform (the clicker has no session).
  */
 async function consumeOnboarding({ rawToken, newPassword }) {
-  if (!newPassword || String(newPassword).length < 8) {
-    throw new ValidationError('Choose a password of at least 8 characters.');
+  if (!newPassword || String(newPassword).length < 10) {
+    throw new ValidationError('Choose a password of at least 10 characters.');
   }
   return runAsPlatform('onboarding set-password (no session)', async () => {
-    const token = await OnboardingToken.findOne({ tokenHash: sha256(rawToken) }).exec();
-    if (!token) throw new ValidationError('This link is invalid.');
-    if (token.consumedAt) throw new ValidationError('This link has already been used.');
-    if (token.expiresAt < new Date()) throw new ValidationError('This link has expired. Ask for a new one.');
+    const hash = sha256(rawToken);
+    // Atomically CLAIM the token: the filter requires it to be unconsumed and unexpired,
+    // so two concurrent clicks on one link can never both succeed (read-then-write raced before).
+    const token = await OnboardingToken.findOneAndUpdate(
+      { tokenHash: hash, consumedAt: null, expiresAt: { $gt: new Date() } },
+      { $set: { consumedAt: new Date() } },
+      { new: false }
+    ).exec();
+
+    if (!token) {
+      // Give a precise reason without re-opening the race.
+      const existing = await OnboardingToken.findOne({ tokenHash: hash }).exec();
+      if (!existing) throw new ValidationError('This link is invalid.');
+      if (existing.consumedAt) throw new ValidationError('This link has already been used.');
+      throw new ValidationError('This link has expired. Ask for a new one.');
+    }
 
     await User.updateOne(
       { _id: token.userId },
       { passwordHash: await User.hashPassword(newPassword), status: 'active', mustChangePassword: false }
     ).exec();
-    await OnboardingToken.updateOne({ _id: token._id }, { consumedAt: new Date() }).exec();
 
     const user = await User.findById(token.userId).exec();
     return { user, tenantId: token.tenantId };

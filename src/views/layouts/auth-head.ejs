@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+  <meta name="theme-color" content="#161A2E">
+  <title><%= typeof pageTitle !== 'undefined' ? pageTitle : 'Lintel' %></title>
+  <link rel="stylesheet" href="/css/lintel.css">
+  <style>
+    /* ---- Auth shell: the threshold. A branded panel beside a focused form. ---- */
+    .authbody { min-height:100vh; margin:0; background:var(--paper); display:grid; place-items:center; padding:24px; }
+    .auth-wrap { width:100%; max-width:860px; display:grid; grid-template-columns:1.05fr 1fr;
+      background:var(--paper-2); border:1px solid var(--rule); border-radius:14px; overflow:hidden;
+      box-shadow:0 24px 60px -32px rgba(20,22,40,.45); }
+
+    .auth-brand { position:relative; background:linear-gradient(150deg,#161A2E 0%,#20233c 55%,#2b2140 100%);
+      color:#EDECE9; padding:40px 36px; display:flex; flex-direction:column; justify-content:space-between; min-height:440px; }
+    .auth-logo { display:inline-flex; align-items:baseline; gap:9px; font-family:var(--serif); font-size:20px; font-weight:600; color:#fff; text-decoration:none; }
+    .auth-logo .mark { display:inline-block; width:15px; height:15px; position:relative; }
+    .auth-logo .mark::before { content:""; position:absolute; left:2px; top:0; width:11px; height:3px; background:var(--brass); }
+    .auth-logo .mark::after  { content:""; position:absolute; left:4px; top:3px; width:3px; height:12px; background:#C9CAD4; }
+    .auth-brand-inner { margin:28px 0; }
+    .auth-eyebrow { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--brass); margin-bottom:14px; }
+    .auth-title { font-family:var(--serif); font-size:29px; line-height:1.12; font-weight:600; margin:0 0 12px; color:#fff; }
+    .auth-lede { font-size:14.5px; line-height:1.6; color:rgba(237,236,233,.76); max-width:34ch; margin:0; }
+    /* Threshold motif: a brass lintel bearing weight over two posts. */
+    .auth-threshold { position:relative; height:40px; }
+    .auth-threshold::before { content:""; position:absolute; left:0; top:0; width:92px; height:4px; background:var(--brass); border-radius:2px; }
+    .auth-threshold::after { content:""; position:absolute; left:6px; top:4px; width:3px; height:30px; background:rgba(201,202,212,.35);
+      box-shadow:74px 0 0 rgba(201,202,212,.35); }
+
+    .auth-form { padding:44px 40px; display:flex; flex-direction:column; justify-content:center; }
+    .auth-head h2 { font-family:var(--serif); font-size:23px; margin:0 0 4px; }
+    .auth-sub { color:var(--muted); font-size:13.5px; margin:0 0 20px; }
+    .auth-form .field { margin-bottom:14px; }
+    .auth-form .btn.brass { background:var(--brass); border-color:var(--brass); color:#fff; width:100%; justify-content:center; min-height:46px; margin-top:6px; }
+    .auth-form .btn.brass:hover { background:#7A5F30; }
+    .auth-alt { font-size:13px; color:var(--muted); margin:18px 0 0; text-align:center; }
+    .auth-mini { font-size:12.5px; margin-top:10px; text-align:center; }
+
+    @media (max-width:760px) {
+      .authbody { padding:0; place-items:stretch; }
+      .auth-wrap { grid-template-columns:1fr; max-width:none; min-height:100vh; border:0; border-radius:0; box-shadow:none; }
+      .auth-brand { min-height:0; padding:26px 24px; }
+      .auth-brand-inner { margin:16px 0; }
+      .auth-title { font-size:23px; }
+      .auth-lede { display:none; }
+      .auth-threshold { display:none; }
+      .auth-form { padding:28px 24px 40px; }
+    }
+  </style>
+</head>
+<body class="authbody">
+  <div class="auth-wrap">
+    <aside class="auth-brand">
+      <a class="auth-logo" href="/" aria-label="Lintel home"><span class="mark"></span> Lintel</a>
+      <div class="auth-brand-inner">
+        <div class="auth-eyebrow"><%= (typeof tenant !== 'undefined' && tenant && tenant.name) ? tenant.name : 'Lintel' %></div>
+        <h1 class="auth-title"><%= typeof panelTitle !== 'undefined' ? panelTitle : 'Welcome' %></h1>
+        <% if (typeof panelLede !== 'undefined' && panelLede) { %><p class="auth-lede"><%= panelLede %></p><% } %>
+      </div>
+      <div class="auth-threshold" aria-hidden="true"></div>
+    </aside>
+    <main class="auth-form">

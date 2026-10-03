@@ -60,15 +60,15 @@ describe('set-password link', () => {
     const { link } = await onboarding.issueOnboarding({ userId: owner._id });
     const raw = link.split('/onboard/')[1];
 
-    const first = await onboarding.consumeOnboarding({ rawToken: raw, newPassword: 'secret12' });
+    const first = await onboarding.consumeOnboarding({ rawToken: raw, newPassword: 'secret12345' });
     expect(String(first.user._id)).toBe(String(owner._id));
 
-    await expect(onboarding.consumeOnboarding({ rawToken: raw, newPassword: 'other123' }))
+    await expect(onboarding.consumeOnboarding({ rawToken: raw, newPassword: 'other12345' }))
       .rejects.toThrow(/already been used/);
   });
 
   it('rejects an unknown token', async () => {
-    await expect(onboarding.consumeOnboarding({ rawToken: 'nope', newPassword: 'secret12' }))
+    await expect(onboarding.consumeOnboarding({ rawToken: 'nope', newPassword: 'secret12345' }))
       .rejects.toThrow(/invalid/);
   });
 });

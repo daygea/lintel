@@ -57,6 +57,20 @@ async function previewAccess({ lesson, userId, locale = 'en' }) {
     courseId: lesson.courseId,
     status: 'active',
   }).exec();
+
+  // Implicit baseline rule: when NO eligibility policy governs the lesson, access
+  // still requires an ACTIVE enrolment in the course. The evaluator correctly treats
+  // an empty policy as "no rules to fail" (= allowed) and that purity stays intact —
+  // but a lesson with no policy must not therefore be open to every institution
+  // member. "Enrolment alone suffices" means enrolment is still required. Fail closed.
+  const hasPolicy = policy && Array.isArray(policy.rules) && policy.rules.length > 0;
+  if (!hasPolicy) {
+    const verdict = enrollment
+      ? { allowed: true, failedRules: [], message: '' }
+      : { allowed: false, failedRules: ['enrolled'], message: 'You need to be enrolled in this course to open this lesson.' };
+    return { verdict, policy };
+  }
+
   const verdict = await evaluate(policy, { userId, enrollment, locale });
   return { verdict, policy };
 }

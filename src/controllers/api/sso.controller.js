@@ -33,7 +33,10 @@ exports.callback = h(async (req, res) => {
 
   const user = await identity.resolveFromAssertion({ connectionId: connection._id, subject, attributes });
 
+  // Regenerate before establishing identity — defeats session fixation.
+  await new Promise((resolve, reject) => req.session.regenerate((e) => (e ? reject(e) : resolve())));
   req.session.userId = String(user._id);
+  req.session.epoch = user.sessionEpoch || 0;
   res.json({ ok: true, userId: user._id });
 });
 

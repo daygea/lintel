@@ -15,7 +15,7 @@
  *     media is streamed and must never touch a cache — see fetch handler.
  */
 
-const BUILD = 'lintel-v0.17.0'; // ← bump on every deploy
+const BUILD = 'lintel-v0.18.0'; // ← bump on every deploy
 const SHELL_CACHE = `${BUILD}-shell`;
 
 const SHELL = [
@@ -24,6 +24,9 @@ const SHELL = [
   '/app/app.js',
   '/app/app.css',
   '/app/pack.js',
+  '/app/push.js',
+  '/app/manifest.webmanifest',
+  '/app/icon-192.png',
 ];
 
 self.addEventListener('install', (event) => {

@@ -17,7 +17,7 @@ exports.openCohort = h(async (req, res) => res.json({ cohort: await svc.openCoho
 exports.closeCohort = h(async (req, res) => res.json({ cohort: await svc.closeCohort(req.params.id) }));
 
 exports.apply = h(async (req, res) =>
-  res.status(201).json({ application: await svc.apply({ ...req.body, userId: req.body.userId || req.user._id }) })
+  res.status(201).json({ application: await svc.apply({ ...req.body, userId: req.user._id }) })
 );
 exports.listApplications = h(async (req, res) =>
   res.json({ applications: await svc.listApplications(req.params.cohortId, req.query.status) })

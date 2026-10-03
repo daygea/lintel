@@ -69,6 +69,7 @@ function createApp() {
   app.use(tenantResolver);
   app.use(loadSession);
   app.use(require('./middleware/enforce-active'));
+  app.use(require('./middleware/enforce-password-change'));
   app.use(csrf);
 
   app.use(routes);

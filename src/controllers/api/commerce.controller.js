@@ -10,7 +10,10 @@ exports.createSchedule = h(async (req, res) => res.status(201).json({ schedule: 
 exports.raiseInvoice = h(async (req, res) => res.status(201).json({ invoice: await commerce.raiseInvoice(req.body) }));
 exports.invoice = h(async (req, res) => res.json({ invoice: await commerce.invoiceFor(req.params.enrollmentId) }));
 
-exports.beginPayment = h(async (req, res) => res.json(await commerce.beginPayment(req.body)));
+// Learner-facing: force ownership to the signed-in user — never trust a body-supplied owner.
+exports.beginPayment = h(async (req, res) =>
+  res.json(await commerce.beginPayment({ invoiceId: req.body.invoiceId, returnUrl: req.body.returnUrl, requireOwnerId: req.user._id }))
+);
 exports.confirmTransfer = h(async (req, res) => res.json(await commerce.confirmBankTransfer(req.body)));
 exports.waive = h(async (req, res) => res.json({ invoice: await commerce.waive(req.body) }));
 exports.payments = h(async (req, res) => res.json({ payments: await commerce.paymentsFor(req.params.invoiceId) }));

@@ -44,8 +44,9 @@ exports.onboardForm = h(async (req, res) => res.render('signup/set-password', { 
 
 exports.onboardSubmit = h(async (req, res) => {
   try {
-    const { user, tenantId } = await onboarding.consumeOnboarding({ rawToken: req.params.token, newPassword: req.body.password });
-    // Log them in and send to their institution (or apex).
+    const { user } = await onboarding.consumeOnboarding({ rawToken: req.params.token, newPassword: req.body.password });
+    // Regenerate before establishing identity — defeats session fixation.
+    await new Promise((resolve, reject) => req.session.regenerate((e) => (e ? reject(e) : resolve())));
     req.session.userId = String(user._id);
     req.session.epoch = user.sessionEpoch || 0;
     res.render('signup/onboarded', { name: user.name });

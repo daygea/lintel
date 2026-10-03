@@ -214,6 +214,15 @@ async function markLesson({ enrollmentId, lessonId, state, secondsSpent }) {
   const lesson = await Lesson.findById(lessonId).exec();
   if (!lesson) throw new ValidationError('No such lesson');
 
+  // Ownership. A learner may only write progress on their OWN enrolment. tenant-guard
+  // scopes queries to the tenant, NOT to the user — so without this check any member
+  // could POST another learner's enrollmentId and tamper with their completion record.
+  const enrollment = await Enrollment.findById(enrollmentId).exec();
+  if (!enrollment) throw new ValidationError('No such enrolment');
+  if (String(enrollment.userId) !== String(currentUserId())) {
+    throw new NotAuthorisedError('That enrolment is not yours');
+  }
+
   return LessonProgress.findOneAndUpdate(
     { enrollmentId, lessonId },
     {
@@ -226,6 +235,14 @@ async function markLesson({ enrollmentId, lessonId, state, secondsSpent }) {
 }
 
 async function progressFor(enrollmentId) {
+  // Ownership. Reading progress is reading one learner's record; a member must not
+  // be able to read another's by passing their enrollmentId. Staff who need a
+  // learner's progress use the gradebook, not this learner-facing endpoint.
+  const enrollment = await Enrollment.findById(enrollmentId).exec();
+  if (!enrollment) throw new ValidationError('No such enrolment');
+  if (String(enrollment.userId) !== String(currentUserId())) {
+    throw new NotAuthorisedError('That enrolment is not yours');
+  }
   const rows = await LessonProgress.find({ enrollmentId }).exec();
   const complete = rows.filter((r) => r.state === 'complete').length;
   return { total: rows.length, complete, rows };
