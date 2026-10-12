@@ -13,6 +13,80 @@ const logger = require('../../lib/logger');
 
 const PROVIDERS = { paystack: new PaystackProvider() };
 
+/* -------------------------------------------------------------------- payouts */
+
+/** Banks the institution can settle to (for the payout form). */
+const listPayoutBanks = () => PROVIDERS.paystack.listBanks();
+
+/** Confirm an account number resolves to a real name before we route money to it. */
+const resolvePayoutAccount = ({ accountNumber, bankCode }) =>
+  PROVIDERS.paystack.resolveAccount({ accountNumber, bankCode });
+
+/**
+ * Save the institution's settlement bank account and wire up automatic split.
+ *
+ * The admin supplies a bank and account number; we resolve the account name
+ * (rejecting a number that doesn't verify), create or update the Paystack
+ * subaccount from it, and persist both the subaccount code (which the checkout
+ * split reads) and the bank details. From then on every learner payment splits
+ * automatically — institution's share to their bank, Lintel's plan-based cut as
+ * the transaction charge — with nobody handling a raw subaccount code.
+ */
+async function savePayoutAccount({ bankCode, bankName, accountNumber, businessName }) {
+  const number = String(accountNumber || '').replace(/\s/g, '');
+  if (!bankCode) throw new ValidationError('Choose your bank');
+  if (!/^\d{10}$/.test(number)) throw new ValidationError('Enter your 10-digit account number');
+
+  const tenant = await Tenant.findById(currentTenantId()).exec();
+  if (!tenant) throw new ValidationError('No such institution');
+
+  // Verify the account resolves to a real name (also what we display back).
+  const { accountName } = await PROVIDERS.paystack.resolveAccount({ accountNumber: number, bankCode });
+
+  // Lintel's cut for this plan, as a percentage, kept on the subaccount too so the
+  // split is correct even if a future charge omits the per-transaction amount.
+  const bps = (PLANS[tenant.plan] && PLANS[tenant.plan].platformFeeBps) || 0;
+  const { subaccountCode } = await PROVIDERS.paystack.upsertSubaccount({
+    code: tenant.paystackSubaccount || undefined,
+    businessName: (businessName && businessName.trim()) || tenant.name,
+    bankCode,
+    accountNumber: number,
+    percentageCharge: bps / 100,
+  });
+
+  await Tenant.updateOne(
+    { _id: tenant._id },
+    {
+      paystackSubaccount: subaccountCode,
+      payout: { bankName, bankCode, accountNumber: number, accountName, updatedAt: new Date() },
+    }
+  ).exec();
+
+  await AuditLog.create({
+    actorUserId: currentUserId(),
+    action: 'payout.account_saved',
+    subjectType: 'Tenant',
+    subjectId: tenant._id,
+    meta: { bankName, last4: number.slice(-4), subaccount: subaccountCode },
+  });
+
+  return { accountName, bankName, last4: number.slice(-4), subaccountCode };
+}
+
+/** Stop routing to the institution's own account (payments settle to Lintel again). */
+async function clearPayoutAccount() {
+  const tenantId = currentTenantId();
+  await Tenant.updateOne({ _id: tenantId }, { $unset: { paystackSubaccount: '', payout: '' } }).exec();
+  await AuditLog.create({
+    actorUserId: currentUserId(),
+    action: 'payout.account_cleared',
+    subjectType: 'Tenant',
+    subjectId: tenantId,
+    meta: {},
+  });
+  return { cleared: true };
+}
+
 /* -------------------------------------------------------------- fee schedules */
 
 const listSchedules = (filter = {}) => FeeSchedule.find(filter).sort({ createdAt: -1 }).exec();
@@ -523,5 +597,6 @@ module.exports = {
   raiseInvoice, invoiceFor, invoiceView, myInvoices, ensureInvoiceForEnrolment,
   beginPayment, recordPayment, confirmBankTransfer, waive, refund, paymentsFor,
   handleWebhook, confirmByReference, reconcilePendingPayments,
+  listPayoutBanks, resolvePayoutAccount, savePayoutAccount, clearPayoutAccount,
   PROVIDERS,
 };

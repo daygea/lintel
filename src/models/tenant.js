@@ -46,8 +46,22 @@ const TenantSchema = new Schema(
     currentPeriodEnd: { type: Date }, // paid plans: when the current paid period lapses
     // Opt-in marketplace payouts: the institution's Paystack subaccount that
     // receives learner payments directly (Lintel keeps a plan-based cut). Unset =
-    // payments settle to Lintel's account as before.
+    // payments settle to Lintel's account as before. This is the code the split
+    // reads at checkout; it is created automatically from the bank details below.
     paystackSubaccount: { type: String, trim: true },
+
+    // The institution's settlement bank account. The admin enters bank + account
+    // number; we resolve the account name and create/update the Paystack subaccount
+    // from it, so no one ever handles a raw subaccount code by hand. accountNumber
+    // is the institution's own payout account (not a card) — stored so the
+    // subaccount can be updated without re-entry; only its last 4 are ever shown.
+    payout: {
+      bankName: { type: String, trim: true },
+      bankCode: { type: String, trim: true },
+      accountNumber: { type: String, trim: true },
+      accountName: { type: String, trim: true },
+      updatedAt: { type: Date },
+    },
 
     // Access policy the institution controls for itself.
     access: {

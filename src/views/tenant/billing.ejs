@@ -52,16 +52,76 @@
 </table>
 <p class="quiet" style="font-size:12px;margin-top:10px">Payments are processed securely by Paystack. Free plans (trial, grant) are arranged with the Lintel team.</p>
 
-<% if (payout) { %><div class="ok-note" style="margin:18px 0 8px"><span class="badge ok">saved</span> Payout settings updated.</div><% } %>
+<% if (payout === '1') { %><div class="ok-note" style="margin:18px 0 8px"><span class="badge ok">saved</span> Payout account saved — learner payments now split to your bank automatically.</div><% } %>
+<% if (payout === 'removed') { %><div class="ok-note" style="margin:18px 0 8px"><span class="badge">updated</span> Direct payouts turned off — learner fees settle to Lintel and are remitted to you.</div><% } %>
+
 <div class="card" style="margin-top:18px">
-  <h2 style="margin-top:0">Payouts <span class="quiet" style="font-size:13px;font-weight:normal">— receive learner payments directly</span></h2>
-  <p class="quiet" style="font-size:13px">By default, learner fees settle to Lintel and are remitted to you. To receive them <strong>directly</strong>, add your Paystack subaccount code — learner payments then go to your account and Lintel keeps a <strong><%= (feeBps/100).toFixed(feeBps % 100 ? 2 : 0) %>%</strong> platform fee on your current plan. Create a subaccount in your Paystack dashboard (Settings → Subaccounts) and paste its code below.</p>
-  <form method="post" action="/settings/billing/payouts" style="max-width:420px">
+  <h2 style="margin-top:0">Payouts <span class="quiet" style="font-size:13px;font-weight:normal">— get paid directly, split automatically</span></h2>
+  <p class="quiet" style="font-size:13px;max-width:62ch">
+    Add your bank account and learner fees are paid <strong>straight to you</strong>, split automatically at checkout:
+    your share settles to your bank, and Lintel keeps a <strong><%= (feeBps/100).toFixed(feeBps % 100 ? 2 : 0) %>%</strong> platform fee on your current plan.
+    Leave this empty and fees settle to Lintel first, then are remitted to you.
+  </p>
+
+  <% if (payoutAccount) { %>
+    <div class="payout-current">
+      <div>
+        <div class="payout-current-h">Paying out to</div>
+        <div class="payout-acct"><strong><%= payoutAccount.accountName %></strong></div>
+        <div class="quiet mono" style="font-size:13px"><%= payoutAccount.bankName %> · ••••<%= payoutAccount.last4 %></div>
+      </div>
+      <form method="post" action="/settings/billing/payouts/remove" style="margin:0">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn ghost small" type="submit">Turn off direct payouts</button>
+      </form>
+    </div>
+    <p class="quiet" style="font-size:12.5px;margin:12px 0 4px">Need to change the account? Enter the new details below and save — it replaces the one above.</p>
+  <% } %>
+
+  <% if (typeof banksError !== 'undefined' && banksError) { %>
+    <div class="notice err" role="alert" style="margin:8px 0"><%= banksError %></div>
+  <% } %>
+
+  <form method="post" action="/settings/billing/payouts" class="form-narrow payout-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <label for="subaccount">Paystack subaccount code</label>
-    <input id="subaccount" name="subaccount" type="text" value="<%= subaccount %>" placeholder="ACCT_xxxxxxxx">
-    <div style="margin-top:12px"><button class="btn ghost" type="submit">Save payout settings</button></div>
+
+    <div class="field">
+      <label for="bankCode">Bank</label>
+      <select id="bankCode" name="bankCode" required <%= (banks && banks.length) ? '' : 'disabled' %>>
+        <option value="" disabled selected>Select your bank…</option>
+        <% (banks || []).forEach(function (b) { %>
+          <option value="<%= b.code %>"<%= payoutAccount && payoutAccount.bankCode === b.code ? ' selected' : '' %>><%= b.name %></option>
+        <% }); %>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="accountNumber">Account number</label>
+      <input id="accountNumber" name="accountNumber" type="text" inputmode="numeric" autocomplete="off"
+             pattern="\d{10}" maxlength="10" minlength="10" required
+             placeholder="10 digits">
+      <p class="note">Your institution's settlement account. We'll confirm the account name before saving.</p>
+    </div>
+
+    <div class="field">
+      <label for="businessName">Account name on Paystack <span class="quiet">(optional)</span></label>
+      <input id="businessName" name="businessName" type="text" autocomplete="organization"
+             value="" placeholder="<%= businessNameDefault %>">
+      <p class="note">Shown on your payouts. Defaults to your institution's name.</p>
+    </div>
+
+    <div style="margin-top:6px">
+      <button class="btn" type="submit"><%= payoutAccount ? 'Update payout account' : 'Save & enable direct payouts' %></button>
+    </div>
   </form>
-  <% if (subaccount) { %><p class="quiet" style="font-size:12px;margin-top:8px">Learner payments currently route to <span class="mono"><%= subaccount %></span>.</p><% } %>
+  <p class="quiet" style="font-size:12px;margin-top:12px">Processed securely by Paystack. We never see your card or online-banking credentials.</p>
 </div>
+
+<style>
+  .payout-current { display:flex; gap:14px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+    background:var(--paper-2); border:1px solid var(--rule); border-radius:8px; padding:14px 16px; margin:6px 0 4px; }
+  .payout-current-h { font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+  .payout-acct { font-size:15px; }
+  .payout-form { margin-top:14px; }
+</style>
 <%- include("../layouts/foot") %>

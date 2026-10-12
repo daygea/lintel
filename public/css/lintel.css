@@ -160,7 +160,13 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
 .field { margin: 0 0 15px; }
 .field label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 5px; }
 .field .note { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
-input[type=text], input[type=email], input[type=password], input:not([type]), select, textarea {
+/* Every text-like input shares the app's styling. Listing the input types (rather
+   than a bare `input`) keeps checkbox/radio/file/range alone — but it must cover
+   number, tel, search, url and date, which carry the app's own numeric/▾ fields
+   (fees, gradebook, quizzes, payouts) and were previously left browser-default. */
+input[type=text], input[type=email], input[type=password], input[type=number],
+input[type=tel], input[type=search], input[type=url], input[type=date],
+input:not([type]), select, textarea {
   width: 100%; padding: 9px 11px; font-family: var(--sans); font-size: 14.5px;
   border: 1px solid var(--rule-2); border-radius: 4px; background: var(--paper-2); color: var(--ink);
 }
@@ -232,6 +238,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--brass); backgrou
 
   /* Forms never overflow their card. */
   input, select, textarea { max-width: 100%; }
+  /* 16px prevents iOS Safari from zooming in when a field is focused — the single
+     most common "the form jumps around on my phone" complaint. Applies to every
+     text-like control on small screens. */
+  input, select, textarea { font-size: 16px; }
   .card { padding: 14px 15px; }
 }
 

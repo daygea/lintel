@@ -97,6 +97,98 @@ class PaystackProvider extends PaymentProvider {
       providerRef: body.data?.reference,
     };
   }
+
+  /* ----------------------------------------------------- payouts / subaccounts */
+
+  /**
+   * The list of settlement banks for the account form, cached for the process
+   * lifetime (the list barely changes). Dev stub returns a representative set of
+   * Nigerian banks so the form is usable without a live key.
+   */
+  async listBanks({ currency = 'NGN' } = {}) {
+    if (!this.isConfigured()) {
+      if (inProduction()) throw new Error('Paystack is not configured (PAYSTACK_SECRET_KEY missing)');
+      return DEV_BANKS;
+    }
+    if (this._banks) return this._banks;
+    const res = await fetch(`${this.base}/bank?currency=${encodeURIComponent(currency)}&perPage=100`, {
+      headers: { Authorization: `Bearer ${this.secret}` },
+    });
+    const data = await res.json();
+    if (!data.status) throw new Error(data.message || 'Could not load the bank list');
+    this._banks = data.data.map((b) => ({ name: b.name, code: b.code }));
+    return this._banks;
+  }
+
+  /**
+   * Resolve a bank account number to its registered name — the confirmation an
+   * institution sees before we route their money to it. Throws when the account
+   * can't be verified, so a typo never becomes a silent mis-payment. Dev stub
+   * accepts any 10-digit number and returns a placeholder name.
+   */
+  async resolveAccount({ accountNumber, bankCode }) {
+    if (!this.isConfigured()) {
+      if (inProduction()) throw new Error('Paystack is not configured (PAYSTACK_SECRET_KEY missing)');
+      if (!/^\d{10}$/.test(String(accountNumber || ''))) throw new Error('Enter a valid 10-digit account number');
+      return { accountName: 'TEST ACCOUNT (dev)' };
+    }
+    const res = await fetch(
+      `${this.base}/bank/resolve?account_number=${encodeURIComponent(accountNumber)}&bank_code=${encodeURIComponent(bankCode)}`,
+      { headers: { Authorization: `Bearer ${this.secret}` } }
+    );
+    const data = await res.json();
+    if (!data.status) throw new Error(data.message || 'Could not verify that account — check the number and bank');
+    return { accountName: data.data.account_name };
+  }
+
+  /**
+   * Create or update the institution's subaccount from its bank details. Returns
+   * the subaccount code the split uses at checkout. Pass an existing `code` to
+   * update in place rather than create a duplicate. Dev stub synthesises a code.
+   */
+  async upsertSubaccount({ code, businessName, bankCode, accountNumber, percentageCharge = 0 }) {
+    if (!this.isConfigured()) {
+      if (inProduction()) throw new Error('Paystack is not configured (PAYSTACK_SECRET_KEY missing)');
+      return { subaccountCode: code || `ACCT_dev_${crypto.randomBytes(5).toString('hex')}` };
+    }
+    const body = {
+      business_name: businessName,
+      settlement_bank: bankCode,
+      account_number: accountNumber,
+      percentage_charge: percentageCharge,
+    };
+    const url = code ? `${this.base}/subaccount/${encodeURIComponent(code)}` : `${this.base}/subaccount`;
+    const res = await fetch(url, {
+      method: code ? 'PUT' : 'POST',
+      headers: { Authorization: `Bearer ${this.secret}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!data.status) throw new Error(data.message || 'Could not save the payout account with Paystack');
+    return { subaccountCode: data.data.subaccount_code };
+  }
 }
+
+/** Dev-only bank list (real list comes from Paystack when configured). */
+const DEV_BANKS = [
+  { name: 'Access Bank', code: '044' },
+  { name: 'Citibank Nigeria', code: '023' },
+  { name: 'Ecobank Nigeria', code: '050' },
+  { name: 'Fidelity Bank', code: '070' },
+  { name: 'First Bank of Nigeria', code: '011' },
+  { name: 'First City Monument Bank (FCMB)', code: '214' },
+  { name: 'Guaranty Trust Bank (GTBank)', code: '058' },
+  { name: 'Kuda Bank', code: '50211' },
+  { name: 'Opay', code: '999992' },
+  { name: 'Palmpay', code: '999991' },
+  { name: 'Polaris Bank', code: '076' },
+  { name: 'Stanbic IBTC Bank', code: '221' },
+  { name: 'Sterling Bank', code: '232' },
+  { name: 'Union Bank of Nigeria', code: '032' },
+  { name: 'United Bank for Africa (UBA)', code: '033' },
+  { name: 'Unity Bank', code: '215' },
+  { name: 'Wema Bank', code: '035' },
+  { name: 'Zenith Bank', code: '057' },
+];
 
 module.exports = { PaystackProvider };

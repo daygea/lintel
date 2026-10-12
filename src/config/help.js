@@ -285,7 +285,7 @@ module.exports = {
       ],
       points: [
         'A refund is a permanent negative entry — the ledger keeps both the charge and the reversal; nothing is overwritten.',
-        'To receive fees directly to your own account, add a Paystack subaccount under Settings → Billing → Payouts.',
+        'To receive fees directly, add your bank account under Settings → Billing → Payouts — each learner payment then splits automatically at checkout (your share to your bank, Lintel’s plan fee kept as the transaction charge).',
         'Learner fees are entirely separate from what your institution pays Lintel (see Plan & billing).',
       ],
     },

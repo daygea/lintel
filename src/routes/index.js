@@ -93,6 +93,7 @@ router.post('/settings/access', ...staff, webSettings.saveAccess);
 router.get('/settings/billing', ...staff, webBilling.show);
 router.post('/settings/billing/subscribe', ...staff, webBilling.subscribe);
 router.post('/settings/billing/payouts', ...staff, webBilling.savePayouts);
+router.post('/settings/billing/payouts/remove', ...staff, webBilling.removePayout);
 router.get('/report', requireUser, requireMember, webReport.show);
 router.post('/report', requireUser, requireMember, webReport.submit);
 router.patch(
