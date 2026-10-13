@@ -6,6 +6,29 @@
     <h1>Institutions</h1>
     <p class="lede">Institutions that have chosen to list publicly.</p>
   </div>
+
+  <form class="dir-controls" method="get" action="/directory" role="search">
+    <label for="dir-q" class="sr-only">Search institutions</label>
+    <input id="dir-q" type="search" name="q" value="<%= q %>" placeholder="Search by name, place or focus…" autocomplete="off">
+    <% if ((countries || []).length > 1) { %>
+      <label for="dir-country" class="sr-only">Filter by country</label>
+      <select id="dir-country" name="country">
+        <option value="">All countries</option>
+        <% countries.forEach(function (c) { %>
+          <option value="<%= c %>"<%= country === c ? ' selected' : '' %>><%= c %></option>
+        <% }); %>
+      </select>
+    <% } %>
+    <button class="btn small" type="submit">Search</button>
+    <% if (q || country) { %><a class="btn ghost small" href="/directory">Clear</a><% } %>
+  </form>
+
+  <% if (q || country) { %>
+    <p class="dir-count quiet" style="font-size:13px">
+      <%= listings.length %> <%= listings.length === 1 ? 'institution' : 'institutions' %> match<%= listings.length === 1 ? 'es' : '' %><% if (q) { %> &ldquo;<%= q %>&rdquo;<% } %><% if (country) { %> in <%= country %><% } %>.
+    </p>
+  <% } %>
+
   <ul class="rows">
     <% listings.forEach(function (l) { %>
       <li>
@@ -14,7 +37,20 @@
         <% if (l.city || l.country) { %><div class="meta mono" style="font-size:12px"><%= [l.city, l.country].filter(Boolean).join(' · ') %></div><% } %>
       </li>
     <% }); %>
-    <% if (!listings.length) { %><li class="quiet">No institutions listed yet.</li><% } %>
+    <% if (!listings.length) { %>
+      <li class="quiet"><% if (q || country) { %>No institutions match that. Try a different word, or <a href="/directory">clear the filters</a>.<% } else { %>No institutions listed yet.<% } %></li>
+    <% } %>
   </ul>
 </div>
+
+<style>
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  .dir-controls { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px; }
+  .dir-controls input[type=search] { flex:1; min-width:200px; }
+  .dir-controls select { width:auto; min-width:160px; }
+  .dir-count { margin:-4px 0 14px; }
+  @media (max-width:560px){
+    .dir-controls input[type=search], .dir-controls select { flex:1 1 100%; min-width:0; }
+  }
+</style>
 <%- include("../layouts/public-foot") %>

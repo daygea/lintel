@@ -205,6 +205,7 @@ router.get('/my/fees', requireUser, requireMember, webFees.mine);
 router.get('/calendar/:token', webCalendar.ics);
 router.post('/my/calendar', requireUser, requireMember, webCalendar.ensureToken);
 router.get('/api/v1/me/deadlines', requireUser, requireMember, apiLearner.deadlines);
+router.get('/api/v1/me/grades', requireUser, requireMember, apiLearner.grades);
 router.post('/my/fees/:invoiceId/pay', requireUser, requireMember, requireFeature('commerce'), webFees.pay);
 router.get('/api/v1/cohorts/:cohortId/applications', ...staff, apiEnrolment.listApplications);
 router.post('/api/v1/applications/:id/decide', ...staff, apiEnrolment.decideApplication);

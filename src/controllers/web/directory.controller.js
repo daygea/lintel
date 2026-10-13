@@ -19,8 +19,18 @@ exports.page = h(async (req, res) => {
   res.render('directory/page', { listing, pick, rootDomain, instBase });
 });
 
-/** Public directory index. */
+/** Public directory index. Search + country facet, server-rendered (bookmarkable,
+ *  shareable, works without JS — right for a public, cross-tenant page). */
 exports.index = h(async (req, res) => {
-  const listings = await dir.browse({ q: req.query.q });
-  res.render('directory/index', { listings, pick, q: req.query.q || '' });
+  const [listings, countries] = await Promise.all([
+    dir.browse({ q: req.query.q, country: req.query.country }),
+    dir.directoryCountries(),
+  ]);
+  res.render('directory/index', {
+    listings,
+    pick,
+    q: req.query.q || '',
+    country: req.query.country || '',
+    countries,
+  });
 });

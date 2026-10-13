@@ -172,10 +172,11 @@ async function renderHome() {
     ${continueBlock}
     ${dueSoon}
     ${grid}
-    <p style="margin-top:22px"><a class="btn" href="/catalogue">Browse courses</a> <a class="btn ghost" href="?schedule" style="margin-left:8px">My schedule</a> <a class="btn ghost" href="/my/fees" style="margin-left:8px">Fees &amp; payments</a> <a class="btn ghost" href="?help" style="margin-left:8px">Help</a></p>
+    <p style="margin-top:22px"><a class="btn" href="/catalogue">Browse courses</a> <a class="btn ghost" href="?grades" style="margin-left:8px">My grades</a> <a class="btn ghost" href="?schedule" style="margin-left:8px">My schedule</a> <a class="btn ghost" href="/my/fees" style="margin-left:8px">Fees &amp; payments</a> <a class="btn ghost" href="?help" style="margin-left:8px">Help</a></p>
     <div id="offline" style="margin-top:26px"></div>
   </div>`;
   renderOfflineList();
+  maybeStartTour(courses);
 }
 
 /* --------------------------------------------------------------- deadlines */
@@ -497,6 +498,47 @@ function renderQuizResult(attempt) {
 }
 
 /* ------------------------------------------------------------------- lesson */
+
+/* ------------------------------------------------------------------ grades */
+
+async function renderGrades() {
+  root.innerHTML = `<p class="muted" style="padding:22px 18px">Loading…</p>`;
+  let data = { courses: [] };
+  try {
+    const res = await fetch('/api/v1/me/grades', { headers: { accept: 'application/json' } });
+    if (res.ok) data = await res.json();
+  } catch (_) { /* offline — show empty */ }
+  const courses = data.courses || [];
+  const body = courses.length
+    ? courses.map(gradeCourseCard).join('')
+    : `<div class="card"><p class="muted" style="margin:0">No graded work yet. Scores appear here once your assessments and quizzes are marked.</p></div>`;
+  root.innerHTML = `<div class="home">
+    <a class="btn ghost" href="/app/" style="margin-bottom:18px">← Back</a>
+    <h1 class="section-h" style="margin-top:0">My grades</h1>
+    <p class="quiet" style="margin-top:-6px">Your scored work, course by course.</p>
+    ${body}
+  </div>`;
+}
+
+function gradeCourseCard(c) {
+  const summary = c.averageOfGraded != null
+    ? `${c.gradedCount} of ${c.total} graded · average ${c.averageOfGraded}%`
+    : `${c.gradedCount} of ${c.total} graded`;
+  return `<section class="grade-course">
+    <div class="grade-head"><span class="grade-title">${pickText(c.courseTitle)}</span><span class="grade-sum">${escapeHtml(summary)}</span></div>
+    <ul class="grade-list">${c.items.map(gradeRow).join('')}</ul>
+  </section>`;
+}
+
+function gradeRow(it) {
+  const score = it.graded
+    ? `${it.points}/${it.maxPoints} · ${it.percent}%`
+    : (it.source === 'quiz' ? 'Not attempted' : 'Not yet graded');
+  return `<li class="grade-row${it.graded ? '' : ' pending'}">
+    <span class="grade-item"><span class="grade-label">${escapeHtml(it.label)}</span><span class="grade-cat">${escapeHtml(it.category || '')}</span></span>
+    <span class="grade-score">${escapeHtml(score)}</span>
+  </li>`;
+}
 
 // One requirement row in the "what unlocks this" panel on a held lesson.
 function unlockRow(r) {
@@ -889,6 +931,97 @@ function escapeHtml(s) {
 }
 function escapeAttr(s) { return escapeHtml(s); }
 
+/* --------------------------------------------------------- first-run tour */
+
+// A one-time welcome for a newly admitted learner. Shown the first time someone
+// lands on the home screen WITH at least one active course — a catalogue browser
+// who isn't enrolled yet doesn't get a "here's your learning" tour. Dismissal is
+// remembered in localStorage (a cosmetic hint, not a data invariant — so no schema
+// field or write endpoint); re-showing once after a storage clear is harmless.
+const TOUR_KEY = 'lintel.tour.v1';
+
+const TOUR_STEPS = [
+  {
+    eyebrow: true,
+    title: 'Welcome to your learning',
+    body: 'This is your home base. Each time you come back you’ll land here, with the lesson you were last in ready to pick up.',
+  },
+  {
+    title: 'Everything’s one tap away',
+    body: 'From your home screen: <strong>My grades</strong> for your scored work, <strong>My schedule</strong> for session and fee due dates, <strong>Fees &amp; payments</strong>, and <strong>Help</strong> whenever you’re stuck.',
+  },
+  {
+    title: 'Some lessons stay held',
+    body: 'A lesson can be held until you have the standing to be let in — fees part-paid, an attestation signed, or a prerequisite finished. You’ll always see exactly what unlocks it, so nothing is a mystery.',
+  },
+];
+
+function maybeStartTour(courses) {
+  let seen = false;
+  try { seen = !!localStorage.getItem(TOUR_KEY); } catch (_) { seen = false; }
+  if (seen || !courses || !courses.length) return;
+  startTour();
+}
+
+function startTour() {
+  if (document.getElementById('tour')) return;
+  const steps = TOUR_STEPS;
+  const inst = escapeHtml(STATE.institution || 'Lintel');
+  let i = 0;
+
+  const el = document.createElement('div');
+  el.id = 'tour';
+  el.className = 'tour-backdrop';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-labelledby', 'tour-title');
+  document.body.appendChild(el);
+  document.body.classList.add('tour-open');
+
+  function close() {
+    try { localStorage.setItem(TOUR_KEY, '1'); } catch (_) { /* private mode: just don't persist */ }
+    el.remove();
+    document.body.classList.remove('tour-open');
+    document.removeEventListener('keydown', onKey);
+  }
+  function go(n) { i = Math.max(0, Math.min(steps.length - 1, n)); paint(); }
+  function onKey(e) {
+    if (e.key === 'Escape') close();
+    else if (e.key === 'ArrowRight') go(i + 1);
+    else if (e.key === 'ArrowLeft') go(i - 1);
+  }
+
+  function paint() {
+    const s = steps[i];
+    const first = i === 0;
+    const last = i === steps.length - 1;
+    const dots = steps.map((_, n) => `<span class="tour-dot${n === i ? ' on' : ''}"></span>`).join('');
+    el.innerHTML = `
+      <div class="tour-card">
+        <button class="tour-x" id="tour-skip" aria-label="Skip the tour">×</button>
+        ${s.eyebrow ? `<p class="tour-eyebrow">${inst}</p>` : ''}
+        <h2 class="tour-title" id="tour-title">${escapeHtml(s.title)}</h2>
+        <p class="tour-body">${s.body}</p>
+        <div class="tour-foot">
+          <div class="tour-dots" aria-hidden="true">${dots}</div>
+          <div class="tour-btns">
+            ${first ? '' : '<button class="btn ghost" id="tour-back">Back</button>'}
+            <button class="btn" id="tour-next">${last ? 'Start learning' : 'Next'}</button>
+          </div>
+        </div>
+      </div>`;
+    el.querySelector('#tour-skip').addEventListener('click', close);
+    el.querySelector('#tour-next').addEventListener('click', () => (last ? close() : go(i + 1)));
+    const back = el.querySelector('#tour-back');
+    if (back) back.addEventListener('click', () => go(i - 1));
+    el.querySelector('#tour-next').focus();
+  }
+
+  el.addEventListener('click', (e) => { if (e.target === el) close(); }); // click the backdrop to dismiss
+  document.addEventListener('keydown', onKey);
+  paint();
+}
+
 /* ------------------------------------------------------------------- router */
 
 function currentView() {
@@ -898,6 +1031,7 @@ function currentView() {
   const course = params.get('course');
   if (params.get('help') !== null) return renderHelp;
   if (params.get('schedule') !== null) return renderSchedule;
+  if (params.get('grades') !== null) return renderGrades;
   if (params.get('preview')) return () => renderPreview(params.get('preview'));
   if (lesson) return () => renderLesson(lesson);
   if (quiz) return () => renderQuiz(quiz);
@@ -945,7 +1079,7 @@ async function renderHelp() {
   root.innerHTML = `<div class="home">
     <a class="btn ghost" href="/app/" style="margin-bottom:18px">← Back</a>
     <h1 class="section-h" style="margin-top:0">Help</h1>
-    <p class="quiet" style="margin-top:-6px">How to find your way around and get the most from your courses.</p>
+    <p class="quiet" style="margin-top:-6px">How to find your way around and get the most from your courses. <button type="button" class="tour-replay" id="tour-replay">↻ Take the tour again</button></p>
     <div class="help-search">
       <label for="help-q" class="sr-only">Search help</label>
       <input id="help-q" type="search" placeholder="Search help" autocomplete="off">
@@ -975,6 +1109,9 @@ async function renderHelp() {
       if (none) none.hidden = anyShown;
     });
   }
+
+  const replay = document.getElementById('tour-replay');
+  if (replay) replay.addEventListener('click', () => startTour());
 }
 
 async function route() {

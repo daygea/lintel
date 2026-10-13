@@ -1,6 +1,6 @@
 'use strict';
 
-const { GradeScheme, LineItem, Score, Course, User, AuditLog, QuizAttempt } = require('../models');
+const { GradeScheme, LineItem, Score, Course, User, AuditLog, QuizAttempt, Enrollment } = require('../models');
 const { ValidationError } = require('../lib/errors');
 const { currentUserId } = require('../lib/context');
 const { pick } = require('../plugins/locale-map');
@@ -179,8 +179,62 @@ async function recordQuizScore({ quiz, userId }) {
   return putScore({ lineItemId: lineItem._id, userId, points: Math.round(bestPct) });
 }
 
+/**
+ * A learner's own grades, course by course — the data behind the learner "My
+ * grades" view. Deliberately line-item centric and honest: it shows each published
+ * graded item with the learner's score and marks the rest "not yet graded", plus a
+ * plain "average of graded items" indicator. It does NOT invent an official overall
+ * grade, because the weighted scheme is a staff tool chosen per computation, not a
+ * fixed property of the course — presenting a number as "your grade" could mislead.
+ */
+async function learnerGrades(userId, locale = 'en') {
+  const enrollments = await Enrollment.find({ userId, status: 'active' }).exec();
+  const courses = [];
+
+  for (const enr of enrollments) {
+    if (!enr.courseId) continue;
+    const course = await Course.findById(enr.courseId).exec();
+    if (!course) continue;
+
+    const items = await LineItem.find({ courseId: course._id, published: true }).sort({ category: 1 }).exec();
+    if (!items.length) continue;
+
+    const scores = await Score.find({ userId, lineItemId: { $in: items.map((i) => i._id) } }).exec();
+    const byItem = new Map(scores.map((s) => [String(s.lineItemId), s]));
+
+    let gradedCount = 0;
+    let pctSum = 0;
+    const rows = items.map((li) => {
+      const s = byItem.get(String(li._id));
+      const graded = !!s;
+      const percent = graded ? Math.round((s.points / (li.maxPoints || 1)) * 1000) / 10 : null;
+      if (graded) { gradedCount += 1; pctSum += percent; }
+      return {
+        label: pick(li.label, locale),
+        category: li.category,
+        source: li.source,
+        points: graded ? s.points : null,
+        maxPoints: li.maxPoints,
+        percent,
+        graded,
+      };
+    });
+
+    courses.push({
+      courseId: course._id,
+      courseTitle: course.title,
+      items: rows,
+      gradedCount,
+      total: rows.length,
+      averageOfGraded: gradedCount ? Math.round((pctSum / gradedCount) * 10) / 10 : null,
+    });
+  }
+
+  return { courses };
+}
+
 module.exports = {
-  listSchemes, upsertScheme,
+  listSchemes, upsertScheme, learnerGrades,
   listLineItems, createLineItem,
   putScore, computeForLearner, transcriptFor,
   ensureQuizLineItem, recordQuizScore,

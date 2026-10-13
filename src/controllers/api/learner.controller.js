@@ -2,6 +2,7 @@
 
 const learner = require('../../services/learner.service');
 const deadlines = require('../../services/deadlines.service');
+const gradebook = require('../../services/gradebook.service');
 const push = require('../../services/push.service');
 
 const req2ctx = (req) => ({
@@ -40,6 +41,10 @@ exports.preview = h(async (req, res) =>
 
 exports.deadlines = h(async (req, res) =>
   res.json({ deadlines: await deadlines.upcomingFor({ userId: req.user._id, locale: req.tenant.defaultLocale }) })
+);
+
+exports.grades = h(async (req, res) =>
+  res.json(await gradebook.learnerGrades(req.user._id, req.tenant.defaultLocale))
 );
 
 exports.lesson = h(async (req, res) =>

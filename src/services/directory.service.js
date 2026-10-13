@@ -103,25 +103,54 @@ async function publicView(handle) {
  * The directory index — published listings only, for a search/browse page. Runs
  * as platform. Returns the same minimal shape, never content.
  */
-async function browse({ q, limit = 50 } = {}) {
+async function browse({ q, country, limit = 50 } = {}) {
   return runAsPlatform('public directory browse (no session)', async () => {
     // Exclude institutions that aren't operational (suspended/closed/deleted),
-    // even if their listing is still marked published, so the limit applies to
-    // visible ones only. The hidden set is small (non-live tenants).
+    // even if their listing is still marked published. The hidden set is small
+    // (non-live tenants).
     const hidden = await Tenant.find({ status: { $in: DIRECTORY_HIDDEN_STATUSES } }).select('_id').exec();
     const filter = { publishedAt: { $exists: true }, tenantId: { $nin: hidden.map((t) => t._id) } };
-    const listings = await DirectoryListing.find(filter).sort({ publishedAt: -1 }).limit(limit).exec();
-    const rows = listings.map((l) => ({
+    // Fetch the published, visible set newest-first, THEN filter in memory — so a
+    // search or country facet matches across the whole directory, not just the
+    // first `limit` rows. The public directory is small (institutions that opted
+    // in), so this is one bounded read; `limit` caps what's shown, after filtering.
+    const listings = await DirectoryListing.find(filter).sort({ publishedAt: -1 }).exec();
+    let rows = listings.map((l) => ({
       handle: l.handle,
       displayName: l.displayName,
       tagline: l.tagline,
       city: l.contact?.city,
       country: l.contact?.country,
     }));
-    if (!q) return rows;
-    const needle = String(q).toLowerCase();
-    return rows.filter((r) => r.displayName.toLowerCase().includes(needle));
+
+    if (country) {
+      const c = String(country).toLowerCase();
+      rows = rows.filter((r) => (r.country || '').toLowerCase() === c);
+    }
+    if (q) {
+      const needle = String(q).toLowerCase();
+      rows = rows.filter((r) =>
+        [r.displayName, pick(r.tagline, 'en'), r.city, r.country]
+          .some((v) => (v || '').toLowerCase().includes(needle)));
+    }
+    return rows.slice(0, limit);
   });
 }
 
-module.exports = { getOwnListing, upsertListing, publish, unpublish, publicView, browse };
+/**
+ * The distinct set of countries across published, visible listings — for the
+ * directory's country facet. Computed independently of the current query so the
+ * dropdown always offers every country, never collapsing to the filtered one.
+ */
+async function directoryCountries() {
+  return runAsPlatform('public directory countries (no session)', async () => {
+    const hidden = await Tenant.find({ status: { $in: DIRECTORY_HIDDEN_STATUSES } }).select('_id').exec();
+    const filter = { publishedAt: { $exists: true }, tenantId: { $nin: hidden.map((t) => t._id) } };
+    const listings = await DirectoryListing.find(filter).select('contact.country').exec();
+    const set = new Set();
+    listings.forEach((l) => { if (l.contact?.country) set.add(l.contact.country); });
+    return [...set].sort((a, b) => a.localeCompare(b));
+  });
+}
+
+module.exports = { getOwnListing, upsertListing, publish, unpublish, publicView, browse, directoryCountries };

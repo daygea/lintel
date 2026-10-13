@@ -18,7 +18,7 @@ export default defineConfig({
     poolOptions: {
       forks: {
         minForks: 1,
-        maxForks: Number(process.env.VITEST_MAX_FORKS) || 2,
+        maxForks: Number(process.env.VITEST_MAX_FORKS) || 1,
       },
     },
     // Only DB-backed suites need the in-memory mongod.
