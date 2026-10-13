@@ -1,0 +1,146 @@
+<% var pageTitle = 'Course catalogue'; %>
+<%- include("../layouts/public-head") %>
+<div class="pub-wide">
+  <div class="page-head">
+    <div class="eyebrow"><%= typeof tenant !== 'undefined' && tenant ? tenant.name.toUpperCase() : 'LINTEL' %></div>
+    <h1 style="font-size:26px">Course catalogue</h1>
+    <p class="lede" style="font-size:14px">Browse what this institution offers. Open a course to apply to a cohort — a registrar reviews each application.</p>
+  </div>
+
+  <p style="margin:-4px 0 18px"><a class="quiet mono" style="font-size:12px" href="/app/">← my learning</a></p>
+
+  <% if (applied) { %><div class="notice ok" style="margin-bottom:16px"><span class="badge ok">received</span> Your application has been submitted. You'll hear back once a registrar has reviewed it.</div><% } %>
+  <% if (error) { %><div class="notice err" role="alert" style="margin-bottom:16px"><%= error %></div><% } %>
+
+  <% if (!(courses || []).length) { %>
+    <div class="thr" style="padding:14px 0 14px 16px"><span class="quiet">No courses are published to the catalogue yet. Please check back later.</span></div>
+  <% } else { %>
+
+  <div class="cat-controls">
+    <label for="cat-q" class="sr-only">Search courses</label>
+    <input id="cat-q" type="search" placeholder="Search courses…" autocomplete="off">
+    <div class="cat-filters" role="group" aria-label="Filter courses">
+      <button type="button" class="chip on" data-filter="all" aria-pressed="true">All</button>
+      <button type="button" class="chip" data-filter="open" aria-pressed="false">Open for application</button>
+      <button type="button" class="chip" data-filter="free" aria-pressed="false">Free</button>
+    </div>
+    <% if ((programmes || []).length > 1) { %>
+      <label for="cat-prog" class="sr-only">Filter by programme</label>
+      <select id="cat-prog">
+        <option value="">All programmes</option>
+        <% programmes.forEach(function (p) { %><option value="<%= p %>"><%= p %></option><% }); %>
+      </select>
+    <% } %>
+  </div>
+
+  <p class="cat-none" id="cat-none" hidden>No courses match that. Try a different word or filter.</p>
+
+  <div class="cat-grid" id="cat-grid">
+    <% courses.forEach(function (c) { %>
+      <article class="cat-card" data-search="<%= c.search %>" data-prog="<%= c.programme || '' %>" data-open="<%= c.hasOpen ? '1' : '0' %>" data-free="<%= c.free ? '1' : '0' %>">
+        <div class="cat-cover">
+          <% if (c.coverUrl) { %><img src="<%= c.coverUrl %>" alt="<%= c.title %> cover"><% } else { %><span class="cat-cover-ph" aria-hidden="true"><%= (c.code || c.title || '?').slice(0,2).toUpperCase() %></span><% } %>
+        </div>
+        <div class="cat-body">
+          <% if (c.programme) { %><span class="cat-prog-badge"><%= c.programme %></span><% } %>
+          <h2 class="cat-title"><%= c.title %></h2>
+          <% if (c.summary) { %><p class="cat-summary"><%= c.summary %></p><% } %>
+
+          <div class="cat-foot">
+            <% if (c.enrolled) { %>
+              <span class="badge ok">enrolled</span>
+              <a class="btn ghost small" href="/app/">Go to my learning</a>
+            <% } else if (c.hasOpen) { %>
+              <% c.openCohorts.forEach(function (ch) { %>
+                <div class="cat-cohort">
+                  <div class="cat-cohort-meta">
+                    <span class="cat-cohort-title"><%= ch.title %></span>
+                    <span class="quiet mono"><%= ch.session %><% if (ch.fee) { %> · <%= format(ch.fee) %><% } else { %> · Free<% } %></span>
+                  </div>
+                  <% if (ch.applied) { %>
+                    <span class="badge">applied</span>
+                  <% } else { %>
+                    <form method="post" action="/apply" style="margin:0">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <input type="hidden" name="cohortId" value="<%= ch.id %>">
+                      <button class="btn small" type="submit">Apply</button>
+                    </form>
+                  <% } %>
+                </div>
+              <% }); %>
+            <% } else { %>
+              <span class="quiet" style="font-size:13px">Not open for application right now.</span>
+            <% } %>
+          </div>
+        </div>
+      </article>
+    <% }); %>
+  </div>
+  <% } %>
+</div>
+
+<style>
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  .cat-controls { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:18px; }
+  .cat-controls input[type=search] { flex:1; min-width:200px; }
+  .cat-controls select { width:auto; min-width:160px; }
+  .cat-filters { display:flex; gap:6px; flex-wrap:wrap; }
+  .chip { min-height:38px; padding:6px 13px; font-size:13px; border:1px solid var(--rule-2,#ccc); border-radius:18px; background:var(--paper); color:var(--ink); cursor:pointer; }
+  .chip.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .cat-none { color:var(--muted); font-size:14px; }
+  .cat-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px; }
+  .cat-card { border:1px solid var(--rule); border-radius:10px; overflow:hidden; background:var(--paper); display:flex; flex-direction:column; }
+  .cat-card.is-hidden { display:none; }
+  .cat-cover { aspect-ratio:16/9; background:var(--paper-2); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .cat-cover img { width:100%; height:100%; object-fit:cover; display:block; }
+  .cat-cover-ph { font-family:var(--serif); font-size:30px; font-weight:600; color:var(--muted); }
+  .cat-body { padding:14px 15px 16px; display:flex; flex-direction:column; gap:7px; flex:1; }
+  .cat-prog-badge { align-self:flex-start; font-family:var(--mono); font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--brass); }
+  .cat-title { font-family:var(--serif); font-size:18px; margin:0; }
+  .cat-summary { font-size:13.5px; color:var(--ink-soft,#444); line-height:1.5; margin:0; }
+  .cat-foot { margin-top:auto; padding-top:10px; display:flex; flex-direction:column; gap:8px; }
+  .cat-cohort { display:flex; align-items:center; justify-content:space-between; gap:10px; border-top:1px solid var(--rule); padding-top:8px; }
+  .cat-cohort-meta { display:flex; flex-direction:column; }
+  .cat-cohort-title { font-size:13.5px; }
+</style>
+<script>
+  (function () {
+    var q = document.getElementById('cat-q');
+    var grid = document.getElementById('cat-grid');
+    if (!q || !grid) return;
+    var cards = Array.prototype.slice.call(grid.querySelectorAll('.cat-card'));
+    var none = document.getElementById('cat-none');
+    var prog = document.getElementById('cat-prog');
+    var filter = 'all';
+
+    function apply() {
+      var term = q.value.trim().toLowerCase();
+      var p = prog ? prog.value : '';
+      var shown = 0;
+      cards.forEach(function (card) {
+        var hit = !term || (card.getAttribute('data-search') || '').indexOf(term) !== -1;
+        if (hit && p) hit = card.getAttribute('data-prog') === p;
+        if (hit && filter === 'open') hit = card.getAttribute('data-open') === '1';
+        if (hit && filter === 'free') hit = card.getAttribute('data-free') === '1';
+        card.classList.toggle('is-hidden', !hit);
+        if (hit) shown++;
+      });
+      if (none) none.hidden = shown > 0;
+    }
+
+    q.addEventListener('input', apply);
+    if (prog) prog.addEventListener('change', apply);
+    document.querySelectorAll('.chip').forEach(function (b) {
+      b.addEventListener('click', function () {
+        filter = b.getAttribute('data-filter');
+        document.querySelectorAll('.chip').forEach(function (x) {
+          var on = x === b;
+          x.classList.toggle('on', on);
+          x.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        apply();
+      });
+    });
+  })();
+</script>
+<%- include("../layouts/public-foot") %>

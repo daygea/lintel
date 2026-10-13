@@ -107,7 +107,7 @@ function sideCourseList(courses, activeId) {
   }).join('');
   return `<div class="side-head">My courses</div>
     ${items || '<p class="muted" style="padding:0 16px">No courses yet.</p>'}
-    <a class="side-cta btn ghost" href="/apply">Browse open programmes</a>
+    <a class="side-cta btn ghost" href="/catalogue">Browse courses</a>
     <a class="side-cta" href="/my/fees" style="font-size:13px">Fees &amp; payments</a>
     <a class="side-cta" href="?help" style="font-size:13px">Help</a>`;
 }
@@ -169,7 +169,7 @@ async function renderHome() {
     ${hero}
     ${continueBlock}
     ${grid}
-    <p style="margin-top:22px"><a class="btn" href="/apply">Browse open programmes</a> <a class="btn ghost" href="/my/fees" style="margin-left:8px">Fees &amp; payments</a> <a class="btn ghost" href="?help" style="margin-left:8px">Help</a></p>
+    <p style="margin-top:22px"><a class="btn" href="/catalogue">Browse courses</a> <a class="btn ghost" href="/my/fees" style="margin-left:8px">Fees &amp; payments</a> <a class="btn ghost" href="?help" style="margin-left:8px">Help</a></p>
     <div id="offline" style="margin-top:26px"></div>
   </div>`;
   renderOfflineList();

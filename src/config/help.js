@@ -371,7 +371,7 @@ module.exports = {
         'Tap a lesson to begin.',
       ],
       points: [
-        'Use “Browse open programmes” to apply to something new.',
+        'Tap “Browse courses” to search the catalogue and apply to something new — filter by what’s open for application or free.',
         'Locked lessons show why they’re locked when you tap them.',
       ],
     },

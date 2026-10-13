@@ -10,6 +10,8 @@ const webSettings = require('../controllers/web/settings.controller');
 const webHelp = require('../controllers/web/help.controller');
 const webBilling = require('../controllers/web/billing.controller');
 const webApply = require('../controllers/web/apply.controller');
+const webCatalog = require('../controllers/web/catalog.controller');
+const apiCatalog = require('../controllers/api/catalog.controller');
 const webFees = require('../controllers/web/fees.controller');
 const webReport = require('../controllers/web/report.controller');
 const apiInvite = require('../controllers/api/invite.controller');
@@ -192,6 +194,8 @@ router.post('/api/v1/cohorts/:id/close', ...staff, apiEnrolment.closeCohort);
 
 // Applying is done by the applicant themselves; admitted status not required.
 router.post('/api/v1/applications', requireUser, requireMember, apiEnrolment.apply);
+router.get('/catalogue', requireUser, requireMember, webCatalog.show);
+router.get('/api/v1/catalogue', requireUser, requireMember, apiCatalog.list);
 router.get('/apply', requireUser, requireMember, webApply.show);
 router.post('/apply', requireUser, requireMember, webApply.submit);
 router.get('/my/fees', requireUser, requireMember, webFees.mine);
