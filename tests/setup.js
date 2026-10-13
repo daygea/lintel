@@ -5,25 +5,39 @@ const { MongoMemoryServer } = require('mongodb-memory-server');
 
 let mongod;
 
+/**
+ * Each test file starts its OWN in-memory mongod. Simple and robust: no
+ * cross-process coordination, so there is nothing to get wrong under parallelism.
+ * A short start-retry absorbs the transient "failed to start in 10s" that a loaded
+ * laptop can throw; pair it with a capped fork pool (vitest.config.js) so only a
+ * few servers boot at once. On a very busy machine, VITEST_MAX_FORKS=1 runs the
+ * files one at a time — slowest, but it cannot contend.
+ */
+async function startMongo(attempts = 3) {
+  let lastErr;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await MongoMemoryServer.create();
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr;
+}
+
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
+  mongod = await startMongo();
   await mongoose.connect(mongod.getUri());
 
-  // Build every model's indexes against THIS file's fresh server. Without it,
-  // unique constraints are not enforced (Mongoose auto-builds in the background,
-  // and a fast insert can beat the build) — so a uniqueness test could pass or
-  // fail on a race. It must run per file, because each file gets its own mongod.
-  //
-  // syncIndexes (NOT createIndexes): it reconciles with the tenant-guard plugin's
-  // existing tenantId index instead of colliding on it. Sequential, because a cold
-  // in-memory server chokes on concurrent builds. This is why hookTimeout is 60s
-  // in vitest.config.js — the honest cost of deterministic constraints. Mirrors
-  // exactly what `npm run indexes` does in production.
+  // Build every model's indexes against this file's fresh server. syncIndexes (not
+  // createIndexes) reconciles with the tenant-guard plugin's tenantId index instead
+  // of colliding on it. Sequential — a cold server chokes on concurrent builds.
+  // Inherits the generous hookTimeout from vitest.config.js.
   const models = require('../src/models');
   for (const Model of Object.values(models)) {
     if (typeof Model.syncIndexes === 'function') await Model.syncIndexes();
   }
-}, 60000);
+});
 
 afterEach(async () => {
   for (const c of Object.values(mongoose.connection.collections)) await c.deleteMany({});
@@ -31,5 +45,6 @@ afterEach(async () => {
 
 afterAll(async () => {
   await mongoose.disconnect();
-  await mongod.stop();
+  // Guard: a failed start leaves mongod undefined; don't mask the real error.
+  if (mongod) await mongod.stop();
 });

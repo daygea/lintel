@@ -12,6 +12,7 @@ const webBilling = require('../controllers/web/billing.controller');
 const webApply = require('../controllers/web/apply.controller');
 const webCatalog = require('../controllers/web/catalog.controller');
 const apiCatalog = require('../controllers/api/catalog.controller');
+const webCalendar = require('../controllers/web/calendar.controller');
 const webFees = require('../controllers/web/fees.controller');
 const webReport = require('../controllers/web/report.controller');
 const apiInvite = require('../controllers/api/invite.controller');
@@ -199,6 +200,10 @@ router.get('/api/v1/catalogue', requireUser, requireMember, apiCatalog.list);
 router.get('/apply', requireUser, requireMember, webApply.show);
 router.post('/apply', requireUser, requireMember, webApply.submit);
 router.get('/my/fees', requireUser, requireMember, webFees.mine);
+// Learner calendar: the ICS feed is token-authed (no session); the token endpoint is gated.
+router.get('/calendar/:token', webCalendar.ics);
+router.post('/my/calendar', requireUser, requireMember, webCalendar.ensureToken);
+router.get('/api/v1/me/deadlines', requireUser, requireMember, apiLearner.deadlines);
 router.post('/my/fees/:invoiceId/pay', requireUser, requireMember, requireFeature('commerce'), webFees.pay);
 router.get('/api/v1/cohorts/:cohortId/applications', ...staff, apiEnrolment.listApplications);
 router.post('/api/v1/applications/:id/decide', ...staff, apiEnrolment.decideApplication);

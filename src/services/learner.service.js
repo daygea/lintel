@@ -6,6 +6,7 @@ const { Quiz, QuizAttempt } = require('../models');
 const { canAccessLesson, previewAccess } = require('./eligibility.service');
 const storage = require('../lib/storage');
 const { accessUrl } = require('./archive.service');
+const deadlines = require('./deadlines.service');
 const { pick } = require('../plugins/locale-map');
 const { AccessLog } = require('../models');
 const { currentUserId } = require('../lib/context');
@@ -96,7 +97,15 @@ async function myLearning({ userId, locale = 'en' }) {
     });
   }
 
-  return { courses };
+  // "Due soon" for the home strip — the next handful within 30 days (plus any
+  // overdue fee). The full list is served by /api/v1/me/deadlines.
+  const soon = await deadlines.upcomingFor({
+    userId: uid,
+    locale,
+    to: new Date(Date.now() + 30 * 24 * 3600 * 1000),
+  });
+
+  return { courses, deadlines: soon.slice(0, 6) };
 }
 
 /**

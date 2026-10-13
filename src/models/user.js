@@ -60,9 +60,18 @@ const UserSchema = new Schema(
        compromised or abusive account). loadSession compares the session's epoch to
        this; a stale session is dropped. */
     sessionEpoch: { type: Number, default: 0 },
+    /* A long random token that authenticates the learner's private calendar (ICS)
+       feed — calendar apps subscribe by URL and send no cookie, so the token in the
+       URL is the credential. select:false so it never ships with an ordinary read;
+       regenerating it revokes every subscribed calendar. */
+    calendarToken: { type: String, select: false },
   },
   { timestamps: true }
 );
+
+// Sparse + unique: only users who enabled a calendar carry a token, and it resolves
+// exactly one user. (User is platform-scoped, so this is a global lookup.)
+UserSchema.index({ calendarToken: 1 }, { unique: true, sparse: true });
 
 UserSchema.statics.hashPassword = (plain) => bcrypt.hash(plain, 12);
 

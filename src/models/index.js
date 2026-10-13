@@ -29,6 +29,7 @@ module.exports = {
   Session: require('./session'),
   Attendance: require('./attendance'),
   Notification: require('./notification'),
+  ReminderLog: require('./reminder-log'),
 
   // Eligibility & access (Sprint 3 — the keystone)
   AttestationType: require('./attestation-type'),

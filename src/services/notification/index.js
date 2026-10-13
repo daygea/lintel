@@ -79,6 +79,13 @@ const TEMPLATES = {
       en: (d) => `${d.sessionTitle} begins ${d.when}. ${d.joinUrl ? 'Join: ' + d.joinUrl : ''}`.trim(),
     },
   },
+  'deadline.reminder': {
+    subject: { en: (d) => (d.title ? `Reminder: ${d.title}` : 'An upcoming deadline') },
+    text: {
+      en: (d) =>
+        `${d.title}${d.context ? ' — ' + d.context : ''} is ${d.when}.${d.url ? ' Open your learning: ' + d.url : ''}`.trim(),
+    },
+  },
   'enrollment.activated': {
     subject: { en: 'You are enrolled' },
     text: { en: (d) => `You are now enrolled in ${d.cohortTitle}.` },

@@ -35,6 +35,7 @@ async function loadLearning(force) {
   STATE.institution = data.institution || '';
   STATE.learnerName = data.learnerName || '';
   STATE.courses = data.courses || [];
+  STATE.deadlines = data.deadlines || [];
   STATE.help = data.help || [];
   STATE.helpCategories = data.helpCategories || [];
   STATE.loaded = true;
@@ -159,6 +160,7 @@ async function renderHome() {
 
   const resume = pickResume(courses);
   const continueBlock = resume ? continueCard(resume) : '';
+  const dueSoon = dueSoonBlock(STATE.deadlines || []);
 
   const grid = courses.length
     ? `<h2 class="section-h">Your courses</h2><div class="grid">${courses.map(homeCard).join('')}</div>`
@@ -168,11 +170,91 @@ async function renderHome() {
   root.innerHTML = `<div class="home">
     ${hero}
     ${continueBlock}
+    ${dueSoon}
     ${grid}
-    <p style="margin-top:22px"><a class="btn" href="/catalogue">Browse courses</a> <a class="btn ghost" href="/my/fees" style="margin-left:8px">Fees &amp; payments</a> <a class="btn ghost" href="?help" style="margin-left:8px">Help</a></p>
+    <p style="margin-top:22px"><a class="btn" href="/catalogue">Browse courses</a> <a class="btn ghost" href="?schedule" style="margin-left:8px">My schedule</a> <a class="btn ghost" href="/my/fees" style="margin-left:8px">Fees &amp; payments</a> <a class="btn ghost" href="?help" style="margin-left:8px">Help</a></p>
     <div id="offline" style="margin-top:26px"></div>
   </div>`;
   renderOfflineList();
+}
+
+/* --------------------------------------------------------------- deadlines */
+
+const DEADLINE_ICON = { session: '●', fee: '₦', assessment: '✎' };
+
+function whenLabel(at) {
+  const d = new Date(at);
+  const now = new Date();
+  const days = Math.round((d - now) / 86400000);
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const date = d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+  let rel;
+  if (days < 0) rel = 'overdue';
+  else if (days === 0) rel = 'today';
+  else if (days === 1) rel = 'tomorrow';
+  else if (days <= 7) rel = `in ${days} days`;
+  else rel = date;
+  return { rel, full: `${date}, ${time}`, overdue: days < 0 };
+}
+
+function deadlineRow(it) {
+  const w = whenLabel(it.at);
+  const icon = DEADLINE_ICON[it.kind] || '●';
+  const meta = [it.context, it.kind === 'fee' && it.amount ? it.amount : ''].filter(Boolean).join(' · ');
+  return `<li class="dl-row${w.overdue ? ' overdue' : ''}">
+    <span class="dl-icon" aria-hidden="true">${icon}</span>
+    <span class="dl-main"><span class="dl-title">${escapeHtml(it.title)}</span>${meta ? `<span class="dl-meta">${escapeHtml(meta)}</span>` : ''}</span>
+    <span class="dl-when" title="${escapeHtml(w.full)}">${escapeHtml(w.rel)}</span>
+  </li>`;
+}
+
+function dueSoonBlock(deadlines) {
+  if (!deadlines.length) return '';
+  const rows = deadlines.slice(0, 4).map(deadlineRow).join('');
+  return `<section class="due-soon">
+    <div class="due-soon-head"><h2 class="section-h" style="margin:0">Due soon</h2><a class="quiet mono" style="font-size:12px" href="?schedule">full schedule →</a></div>
+    <ul class="dl-list">${rows}</ul>
+  </section>`;
+}
+
+async function renderSchedule() {
+  root.innerHTML = `<p class="muted" style="padding:22px 18px">Loading…</p>`;
+  let items = [];
+  try {
+    const res = await fetch('/api/v1/me/deadlines', { headers: { accept: 'application/json' } });
+    if (res.ok) items = (await res.json()).deadlines || [];
+  } catch (_) { /* offline — show empty */ }
+
+  const list = items.length
+    ? `<ul class="dl-list">${items.map(deadlineRow).join('')}</ul>`
+    : `<div class="card"><p class="muted" style="margin:0">Nothing scheduled. Session dates, fee due dates and assessment deadlines will show here.</p></div>`;
+
+  root.innerHTML = `<div class="home">
+    <a class="btn ghost" href="/app/" style="margin-bottom:18px">← Back</a>
+    <h1 class="section-h" style="margin-top:0">My schedule</h1>
+    <p class="quiet" style="margin-top:-6px">Your upcoming sessions, fee due dates and assessment deadlines.</p>
+    ${list}
+    <div class="cal-sync">
+      <button class="btn ghost" id="cal-btn" type="button">Add to my calendar</button>
+      <div id="cal-url" class="cal-url" hidden></div>
+    </div>
+  </div>`;
+
+  const btn = document.getElementById('cal-btn');
+  if (btn) btn.addEventListener('click', async () => {
+    btn.textContent = 'Preparing…';
+    try {
+      const res = await fetch('/my/calendar', { method: 'POST', headers: { ...csrfHeader() } });
+      const { url } = await res.json();
+      const box = document.getElementById('cal-url');
+      box.hidden = false;
+      box.innerHTML = `<p class="quiet" style="font-size:13px;margin:0 0 6px">Subscribe to this link in your calendar app (Google, Apple, Outlook) — it stays up to date automatically:</p>
+        <input type="text" readonly value="${escapeHtml(url)}" aria-label="Calendar subscription link" onclick="this.select()">`;
+      btn.textContent = 'Add to my calendar';
+    } catch (_) {
+      btn.textContent = 'Could not prepare link — try again';
+    }
+  });
 }
 
 // The course to resume: the in-progress one with the most completed lessons,
@@ -764,6 +846,7 @@ function currentView() {
   const quiz = params.get('quiz');
   const course = params.get('course');
   if (params.get('help') !== null) return renderHelp;
+  if (params.get('schedule') !== null) return renderSchedule;
   if (lesson) return () => renderLesson(lesson);
   if (quiz) return () => renderQuiz(quiz);
   if (course) return () => renderCourse(course);
