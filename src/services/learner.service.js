@@ -3,7 +3,7 @@
 const { Lesson, ContentBlock, ContentPolicy, Asset } = require('../models');
 const { Course, Module, Enrollment, Cohort, LessonProgress } = require('../models');
 const { Quiz, QuizAttempt } = require('../models');
-const { canAccessLesson, previewAccess } = require('./eligibility.service');
+const { canAccessLesson, previewAccess, explain } = require('./eligibility.service');
 const storage = require('../lib/storage');
 const { accessUrl } = require('./archive.service');
 const deadlines = require('./deadlines.service');
@@ -121,8 +121,17 @@ async function lessonFor({ lessonId, userId, locale = 'en', request = {} }) {
   // 1. The engine decides. This writes an AccessLog entry, granted or withheld.
   const verdict = await canAccessLesson({ lessonId, userId: uid, locale, request });
   if (!verdict.allowed) {
-    // Return the institution's own words, not an error. A held teaching is a door.
-    return { held: true, message: verdict.message };
+    // Return the institution's own words, PLUS a plain breakdown of what unlocks it.
+    // A held teaching is a door, not a dead end — show the learner the key.
+    const lesson = await Lesson.findById(lessonId).exec();
+    const panel = await explain({ lesson, userId: uid, locale });
+    return {
+      held: true,
+      message: verdict.message,
+      lesson: { title: lesson ? lesson.title : { en: 'Lesson' } },
+      combinator: panel.combinator,
+      requirements: panel.requirements,
+    };
   }
 
   const lesson = await Lesson.findById(lessonId).exec();
@@ -147,6 +156,36 @@ async function lessonFor({ lessonId, userId, locale = 'en', request = {} }) {
 }
 
 /**
+ * Preview a lesson as a learner would see it — for an AUTHOR checking their work.
+ * Deliberately skips the eligibility engine (an author is not enrolled, so the
+ * real path would show "held") and writes NO access log (previewing is not
+ * accessing). Same block shaping as lessonFor, so the learner player renders it
+ * identically. The route that reaches this is author-gated; this function trusts
+ * that gate and does not re-check a role.
+ */
+async function previewLessonFor({ lessonId, userId, locale = 'en' }) {
+  const uid = userId || currentUserId();
+  const lesson = await Lesson.findById(lessonId).exec();
+  if (!lesson) throw new NotAuthorisedError('No such lesson');
+
+  const blocks = await ContentBlock.find({ lessonId }).sort({ order: 1 }).exec();
+  const rendered = [];
+  for (const block of blocks) {
+    const r = await renderBlock(block, uid, locale, {}, { log: false });
+    // No "save for offline" in preview — that path needs an enrolment the author
+    // doesn't have, so the button would only error.
+    rendered.push({ ...r, downloadable: false });
+  }
+
+  return {
+    preview: true,
+    held: false,
+    lesson: { id: lesson._id, title: lesson.title },
+    blocks: rendered,
+  };
+}
+
+/**
  * External lecture links — a YouTube/Vimeo video, or a direct audio/video URL on
  * another platform. Known providers are normalised to their embeddable player URL;
  * direct media is detected by extension and played natively. Anything else is
@@ -164,7 +203,7 @@ function classifyEmbed(rawUrl) {
   return { kind: 'link', src: url, url };
 }
 
-async function renderBlock(block, uid, locale, request) {
+async function renderBlock(block, uid, locale, request, { log = true } = {}) {
   const policy = block.contentPolicyId
     ? await ContentPolicy.findById(block.contentPolicyId).exec()
     : null;
@@ -181,7 +220,7 @@ async function renderBlock(block, uid, locale, request) {
     }
     // Archive resolves its own signed URL under its own consent check.
     const { url } = await accessUrl({ block, purpose: 'lesson_render' });
-    await logView(block, uid, request, block.archiveRef?.accessionNumber);
+    if (log) await logView(block, uid, request, block.archiveRef?.accessionNumber);
     return {
       ...base,
       streamUrl: url,
@@ -194,7 +233,7 @@ async function renderBlock(block, uid, locale, request) {
 
   if (block.type === 'embed') {
     if (!block.embedUrl) return { ...base, unavailable: true, reason: 'This external resource has no link.' };
-    await logView(block, uid, request);
+    if (log) await logView(block, uid, request);
     return { ...base, embed: classifyEmbed(block.embedUrl) };
   }
 
@@ -215,7 +254,7 @@ async function renderBlock(block, uid, locale, request) {
       ? asset.derivatives.find((d) => d.rung === 'hls')?.key || asset.storageKey
       : asset.storageKey;
 
-    await logView(block, uid, request);
+    if (log) await logView(block, uid, request);
     return {
       ...base,
       streamUrl: await storage.signGet(key),
@@ -327,4 +366,4 @@ const logView = (block, uid, request, accessionNumber) =>
     sessionId: request.sessionId,
   });
 
-module.exports = { myLearning, lessonFor, packFor, classifyEmbed };
+module.exports = { myLearning, lessonFor, previewLessonFor, packFor, classifyEmbed };

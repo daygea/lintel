@@ -245,6 +245,25 @@ input:focus, select:focus, textarea:focus { border-color: var(--brass); backgrou
   .card { padding: 14px 15px; }
 }
 
+/* ---- Phones (≤560px): stop horizontal overflow -------------------------- */
+/* The admin/public views lay out toolbars and field+button groups with inline
+   `display:flex`. On a narrow screen a non-wrapping row of two 220px children
+   overflows the viewport. These rows never set flex-wrap, so setting it from the
+   stylesheet makes them stack instead — without editing ~35 templates. A row that
+   deliberately opts out (flex-wrap in its own style) is excluded and untouched. */
+@media (max-width: 560px) {
+  [style*="display:flex"]:not([style*="flex-wrap"]) { flex-wrap: wrap; }
+
+  /* Media and embeds never push the page wider than the screen. */
+  .main img, .main video, .main iframe { max-width: 100%; }
+  /* Long code/preformatted content scrolls itself rather than the page. */
+  .main pre { overflow-x: auto; }
+  /* Oversized page titles come back to a phone-friendly size. !important because
+     several views set an inline font-size on the h1, which would otherwise win. */
+  .page-head h1 { font-size: 22px !important; }
+  .main { padding: 20px 16px 64px; }
+}
+
 /* Quiz authoring */
 .q-block{padding:14px 16px}
 .q-prompt{font-size:15px;line-height:1.5;margin-bottom:8px}

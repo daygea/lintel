@@ -29,6 +29,15 @@ exports.myLearning = h(async (req, res) =>
   })
 );
 
+// Author preview — ungated, no access log. The route is author-gated.
+exports.preview = h(async (req, res) =>
+  res.json(await learner.previewLessonFor({
+    lessonId: req.params.lessonId,
+    userId: req.user._id,
+    locale: req.tenant.defaultLocale,
+  }))
+);
+
 exports.deadlines = h(async (req, res) =>
   res.json({ deadlines: await deadlines.upcomingFor({ userId: req.user._id, locale: req.tenant.defaultLocale }) })
 );

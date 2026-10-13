@@ -5,6 +5,8 @@
 <%- include("../layouts/page-head", { eyebrow: eyebrow, heading: heading, lede: null }) %>
 <% if (lesson.estimatedMinutes) { %><div class="quiet mono" style="font-size:12px;margin:-10px 0 8px"><%= lesson.estimatedMinutes %> min</div><% } %>
 
+<p style="margin:0 0 14px"><a class="btn ghost small" href="/app/?preview=<%= lesson._id %>" target="_blank" rel="noopener">Preview as a learner ↗</a></p>
+
 <% if (error) { %><div class="notice err"><%= error %></div><% } %>
 
 

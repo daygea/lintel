@@ -498,6 +498,43 @@ function renderQuizResult(attempt) {
 
 /* ------------------------------------------------------------------- lesson */
 
+// One requirement row in the "what unlocks this" panel on a held lesson.
+function unlockRow(r) {
+  const met = !!r.met;
+  const icon = met ? '✓' : '○';
+  const how = met ? '' : `<span class="unlock-how">${escapeHtml(r.how || '')}${r.href ? ` <a href="${escapeHtml(r.href)}">Open</a>` : ''}</span>`;
+  return `<li class="unlock-row${met ? ' met' : ''}">
+    <span class="unlock-ic" aria-hidden="true">${icon}</span>
+    <span class="unlock-main"><span class="unlock-title">${escapeHtml(r.title || '')}</span>${how}</span>
+  </li>`;
+}
+
+// Author "preview as a learner" — the real learner render, ungated and unlogged.
+async function renderPreview(lessonId) {
+  root.innerHTML = `<p class="muted" style="padding:22px 18px">Loading preview…</p>`;
+  let data;
+  try {
+    const res = await fetch(`/api/v1/lessons/${lessonId}/preview`, { headers: { Accept: 'application/json' } });
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    if (!res.ok) { root.innerHTML = `<div class="home"><div class="err">You don't have permission to preview this lesson.</div></div>`; return; }
+    data = await res.json();
+  } catch {
+    root.innerHTML = `<div class="home"><div class="err">Could not load the preview.</div></div>`;
+    return;
+  }
+  const title = data.lesson && data.lesson.title ? pickText(data.lesson.title) : 'Lesson';
+  root.innerHTML = `<div class="home">
+    <button class="btn ghost" id="prev-back" style="margin-bottom:14px">← Back</button>
+    <div class="preview-banner" role="status">Preview — this is how learners see this lesson. Nothing here is recorded.</div>
+    <h1>${escapeHtml(title)}</h1>
+    <div id="blocks"></div>
+  </div>`;
+  const back = document.getElementById('prev-back');
+  if (back) back.addEventListener('click', () => history.back());
+  const container = document.getElementById('blocks');
+  for (const block of (data.blocks || [])) container.appendChild(renderBlock(block, lessonId));
+}
+
 async function renderLesson(lessonId) {
   if (!STATE.loaded) { try { await loadLearning(); } catch { /* offline handled below */ } }
   const course = courseOfLesson(lessonId);
@@ -522,10 +559,24 @@ async function renderLesson(lessonId) {
   if (data.csrfToken) { STATE.csrf = data.csrfToken; setCsrfMeta(data.csrfToken); }
 
   if (data.held) {
+    const title = data.lesson && data.lesson.title ? pickText(data.lesson.title) : 'Lesson';
+    const reqs = Array.isArray(data.requirements) ? data.requirements : [];
+    const anyOf = data.combinator === 'any';
+    const unmet = reqs.filter((r) => !r.met).length;
+    const checklist = reqs.length
+      ? `<div class="unlock">
+           <div class="unlock-head">${anyOf ? 'Meet any one of these to open it:' : 'What unlocks this:'}</div>
+           <ul class="unlock-list">${reqs.map(unlockRow).join('')}</ul>
+         </div>`
+      : '';
     pane.innerHTML = `
-      <h1>${pickText(data.lesson.title)}</h1>
-      <div class="held" role="status" aria-live="polite"><blockquote>${escapeHtml(data.message)}</blockquote></div>
-      <p class="muted" style="margin-top:14px">This teaching is held. When your standing is attested, it will open here.</p>
+      <h1>${escapeHtml(title)}</h1>
+      <div class="held" role="status" aria-live="polite">
+        <span class="held-badge">Held</span>
+        <blockquote>${escapeHtml(data.message || 'This teaching is held until you meet its requirements.')}</blockquote>
+      </div>
+      ${checklist}
+      <p class="muted" style="margin-top:14px">${unmet ? 'Once the item' + (unmet === 1 ? '' : 's') + ' above ' + (unmet === 1 ? 'is' : 'are') + ' met, this opens here automatically.' : 'This opens here automatically once your standing is in place.'}</p>
       ${lessonNav(course, lessonId)}`;
     return;
   }
@@ -847,6 +898,7 @@ function currentView() {
   const course = params.get('course');
   if (params.get('help') !== null) return renderHelp;
   if (params.get('schedule') !== null) return renderSchedule;
+  if (params.get('preview')) return () => renderPreview(params.get('preview'));
   if (lesson) return () => renderLesson(lesson);
   if (quiz) return () => renderQuiz(quiz);
   if (course) return () => renderCourse(course);

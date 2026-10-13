@@ -149,6 +149,7 @@ router.delete('/api/v1/courses/:id', ...author, apiCurriculum.deleteCourse);
 router.post('/api/v1/lessons', ...author, apiCurriculum.createLesson);
 router.post('/api/v1/blocks', ...author, apiCurriculum.createBlock);
 router.get('/api/v1/lessons/:lessonId', ...author, apiCurriculum.showLesson);
+router.get('/api/v1/lessons/:lessonId/preview', ...author, apiLearner.preview); // author preview, ungated, no log
 router.post('/api/v1/lessons/:lessonId/policy', ...author, apiCurriculum.setLessonPolicy);
 router.delete('/api/v1/lessons/:lessonId', ...author, apiCurriculum.deleteLesson);
 router.post('/api/v1/reorder', ...author, apiCurriculum.reorder);
