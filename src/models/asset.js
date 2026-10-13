@@ -21,7 +21,11 @@ const DerivativeSchema = new Schema(
 const CaptionSchema = new Schema(
   {
     locale: { type: String, required: true },
-    key: { type: String, required: true }, // WebVTT in R2
+    // A caption track is WebVTT. It lives EITHER inline (vtt) — the default, small
+    // enough to store on the document and to work without object storage — OR as an
+    // R2 object (key), for tracks too large to inline. One of the two is always set.
+    vtt: { type: String },
+    key: { type: String }, // WebVTT in R2 (large tracks)
     source: { type: String, enum: ['human', 'machine'], default: 'human' },
   },
   { _id: false }

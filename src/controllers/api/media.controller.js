@@ -59,6 +59,24 @@ exports.setTranscript = async (req, res, next) => {
   }
 };
 
+exports.setCaption = async (req, res, next) => {
+  try {
+    const asset = await mediaService.setCaption(req.params.id, { locale: req.body.locale, vtt: req.body.vtt });
+    res.json({ captions: asset.captions.map((c) => ({ locale: c.locale, source: c.source })) });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.removeCaption = async (req, res, next) => {
+  try {
+    const asset = await mediaService.removeCaption(req.params.id, req.params.locale);
+    res.json({ captions: asset.captions.map((c) => ({ locale: c.locale, source: c.source })) });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.rename = async (req, res, next) => {
   try {
     const asset = await mediaService.renameAsset(req.params.id, req.body.filename);

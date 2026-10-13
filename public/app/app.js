@@ -535,6 +535,7 @@ function renderBlock(block, lessonId) {
     const labels = (block.tkLabels || []).map((l) => `<span class="tk">${escapeHtml(l)}</span>`).join('');
     let media;
     let footer = '';
+    let extra = '';
 
     if (block.type === 'image') {
       media = `<div class="player img"><img alt="Lesson image" src="${block.streamUrl}">${wm}</div>`;
@@ -544,9 +545,11 @@ function renderBlock(block, lessonId) {
       // video, audio — and archive_ref, which streams as video. A video element
       // plays audio-only sources too, so streamOnly archive material is safe here.
       const isVideo = block.type === 'video' || block.streamOnly;
-      media = isVideo
-        ? `<div class="player"><video controls controlsList="nodownload" src="${block.streamUrl}"></video>${wm}</div>`
-        : `<div class="player"><audio controls controlsList="nodownload" src="${block.streamUrl}"></audio>${wm}</div>`;
+      const tag = isVideo
+        ? `<video controls controlsList="nodownload" playsinline preload="metadata" src="${block.streamUrl}"></video>`
+        : `<audio controls controlsList="nodownload" preload="metadata" src="${block.streamUrl}"></audio>`;
+      media = `<div class="player">${tag}${wm}</div>${speedbar()}`;
+      extra = transcriptHtml(block.transcript);
       // Offline save is only meaningful for the media the offline pack + player
       // support (audio/video). Images and documents render inline, online.
       footer = block.downloadable
@@ -554,7 +557,8 @@ function renderBlock(block, lessonId) {
         : `<p class="muted" style="margin-top:8px">Streaming only — cannot be saved.</p>`;
     }
 
-    el.innerHTML = media + (labels ? `<div style="margin-top:8px">${labels}</div>` : '') + footer;
+    el.innerHTML = media + (labels ? `<div style="margin-top:8px">${labels}</div>` : '') + footer + extra;
+    enhanceMediaPlayer(el, block); // captions, playback speed, resume position — no-op for image/pdf
 
     const btn = el.querySelector('[data-save]');
     if (btn) btn.addEventListener('click', async () => {
@@ -574,14 +578,97 @@ function renderBlock(block, lessonId) {
   return el;
 }
 
+/** Playback-speed chips. Native controls hide speed on most mobile browsers. */
+function speedbar() {
+  const rates = [0.75, 1, 1.25, 1.5, 2];
+  return `<div class="speedbar" data-speedbar role="group" aria-label="Playback speed">` +
+    `<span class="speedbar-l">Speed</span>` +
+    rates.map((r) => `<button type="button" class="speed${r === 1 ? ' on' : ''}" data-rate="${r}" aria-pressed="${r === 1}">${r}×</button>`).join('') +
+    `</div>`;
+}
+
+/** A collapsible transcript panel. transcript is a plain string from the server. */
+function transcriptHtml(transcript) {
+  const t = (transcript || '').trim();
+  if (!t) return '';
+  return `<details class="transcript"><summary>Transcript</summary><div class="transcript-body">${escapeHtml(t).replace(/\n/g, '<br>')}</div></details>`;
+}
+
+/**
+ * Add captions, playback-speed control and saved resume position to a media block.
+ * Safe to call on any block — it no-ops when there is no <video>/<audio>.
+ */
+function enhanceMediaPlayer(el, block) {
+  const v = el.querySelector('video, audio');
+  if (!v) return;
+
+  // Caption tracks (video only). Inline WebVTT becomes a blob URL; a stored track
+  // comes as a signed URL. First track is shown by default.
+  if (v.tagName === 'VIDEO' && Array.isArray(block.captions)) {
+    block.captions.forEach((c, i) => {
+      let src = c.url || '';
+      if (c.vtt) {
+        try { src = URL.createObjectURL(new Blob([c.vtt], { type: 'text/vtt' })); } catch (_) { /* ignore */ }
+      }
+      if (!src) return;
+      const track = document.createElement('track');
+      track.kind = 'captions';
+      track.srclang = c.locale;
+      track.label = String(c.locale || '').toUpperCase() || 'Captions';
+      track.src = src;
+      if (i === 0) track.default = true;
+      v.appendChild(track);
+    });
+  }
+
+  // Resume position — per block, per device. Restore if we're meaningfully in and
+  // not near the end; save occasionally; clear when finished.
+  const key = 'lintel:pos:' + block.id;
+  v.addEventListener('loadedmetadata', () => {
+    try {
+      const saved = parseFloat(localStorage.getItem(key) || '0');
+      if (saved > 5 && v.duration && saved < v.duration - 10) v.currentTime = saved;
+    } catch (_) { /* storage may be unavailable */ }
+  });
+  let lastSave = 0;
+  v.addEventListener('timeupdate', () => {
+    const now = Date.now();
+    if (now - lastSave < 5000) return;
+    lastSave = now;
+    try { if (v.currentTime > 5) localStorage.setItem(key, String(Math.floor(v.currentTime))); } catch (_) { /* ignore */ }
+  });
+  v.addEventListener('ended', () => { try { localStorage.removeItem(key); } catch (_) { /* ignore */ } });
+
+  // Playback speed.
+  const bar = el.querySelector('[data-speedbar]');
+  if (bar) {
+    bar.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+      v.playbackRate = parseFloat(b.dataset.rate);
+      bar.querySelectorAll('button').forEach((x) => {
+        const on = x === b;
+        x.classList.toggle('on', on);
+        x.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    }));
+  }
+}
+
 function renderPack(pack) {
   root.innerHTML = solo(backLink() + `<h1>${pickText(pack.title)}</h1><p class="offline-ok">Saved offline</p><div id="blocks"></div>`);
   const c = document.getElementById('blocks');
   for (const b of pack.blocks) {
     const el = document.createElement('div');
     el.className = 'card';
-    if (b.type === 'rich_text') el.innerHTML = pickRaw(b.body);
-    else if (b.downloadUrl) el.innerHTML = `<audio controls src="${b.downloadUrl}"></audio>`;
+    if (b.type === 'rich_text') {
+      el.innerHTML = pickRaw(b.body);
+    } else if (b.downloadUrl) {
+      const isVideo = b.type === 'video';
+      const tag = isVideo
+        ? `<video controls playsinline preload="metadata" src="${b.downloadUrl}"></video>`
+        : `<audio controls preload="metadata" src="${b.downloadUrl}"></audio>`;
+      el.innerHTML = `<div class="player">${tag}</div>${speedbar()}${transcriptHtml(pickText(b.transcript))}`;
+      enhanceMediaPlayer(el, { id: b.id, type: b.type, captions: b.captions || [] });
+    }
     c.appendChild(el);
   }
 }

@@ -155,6 +155,9 @@ router.get('/media', ...author, webMedia.listAssets);
 router.get('/media/upload', ...author, webMedia.uploadPage);
 router.get('/media/:id', ...author, webMedia.getAsset);
 router.post('/media/:id/rename', ...author, webMedia.rename);
+router.post('/media/:id/transcript', ...author, webMedia.saveTranscript);
+router.post('/media/:id/captions', ...author, webMedia.addCaption);
+router.post('/media/:id/captions/:locale/delete', ...author, webMedia.removeCaption);
 router.post('/media/:id/delete', ...author, webMedia.remove);
 
 router.get('/api/v1/assets', ...author, apiMedia.listAssets);
@@ -164,6 +167,8 @@ router.delete('/api/v1/assets/:id/upload', ...author, apiMedia.abandonUpload);
 router.get('/api/v1/assets/:id', ...author, apiMedia.getAsset);
 router.get('/api/v1/assets/:id/playback', ...author, apiMedia.playbackUrl);
 router.patch('/api/v1/assets/:id/transcript', ...author, apiMedia.setTranscript);
+router.put('/api/v1/assets/:id/captions', ...author, apiMedia.setCaption);
+router.delete('/api/v1/assets/:id/captions/:locale', ...author, apiMedia.removeCaption);
 router.patch('/api/v1/assets/:id/rename', ...author, apiMedia.rename);
 router.delete('/api/v1/assets/:id', ...author, apiMedia.deleteAsset);
 

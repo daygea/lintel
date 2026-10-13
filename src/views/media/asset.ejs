@@ -48,6 +48,63 @@
     <% } %>
   </div>
 <% } %>
+<% if (streamable) { %>
+<div class="section">
+  <h2>Captions &amp; transcript <span class="quiet" style="font-size:13px;font-weight:normal">— accessibility &amp; search</span></h2>
+  <p class="hint">Captions show on the video for learners who are deaf or hard of hearing, or watching without sound. A transcript lets a learner read instead of stream — vital on a slow or metered connection.</p>
+
+  <% if (typeof saved !== 'undefined' && saved) { %><div class="ok-note" style="margin:8px 0"><span class="badge ok">saved</span> <%= saved === 'transcript' ? 'Transcript saved.' : 'Captions updated.' %></div><% } %>
+
+  <h3 style="margin:16px 0 6px;font-size:15px">Transcript</h3>
+  <form method="post" action="/media/<%= asset._id %>/transcript" style="max-width:640px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="transcript">Transcript <span class="quiet">(<%= defaultLocale %>)</span></label>
+      <textarea id="transcript" name="transcript" rows="6" placeholder="Paste or type the spoken content of this recording…"><%= pick(asset.transcript, defaultLocale) %></textarea>
+    </div>
+    <button class="btn ghost" type="submit">Save transcript</button>
+  </form>
+
+  <h3 style="margin:22px 0 6px;font-size:15px">Caption tracks</h3>
+  <% if ((asset.captions || []).length) { %>
+    <table class="table" style="max-width:420px">
+      <thead><tr><th>Language</th><th></th></tr></thead>
+      <tbody>
+      <% asset.captions.forEach(function (c) { %>
+        <tr>
+          <td class="mono"><%= c.locale %></td>
+          <td style="text-align:right">
+            <form method="post" action="/media/<%= asset._id %>/captions/<%= c.locale %>/delete" style="margin:0">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="btn ghost small" type="submit">Remove</button>
+            </form>
+          </td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
+  <% } else { %>
+    <p class="quiet" style="font-size:13px">No caption tracks yet.</p>
+  <% } %>
+
+  <form method="post" action="/media/<%= asset._id %>/captions" style="max-width:640px;margin-top:12px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="cap_locale">Language</label>
+      <select id="cap_locale" name="locale" required>
+        <% (locales || ['en']).forEach(function (l) { %><option value="<%= l %>"><%= l %></option><% }); %>
+      </select>
+    </div>
+    <div class="field">
+      <label for="cap_vtt">WebVTT captions</label>
+      <textarea id="cap_vtt" name="vtt" rows="8" placeholder="WEBVTT&#10;&#10;00:00:00.000 --> 00:00:04.000&#10;Welcome to the lesson."></textarea>
+      <p class="note">Paste a WebVTT track. It must start with <span class="mono">WEBVTT</span>. Export one from your captioning tool, or add timings to the transcript above.</p>
+    </div>
+    <button class="btn" type="submit">Add captions</button>
+  </form>
+</div>
+<% } %>
+
 <div class="section">
   <h2>Manage</h2>
   <form method="post" action="/media/<%= asset._id %>/rename" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;max-width:520px">

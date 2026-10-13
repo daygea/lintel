@@ -213,10 +213,30 @@ async function renderBlock(block, uid, locale, request) {
       streamOnly,
       downloadable: policy?.downloadable ?? false,
       watermark: policy?.watermark ? watermarkFor(uid, request) : null,
+      durationMs: asset.durationMs || null,
+      transcript: asset.transcript ? pick(asset.transcript, locale) : '',
+      captions: await captionTracks(asset),
     };
   }
 
   return base;
+}
+
+/**
+ * Caption tracks for the player: inline WebVTT travels as text (the player makes a
+ * blob URL), an R2-stored track as a signed URL. Shaped the same either way so the
+ * client doesn't care which it is.
+ */
+async function captionTracks(asset) {
+  const caps = asset.captions || [];
+  if (!caps.length) return [];
+  return Promise.all(
+    caps.map(async (c) =>
+      c.vtt
+        ? { locale: c.locale, vtt: c.vtt }
+        : { locale: c.locale, url: await storage.signGet(c.key) }
+    )
+  );
 }
 
 /**
@@ -264,6 +284,9 @@ async function packFor({ lessonId, userId, locale = 'en', request = {} }) {
           type: block.type,
           downloadUrl: await storage.signGet(asset.storageKey, 24 * 3600),
           transcript: asset.transcript,
+          // Only inline caption tracks can ride along offline; a signed URL would
+          // have expired by the time the lesson is replayed without a connection.
+          captions: (asset.captions || []).filter((c) => c.vtt).map((c) => ({ locale: c.locale, vtt: c.vtt })),
         });
       }
     }

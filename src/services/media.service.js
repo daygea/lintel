@@ -135,8 +135,42 @@ const listAssets = (filter = {}) => Asset.find(filter).sort({ createdAt: -1 }).l
 const getAsset = (id) => Asset.findById(id).exec();
 
 async function setTranscript(assetId, transcript) {
-  const asset = await Asset.findByIdAndUpdate(assetId, { transcript }, { new: true }).exec();
+  // transcript is a locale Map — a query-update (findByIdAndUpdate) silently drops
+  // it (no Map cast, no localeMap hook). Load + assign + save so it persists.
+  const asset = await Asset.findById(assetId).exec();
   if (!asset) throw new ValidationError('No such asset');
+  asset.transcript = transcript;
+  await asset.save();
+  return asset;
+}
+
+/**
+ * Add or replace a caption track for a locale, stored inline as WebVTT. Captions
+ * are small text; inlining them means they work without object storage and travel
+ * with the lesson payload (including offline). One track per locale — re-adding a
+ * locale replaces it.
+ */
+async function setCaption(assetId, { locale, vtt }) {
+  const loc = String(locale || '').trim();
+  const text = String(vtt || '').trim();
+  if (!loc) throw new ValidationError('Choose a language for the captions');
+  if (!/^WEBVTT/.test(text)) {
+    throw new ValidationError('Captions must be in WebVTT format (the file must start with "WEBVTT")');
+  }
+  const asset = await Asset.findById(assetId).exec();
+  if (!asset) throw new ValidationError('No such asset');
+  asset.captions = (asset.captions || []).filter((c) => c.locale !== loc);
+  asset.captions.push({ locale: loc, vtt: text, source: 'human' });
+  await asset.save();
+  return asset;
+}
+
+/** Remove the caption track for a locale. */
+async function removeCaption(assetId, locale) {
+  const asset = await Asset.findById(assetId).exec();
+  if (!asset) throw new ValidationError('No such asset');
+  asset.captions = (asset.captions || []).filter((c) => c.locale !== String(locale));
+  await asset.save();
   return asset;
 }
 
@@ -203,6 +237,8 @@ module.exports = {
   listAssets,
   getAsset,
   setTranscript,
+  setCaption,
+  removeCaption,
   renameAsset,
   deleteAsset,
   PART_SIZE,
