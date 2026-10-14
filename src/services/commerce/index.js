@@ -2,13 +2,14 @@
 
 const crypto = require('node:crypto');
 const {
-  FeeSchedule, Invoice, Payment, Enrollment, AuditLog, User, Tenant,
+  FeeSchedule, Invoice, Payment, Enrollment, AuditLog, User, Tenant, Course,
 } = require('../../models');
 const { PaystackProvider } = require('./providers/paystack');
 const { PLANS } = require('../../config/plans');
 const money = require('../../lib/money');
 const { ValidationError, NotAuthorisedError } = require('../../lib/errors');
 const { currentUserId, currentTenantId } = require('../../lib/context');
+const { pick } = require('../../plugins/locale-map');
 const logger = require('../../lib/logger');
 
 const PROVIDERS = { paystack: new PaystackProvider() };
@@ -144,6 +145,71 @@ async function myInvoices(userId) {
       settled: outstanding.amount <= 0 || inv.state === 'waived',
     };
   });
+}
+
+/**
+ * A learner's own payment history — the receipt ledger. Payment rows are
+ * append-only, so this is a faithful record: every confirmed payment, newest
+ * first, a refund showing as a negative row. Light by design (no per-row course
+ * resolution); the per-receipt view resolves the fuller context.
+ */
+async function myPayments(userId) {
+  const payments = await Payment.find({ userId }).sort({ at: -1 }).exec();
+  return payments.map((p) => ({
+    id: p._id,
+    at: p.at,
+    amount: p.amount,
+    method: p.method,
+    provider: p.provider,
+    reference: p.providerRef || null,
+    note: p.note || null,
+    isRefund: p.amount.amount < 0,
+    invoiceId: p.invoiceId,
+  }));
+}
+
+/**
+ * One payment, with the context a printable receipt needs. Ownership is enforced
+ * here — a learner can only pull their OWN receipt — so the route doesn't have to.
+ */
+async function paymentReceipt({ paymentId, userId }) {
+  const payment = await Payment.findById(paymentId).exec();
+  if (!payment) throw new ValidationError('No such payment');
+  if (String(payment.userId) !== String(userId)) {
+    throw new NotAuthorisedError('That receipt is not yours');
+  }
+
+  const invoice = await Invoice.findById(payment.invoiceId).exec();
+  const tenant = await Tenant.findById(currentTenantId()).exec();
+  const learner = await User.findById(userId).exec();
+  const locale = tenant ? tenant.defaultLocale : 'en';
+
+  // What the payment was applied toward — the enrolment's course, when resolvable.
+  let courseTitle = null;
+  if (invoice) {
+    const enrolment = await Enrollment.findById(invoice.enrollmentId).exec();
+    if (enrolment && enrolment.courseId) {
+      const course = await Course.findById(enrolment.courseId).exec();
+      if (course) courseTitle = pick(course.title, locale);
+    }
+  }
+
+  return {
+    payment: {
+      id: payment._id,
+      at: payment.at,
+      amount: payment.amount,
+      method: payment.method,
+      provider: payment.provider,
+      reference: payment.providerRef || null,
+      note: payment.note || null,
+      isRefund: payment.amount.amount < 0,
+    },
+    institution: tenant ? tenant.name : null,
+    learnerName: learner ? learner.name : null,
+    courseTitle,
+    invoiceRef: invoice ? String(invoice._id) : null,
+  };
 }
 
 /**
@@ -594,7 +660,7 @@ async function refund({ invoiceId, amount, reason }) {
 
 module.exports = {
   listSchedules, createSchedule, scheduleForCohort, cohortFee,
-  raiseInvoice, invoiceFor, invoiceView, myInvoices, ensureInvoiceForEnrolment,
+  raiseInvoice, invoiceFor, invoiceView, myInvoices, myPayments, paymentReceipt, ensureInvoiceForEnrolment,
   beginPayment, recordPayment, confirmBankTransfer, waive, refund, paymentsFor,
   handleWebhook, confirmByReference, reconcilePendingPayments,
   listPayoutBanks, resolvePayoutAccount, savePayoutAccount, clearPayoutAccount,

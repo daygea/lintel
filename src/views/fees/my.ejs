@@ -48,5 +48,25 @@
     </table>
     <p class="quiet" style="font-size:12px;margin-top:10px">Payments are processed securely by the institution's payment provider.</p>
   <% } %>
+
+  <% if ((payments || []).length) {
+       function methodLabel(m){ return ({ paystack:'Card / Paystack', bank_transfer:'Bank transfer', cash:'Cash', waiver:'Waiver', refund:'Refund' })[m] || m; } %>
+    <h2 style="font-size:18px;margin:30px 0 10px">Payment history</h2>
+    <p class="quiet" style="font-size:13px;margin:0 0 12px">Every confirmed payment on your account. Open a receipt to print it or save it as a PDF.</p>
+    <table class="table">
+      <thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Reference</th><th></th></tr></thead>
+      <tbody>
+      <% payments.forEach(function (p) { %>
+        <tr>
+          <td class="mono"><%= new Date(p.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></td>
+          <td class="mono"><%= p.isRefund ? '−' + format({ amount: Math.abs(p.amount.amount), currency: p.amount.currency }) : format(p.amount) %></td>
+          <td><%= methodLabel(p.method) %><% if (p.isRefund && p.method !== 'refund') { %> (refund)<% } %></td>
+          <td class="mono quiet" style="font-size:12px"><%= p.reference || '—' %></td>
+          <td><a class="quiet mono" style="font-size:12px" href="/my/fees/receipt/<%= p.id %>">Receipt →</a></td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
+  <% } %>
 </div>
 <%- include("../layouts/public-foot") %>

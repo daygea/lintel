@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Payment receipt<%= institution ? ' — ' + institution : '' %></title>
+  <style>
+    :root { --ink:#14192B; --muted:#6E6B63; --rule:#E3E0D9; --paper:#fff; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#F4F2EE; color:var(--ink);
+      font-family:-apple-system,"Segoe UI",Roboto,system-ui,sans-serif; line-height:1.55; }
+    .sheet { max-width:600px; margin:28px auto; background:var(--paper);
+      border:1px solid var(--rule); border-radius:10px; padding:32px 34px; }
+    .top { display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+      border-bottom:1px solid var(--rule); padding-bottom:16px; margin-bottom:22px; }
+    .inst { font-family:Georgia,"Times New Roman",serif; font-size:19px; font-weight:600; }
+    .doctype { font-size:11px; letter-spacing:.11em; text-transform:uppercase; color:var(--muted); margin-top:3px; }
+    .ref { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px; color:var(--muted); text-align:right; }
+    .amount { font-size:30px; font-weight:700; margin:4px 0 2px; }
+    .amount.refund { color:#b4453f; }
+    .amount-lbl { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
+    dl { display:grid; grid-template-columns:140px 1fr; gap:10px 16px; margin:24px 0 0; }
+    dt { color:var(--muted); font-size:13px; }
+    dd { margin:0; font-size:14px; }
+    .mono { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12.5px; }
+    .foot { margin-top:26px; padding-top:16px; border-top:1px solid var(--rule);
+      font-size:12px; color:var(--muted); }
+    .actions { max-width:600px; margin:0 auto 40px; text-align:right; }
+    .btn { font:inherit; font-size:14px; background:var(--ink); color:#fff; border:0;
+      border-radius:6px; padding:9px 16px; cursor:pointer; }
+    .back { font-size:13px; color:var(--ink); }
+    @media print {
+      body { background:#fff; }
+      .sheet { border:0; margin:0; max-width:none; padding:0; }
+      .actions { display:none; }
+    }
+  </style>
+</head>
+<body>
+  <%
+    function methodLabel(m){ return ({ paystack:'Card / Paystack', bank_transfer:'Bank transfer', cash:'Cash', waiver:'Fee waiver', refund:'Refund' })[m] || m; }
+    var when = new Date(payment.at).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
+    var amt = payment.isRefund
+      ? '−' + format({ amount: Math.abs(payment.amount.amount), currency: payment.amount.currency })
+      : format(payment.amount);
+  %>
+  <div class="sheet">
+    <div class="top">
+      <div>
+        <div class="inst"><%= institution || 'Lintel' %></div>
+        <div class="doctype"><%= payment.isRefund ? 'Refund receipt' : 'Payment receipt' %></div>
+      </div>
+      <div class="ref">
+        Receipt no.<br><%= String(payment.id) %>
+      </div>
+    </div>
+
+    <div class="amount-lbl"><%= payment.isRefund ? 'Amount refunded' : 'Amount paid' %></div>
+    <div class="amount<%= payment.isRefund ? ' refund' : '' %>"><%= amt %></div>
+
+    <dl>
+      <dt>Date</dt><dd><%= when %></dd>
+      <dt>Paid by</dt><dd><%= learnerName || '—' %></dd>
+      <% if (courseTitle) { %><dt>For</dt><dd><%= courseTitle %></dd><% } %>
+      <dt>Method</dt><dd><%= methodLabel(payment.method) %></dd>
+      <% if (payment.reference) { %><dt>Reference</dt><dd class="mono"><%= payment.reference %></dd><% } %>
+      <% if (invoiceRef) { %><dt>Invoice</dt><dd class="mono"><%= invoiceRef %></dd><% } %>
+      <% if (payment.note) { %><dt>Note</dt><dd><%= payment.note %></dd><% } %>
+    </dl>
+
+    <div class="foot">
+      This receipt confirms the payment recorded above against your account<%= institution ? ' at ' + institution : '' %>.
+      Keep it for your records.
+    </div>
+  </div>
+
+  <div class="actions">
+    <a class="back" href="/my/fees">← Back to fees</a>
+    &nbsp;&nbsp;
+    <button class="btn" type="button" onclick="window.print()">Print / Save as PDF</button>
+  </div>
+</body>
+</html>

@@ -189,18 +189,36 @@ async function recordQuizScore({ quiz, userId }) {
  */
 async function learnerGrades(userId, locale = 'en') {
   const enrollments = await Enrollment.find({ userId, status: 'active' }).exec();
-  const courses = [];
+  const courseIds = [...new Set(enrollments.filter((e) => e.courseId).map((e) => String(e.courseId)))];
+  if (!courseIds.length) return { courses: [] };
 
+  // Batch the whole view in three queries instead of a Course + LineItem + Score
+  // round-trip per enrolment (N+1): fetch every course, every published line item
+  // across them, and every score at once, then assemble per-course in memory.
+  const courseById = new Map(
+    (await Course.find({ _id: { $in: courseIds } }).exec()).map((c) => [String(c._id), c])
+  );
+  const allItems = await LineItem.find({ courseId: { $in: courseIds }, published: true })
+    .sort({ category: 1 }).exec();
+  const itemsByCourse = new Map();
+  for (const li of allItems) {
+    const k = String(li.courseId);
+    if (!itemsByCourse.has(k)) itemsByCourse.set(k, []);
+    itemsByCourse.get(k).push(li);
+  }
+  const scores = allItems.length
+    ? await Score.find({ userId, lineItemId: { $in: allItems.map((i) => i._id) } }).exec()
+    : [];
+  const byItem = new Map(scores.map((s) => [String(s.lineItemId), s]));
+
+  const courses = [];
   for (const enr of enrollments) {
     if (!enr.courseId) continue;
-    const course = await Course.findById(enr.courseId).exec();
+    const course = courseById.get(String(enr.courseId));
     if (!course) continue;
 
-    const items = await LineItem.find({ courseId: course._id, published: true }).sort({ category: 1 }).exec();
+    const items = itemsByCourse.get(String(course._id)) || [];
     if (!items.length) continue;
-
-    const scores = await Score.find({ userId, lineItemId: { $in: items.map((i) => i._id) } }).exec();
-    const byItem = new Map(scores.map((s) => [String(s.lineItemId), s]));
 
     let gradedCount = 0;
     let pctSum = 0;

@@ -23,14 +23,26 @@ async function myLearning({ userId, locale = 'en' }) {
   const uid = userId || currentUserId();
 
   const enrollments = await Enrollment.find({ userId: uid, status: 'active' }).exec();
+
+  // Batch the course and cohort lookups up front — one query each — instead of a
+  // findById per enrolment (N+1). The loop below reads from these maps.
+  const courseIds = [...new Set(enrollments.filter((e) => e.courseId).map((e) => String(e.courseId)))];
+  const cohortIds = [...new Set(enrollments.filter((e) => e.cohortId).map((e) => String(e.cohortId)))];
+  const courseById = new Map(
+    (await Course.find({ _id: { $in: courseIds } }).exec()).map((c) => [String(c._id), c])
+  );
+  const cohortById = new Map(
+    (await Cohort.find({ _id: { $in: cohortIds } }).exec()).map((c) => [String(c._id), c])
+  );
+
   const courses = [];
 
   for (const enr of enrollments) {
     if (!enr.courseId) continue; // a cohort with no course carries nothing to learn yet
-    const course = await Course.findById(enr.courseId).exec();
+    const course = courseById.get(String(enr.courseId));
     if (!course || course.status === 'archived') continue;
 
-    const cohort = enr.cohortId ? await Cohort.findById(enr.cohortId).exec() : null;
+    const cohort = enr.cohortId ? cohortById.get(String(enr.cohortId)) || null : null;
     const modules = await Module.find({ courseId: course._id }).sort({ order: 1 }).exec();
     const lessons = await Lesson.find({ courseId: course._id }).sort({ order: 1 }).exec();
 
@@ -64,18 +76,24 @@ async function myLearning({ userId, locale = 'en' }) {
     // Open quizzes for this course, with how many attempts the learner has left.
     // Discovery only — presentFor still strips answers, submit still marks.
     const quizDocs = await Quiz.find({ courseId: course._id, status: 'open' }).sort({ createdAt: 1 }).exec();
-    const quizzes = [];
-    for (const qz of quizDocs) {
-      const attemptsUsed = await QuizAttempt.countDocuments({ quizId: qz._id, userId: uid }).exec();
-      quizzes.push({
-        id: qz._id,
-        title: qz.title,
-        questionCount: qz.questions.length,
-        attemptsAllowed: qz.attemptsAllowed,
-        attemptsUsed,
-        passPercent: qz.passPercent,
-      });
+    // One grouped count of this learner's attempts across all of the course's open
+    // quizzes, rather than a countDocuments per quiz (N+1).
+    const attemptCounts = new Map();
+    if (quizDocs.length) {
+      const grouped = await QuizAttempt.aggregate([
+        { $match: { quizId: { $in: quizDocs.map((q) => q._id) }, userId: uid } },
+        { $group: { _id: '$quizId', n: { $sum: 1 } } },
+      ]).exec();
+      grouped.forEach((g) => attemptCounts.set(String(g._id), g.n));
     }
+    const quizzes = quizDocs.map((qz) => ({
+      id: qz._id,
+      title: qz.title,
+      questionCount: qz.questions.length,
+      attemptsAllowed: qz.attemptsAllowed,
+      attemptsUsed: attemptCounts.get(String(qz._id)) || 0,
+      passPercent: qz.passPercent,
+    }));
 
     let coverUrl = null;
     if (course.coverAssetId) {

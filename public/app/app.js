@@ -66,6 +66,24 @@ function courseProgress(course) {
   return { done, total: all.length, pct: all.length ? Math.round((done / all.length) * 100) : 0 };
 }
 
+// A compact SVG completion ring. Pure presentation of courseProgress() — the data
+// is already on the client, so this adds no request. The value arc is drawn with
+// stroke-dasharray/offset over a full-circle track; one accessible label carries
+// the percentage for screen readers.
+function progressRing(pct, size) {
+  const s = size || 42;
+  const r = (s / 2) - 4;
+  const circ = 2 * Math.PI * r;
+  const off = circ * (1 - Math.max(0, Math.min(100, pct)) / 100);
+  const mid = s / 2;
+  return `<svg class="ring" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" role="img" aria-label="${pct}% complete">
+    <circle class="ring-track" cx="${mid}" cy="${mid}" r="${r}" fill="none" stroke-width="4"></circle>
+    <circle class="ring-val" cx="${mid}" cy="${mid}" r="${r}" fill="none" stroke-width="4" stroke-linecap="round"
+      stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 ${mid} ${mid})"></circle>
+    <text class="ring-text" x="${mid}" y="${mid}" dominant-baseline="central" text-anchor="middle">${pct}%</text>
+  </svg>`;
+}
+
 /* ------------------------------------------------------------------ shell */
 
 function shell(sideHtml, paneHtml) {
@@ -310,8 +328,10 @@ function homeCard(course) {
         <span class="c-code mono">${escapeHtml(course.code || '')}</span>
         <span class="c-title">${pickText(course.title)}</span>
         ${course.cohortTitle ? `<span class="c-sub">${pickText(course.cohortTitle)}</span>` : ''}
-        <span class="meter" aria-hidden="true"><span style="width:${p.pct}%"></span></span>
-        <span class="c-prog">${p.done} of ${p.total} lessons</span>
+        <span class="c-progress">
+          ${progressRing(p.pct, 44)}
+          <span class="c-prog">${p.done} of ${p.total} lessons${p.total && p.done === p.total ? ' · complete' : ''}</span>
+        </span>
       </span>
     </a>`;
 }

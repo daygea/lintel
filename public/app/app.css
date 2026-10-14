@@ -216,8 +216,16 @@ ul.lessons{list-style:none;margin:0;padding:0}
 .c-card{padding:0;gap:0;overflow:hidden}
 .c-cover{display:block;height:104px;background-size:cover;background-position:center;background-color:#2a3050}
 .c-cover.gen{display:flex;align-items:center;justify-content:center}
-.c-body{display:flex;flex-direction:column;gap:5px;padding:14px 16px}
+.c-body{display:flex;flex-direction:column;gap:5px;padding:14px 16px;flex:1}
 .mono-badge{font-family:var(--serif);color:rgba(255,255,255,.92);line-height:1;font-size:30px}
+
+/* per-course completion ring (home grid cards) */
+.c-progress{display:flex;align-items:center;gap:11px;margin-top:auto;padding-top:9px}
+.c-progress .c-prog{margin-top:0}
+.ring{flex:none;display:block}
+.ring-track{stroke:var(--rule)}
+.ring-val{stroke:var(--brass);transition:stroke-dashoffset .35s ease}
+.ring-text{font-family:var(--ui);font-size:11px;font-weight:600;fill:var(--ink)}
 
 .course-hero{padding:0;overflow:hidden}
 .course-cover{display:block;height:150px;background-size:cover;background-position:center;background-color:#2a3050}

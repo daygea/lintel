@@ -16,6 +16,7 @@ const CHECKERS = [
   ['a11y', require('./check-a11y')],
   ['csrf-forms', require('./check-csrf-forms')],
   ['view-fragility', require('./check-view-fragility')],
+  ['perf-budget', require('./check-perf-budget')],
   ['boot', require('./check-boot')],
 ];
 

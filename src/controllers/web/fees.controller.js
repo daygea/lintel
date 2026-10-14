@@ -25,11 +25,19 @@ exports.mine = h(async (req, res) => {
   }
 
   const rows = await commerce.myInvoices(req.user._id);
+  const payments = await commerce.myPayments(req.user._id);
   res.render('fees/my', {
-    rows, format,
+    rows, payments, format,
     payStatus,
     error: req.query.err || null,
   });
+});
+
+// A single printable receipt. Ownership is enforced in the service, which throws
+// NotAuthorisedError for someone else's payment.
+exports.receipt = h(async (req, res) => {
+  const data = await commerce.paymentReceipt({ paymentId: req.params.paymentId, userId: req.user._id });
+  res.render('fees/receipt', { ...data, format });
 });
 
 // Start an online payment for one of the learner's own invoices and hand off to

@@ -201,6 +201,7 @@ router.get('/api/v1/catalogue', requireUser, requireMember, apiCatalog.list);
 router.get('/apply', requireUser, requireMember, webApply.show);
 router.post('/apply', requireUser, requireMember, webApply.submit);
 router.get('/my/fees', requireUser, requireMember, webFees.mine);
+router.get('/my/fees/receipt/:paymentId', requireUser, requireMember, webFees.receipt);
 // Learner calendar: the ICS feed is token-authed (no session); the token endpoint is gated.
 router.get('/calendar/:token', webCalendar.ics);
 router.post('/my/calendar', requireUser, requireMember, webCalendar.ensureToken);
