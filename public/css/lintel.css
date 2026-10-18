@@ -151,6 +151,18 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
 .rows li .title { font-size: 15px; }
 .rows li .meta { color: var(--muted); font-size: 13px; margin-top: 3px; }
 
+/* Rendered rich-text (the sanitised institution About, and any future HTML prose).
+   Long URLs/words break rather than forcing the page wider. */
+.prose { line-height: 1.65; overflow-wrap: anywhere; }
+.prose p { margin: 0 0 12px; }
+.prose p:last-child { margin-bottom: 0; }
+.prose h3 { font-family: var(--serif); font-size: 18px; margin: 18px 0 6px; }
+.prose h4 { font-family: var(--serif); font-size: 15px; margin: 16px 0 6px; }
+.prose ul, .prose ol { margin: 0 0 12px; padding-left: 22px; }
+.prose li { margin: 2px 0; }
+.prose blockquote { margin: 0 0 12px; padding-left: 14px; border-left: 3px solid var(--rule-2); color: var(--muted); }
+.prose a { color: var(--brass); }
+
 /* The threshold rule — a thin bar marking open vs held content. The signature. */
 .thr { border-left: 3px solid var(--rule-2); padding-left: 16px; }
 .thr.is-open { border-left-color: var(--brass); }
@@ -262,6 +274,17 @@ input:focus, select:focus, textarea:focus { border-color: var(--brass); backgrou
      several views set an inline font-size on the h1, which would otherwise win. */
   .page-head h1 { font-size: 22px !important; }
   .main { padding: 20px 16px 64px; }
+
+  /* Public pages use the .pub-main layout, not .main, so they missed the overflow
+     guards above. Give them the same protection: a tighter gutter, media that
+     never pushes the page wide, long words/URLs that break, and buttons that wrap
+     instead of overflowing (a long "Sign in to <institution>" label is inline-flex
+     and would otherwise force horizontal scroll on a phone). */
+  .pub-main { padding: 30px 18px; }
+  .pub-main img, .pub-main video, .pub-main iframe { max-width: 100%; height: auto; }
+  .pub-main pre { overflow-x: auto; }
+  .pub-wide, .pub-card { overflow-wrap: anywhere; }
+  .btn { white-space: normal; max-width: 100%; }
 }
 
 /* Quiz authoring */
