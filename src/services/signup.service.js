@@ -139,6 +139,10 @@ async function approve({ applicationId, systemApproved = false }) {
       name: app.institutionName,
       ownerUserId: owner._id,
       plan: app.plan || 'trial',
+      // Carry the name THIS application gave onto the owner's membership — so a
+      // reused (existing-email) owner shows this institution's name here, never
+      // the one some other institution set on the shared global User.
+      displayName: app.contactName,
     });
 
     await TenantApplication.updateOne(

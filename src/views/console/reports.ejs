@@ -12,7 +12,7 @@
         <div>
           <span class="badge <%= r.category==='illegal_content'?'held':'flat' %>"><%= r.category ? r.category.replace(/_/g,' ') : 'other' %></span>
           <span class="quiet" style="font-size:13px;margin-left:8px"><%= r.subjectType %><%= r.subjectRef ? ' · '+r.subjectRef : '' %></span>
-          <% if (r.detail) { %><div class="meta" style="margin-top:6px"><%= r.detail %></div><% } %>
+          <% if (r.detail) { %><div class="meta" style="margin-top:6px;white-space:pre-wrap"><%= r.detail %></div><% } %>
           <div class="meta mono" style="font-size:12px;margin-top:4px"><%= new Date(r.createdAt).toLocaleString() %></div>
         </div>
         <a class="btn ghost small" href="/console/reports/<%= r._id %>">Review</a>

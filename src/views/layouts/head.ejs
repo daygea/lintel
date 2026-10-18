@@ -64,7 +64,7 @@
         <% if (typeof pageTitle !== 'undefined' && pageTitle) { %><span class="sep">/</span><%= pageTitle %><% } %>
       </div>
       <div class="who">
-        <% if (typeof user !== "undefined" && user) { %><span class="uname"><%= user.name %></span><% } %>
+        <% if (typeof user !== "undefined" && user) { %><span class="uname"><%= (typeof membership !== 'undefined' && membership && membership.displayName) ? membership.displayName : user.name %></span><% } %>
         <a href="/report" style="margin-right:12px">Report</a><a href="/security" style="margin-right:12px">Security</a><form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">Sign out</button></form>
       </div>
     </div>

@@ -5,7 +5,7 @@
   <h1><%= report.category ? report.category.replace(/_/g,' ') : 'other' %></h1>
   <p class="lede mono" style="font-size:13px"><%= report.subjectType %><%= report.subjectRef ? ' · '+report.subjectRef : '' %> · filed <%= new Date(report.createdAt).toLocaleString() %></p>
 </div>
-<% if (report.detail) { %><div class="panel" style="margin-bottom:22px"><%= report.detail %></div><% } %>
+<% if (report.detail) { %><div class="panel" style="margin-bottom:22px;white-space:pre-wrap"><%= report.detail %></div><% } %>
 
 <div class="section">
   <h2>Resolve</h2>

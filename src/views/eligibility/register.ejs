@@ -60,7 +60,7 @@
         <select id="at_type" name="typeSlug" required><% types.forEach(function(t){ %><option value="<%= t.slug %>"><%= pick(t.label, locale) %> (<%= t.slug %>)</option><% }); %></select>
       </div>
       <div class="field" style="margin:0"><label for="at_subject">Person</label>
-        <select id="at_subject" name="subjectUserId" required><% members.forEach(function(m){ %><% if (m.userId) { %><option value="<%= m.userId._id %>"><%= m.userId.name || m.userId.email %></option><% } %><% }); %></select>
+        <select id="at_subject" name="subjectUserId" required><% members.forEach(function(m){ %><% if (m.userId) { %><option value="<%= m.userId._id %>"><%= m.displayName || m.userId.name || m.userId.email %></option><% } %><% }); %></select>
       </div>
       <div class="field" style="margin:0"><label for="at_note">Note</label><input id="at_note" name="note" placeholder="optional"></div>
       <button class="btn" type="submit">Attest</button>

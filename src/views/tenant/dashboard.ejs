@@ -22,7 +22,7 @@
     <tbody>
     <% members.forEach(function (m) { %>
       <tr>
-        <td><%= m.userId ? m.userId.name : '—' %></td>
+        <td><%= m.displayName || (m.userId ? m.userId.name : '') || '—' %></td>
         <td class="mono"><%= m.userId ? m.userId.email : '—' %></td>
         <td><% (m.roles||[]).forEach(function(r){ %><span class="badge flat" style="margin-right:5px"><%= r %></span><% }); %></td>
         <td>

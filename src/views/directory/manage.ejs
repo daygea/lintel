@@ -26,7 +26,7 @@
 
 <% if (error) { %><div class="notice err"><%= error %></div><% } %>
 
-<form method="post" action="/directory-listing" class="form-narrow" style="max-width:560px">
+<form id="listing-form" method="post" action="/directory-listing" class="form-narrow" style="max-width:560px">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
   <div class="field">
     <label for="handle">Directory address</label>
@@ -77,4 +77,50 @@
 
   <button class="btn" type="submit" style="margin-top:18px">Save listing</button>
 </form>
+
+<%# Rich-text editor for the About field(s). Progressive enhancement: the plain
+    textareas above are the real form fields and still work if this fails to load.
+    Quill writes its HTML back into them on submit; the server sanitises on save. %>
+<link rel="stylesheet" href="/vendor/quill/quill.snow.css">
+<style>
+  .rt-editor { background:var(--paper); border:1px solid var(--rule-2,#ccc); border-radius:0 0 4px 4px; }
+  .rt-editor .ql-editor { min-height:120px; font-size:14px; }
+  .ql-toolbar.ql-snow { border-color:var(--rule-2,#ccc); border-radius:4px 4px 0 0; }
+  .ql-container.ql-snow { border:none; }
+</style>
+<script src="/vendor/quill/quill.js"></script>
+<script>
+  (function () {
+    if (typeof Quill === 'undefined') return; // offline / blocked → plain textareas still submit
+    var form = document.getElementById('listing-form');
+    var pairs = [];
+    document.querySelectorAll('textarea[id^="about_"]').forEach(function (ta) {
+      var holder = document.createElement('div');
+      holder.className = 'rt-editor';
+      ta.parentNode.insertBefore(holder, ta.nextSibling);
+      ta.style.display = 'none';
+      var q = new Quill(holder, {
+        theme: 'snow',
+        modules: { toolbar: [
+          [{ header: [3, 4, false] }],
+          ['bold', 'italic', 'underline'],
+          [{ list: 'ordered' }, { list: 'bullet' }],
+          ['blockquote', 'link', 'clean'],
+        ] },
+      });
+      var initial = (ta.value || '').trim();
+      if (initial) { try { q.clipboard.dangerouslyPasteHTML(initial); } catch (e) { q.setText(initial); } }
+      pairs.push({ ta: ta, q: q });
+    });
+    if (form) {
+      form.addEventListener('submit', function () {
+        pairs.forEach(function (p) {
+          var empty = p.q.getText().trim() === '';
+          var html = p.q.getSemanticHTML ? p.q.getSemanticHTML() : p.q.root.innerHTML;
+          p.ta.value = empty ? '' : html; // server sanitises this on save
+        });
+      });
+    }
+  })();
+</script>
 <%- include("../layouts/foot") %>

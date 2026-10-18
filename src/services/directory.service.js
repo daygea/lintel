@@ -4,6 +4,7 @@ const { DirectoryListing, Course, Tenant } = require('../models');
 const { ValidationError } = require('../lib/errors');
 const { currentUserId, runAsPlatform } = require('../lib/context');
 const { pick } = require('../plugins/locale-map');
+const { sanitizeRichMap } = require('../lib/sanitize');
 
 // Institutions in these states must never appear in the public directory, even
 // with a published listing: suspended = locked out, closed/deleted = gone.
@@ -17,6 +18,10 @@ async function upsertListing(data) {
   if (!data.handle || !data.displayName) {
     throw new ValidationError('A listing needs a handle and a display name');
   }
+  // About is authored with a rich-text editor and rendered on the PUBLIC page as
+  // HTML, so it is sanitised to the strict allowlist before it is ever stored —
+  // the one and only gate, independent of whatever the editor emits.
+  if (data.about) data.about = sanitizeRichMap(data.about);
   const existing = await DirectoryListing.findOne({}).exec();
   if (existing) {
     // Assign + save (not updateOne): tagline/about are Mongoose Map fields, and a

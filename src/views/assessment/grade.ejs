@@ -43,7 +43,7 @@
       <div><strong><%= g.totalPoints %></strong> points <span class="quiet">· <%= g.isFinal ? 'final (moderated)' : 'provisional' %></span></div>
       <% if (g.moderatedFromGradeId) { %><div class="quiet" style="font-size:13px">moderates an earlier mark</div><% } %>
       <% if (g.feedbackAssetId) { %><div style="color:var(--brass);font-size:13px">▸ spoken feedback attached</div><% } %>
-      <% if (g.feedback) { %><p style="font-family:var(--serif);color:var(--ink-soft);margin:6px 0 0"><%= pick(g.feedback, locale) %></p><% } %>
+      <% if (g.feedback) { %><p style="font-family:var(--serif);color:var(--ink-soft);margin:6px 0 0;white-space:pre-wrap"><%= pick(g.feedback, locale) %></p><% } %>
     </div>
   <% }); %>
   <% if (!grades.length) { %><div class="panel quiet">Not yet marked.</div><% } %>

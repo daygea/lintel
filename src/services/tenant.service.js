@@ -10,7 +10,7 @@ const { runWithTenant, runAsPlatform } = require('../lib/context');
  * Tenant creation is a PLATFORM operation — there is no tenant context yet.
  * runAsPlatform() is greppable on purpose: every use must be justifiable.
  */
-async function provision({ slug, name, ownerUserId, plan = 'trial', baseCurrency = 'NGN', locales = ['en'] }) {
+async function provision({ slug, name, ownerUserId, plan = 'trial', baseCurrency = 'NGN', locales = ['en'], displayName }) {
   if (!PLANS[plan]) throw new ValidationError(`Unknown plan: ${plan}`);
 
   const owner = await User.findById(ownerUserId);
@@ -35,6 +35,10 @@ async function provision({ slug, name, ownerUserId, plan = 'trial', baseCurrency
   await runWithTenant(tenant._id, ownerUserId, async () => {
     await Membership.create({
       userId: ownerUserId,
+      // The name THIS institution gave for its owner — set even when the owner
+      // User already existed (from another institution), so B's chosen name is
+      // honoured without overwriting A's global User.name.
+      displayName: displayName || undefined,
       roles: [ROLES.OWNER, ROLES.ADMIN],
       status: 'active',
       joinedAt: new Date(),

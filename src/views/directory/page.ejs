@@ -9,7 +9,7 @@
   <% if (listing.contact && (listing.contact.city || listing.contact.country)) { %>
     <p class="mono quiet" style="font-size:13px"><%= [listing.contact.city, listing.contact.country].filter(Boolean).join(' · ') %></p>
   <% } %>
-  <% if (listing.about) { %><div style="margin-top:18px;max-width:60ch"><%= pick(listing.about, 'en') %></div><% } %>
+  <% if (listing.about) { %><div class="prose" style="margin-top:18px;max-width:60ch"><%- pick(listing.about, 'en') %></div><% } %>
 
   <% if (listing.courses && listing.courses.length) { %>
     <div class="section">

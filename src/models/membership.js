@@ -9,6 +9,12 @@ const { ALL: ALL_ROLES, ROLES } = require('../lib/roles');
 const MembershipSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    // The person's name AS THIS INSTITUTION knows them. `User` is one global,
+    // email-keyed record, so its `name` is shared across every tenant that email
+    // touches — a person enrolled at two institutions (or a reused owner email)
+    // shows one global name everywhere. This per-tenant name overrides it for
+    // display within this institution; empty falls back to the global User.name.
+    displayName: { type: String, trim: true }, // @admin-string — a person's name within this institution
     roles: {
       type: [String],
       required: true,

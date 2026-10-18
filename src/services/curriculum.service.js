@@ -7,6 +7,7 @@ const {
 } = require('../models');
 const { ValidationError } = require('../lib/errors');
 const { currentUserId } = require('../lib/context');
+const { sanitizeRichMap } = require('../lib/sanitize');
 
 /* ------------------------------------------------------------------ programs */
 
@@ -110,10 +111,15 @@ async function createLesson({ moduleId, title, order, estimatedMinutes }) {
 async function createBlock({ lessonId, type, body, assetId, embedUrl, archiveRef, order }) {
   const lesson = await Lesson.findById(lessonId).exec();
   if (!lesson) throw new ValidationError('No such lesson');
+  // A rich_text body is rendered to learners as raw HTML, so an author's markup is
+  // sanitised to a strict allowlist BEFORE it is stored. This is the single choke
+  // point for authored HTML — blocks are created or deleted, never edited — so
+  // nothing reaches the database unsanitised.
+  const safeBody = type === 'rich_text' ? sanitizeRichMap(body) : body;
   return ContentBlock.create({
     lessonId,
     type,
-    body,
+    body: safeBody,
     assetId,
     embedUrl,
     archiveRef,
