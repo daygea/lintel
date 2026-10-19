@@ -9,8 +9,8 @@
 
 <div class="stats">
   <div class="stat"><div class="n"><%= members.length %></div><div class="l">Members</div></div>
-  <div class="stat"><div class="n"><%= (members.filter(function(m){return m.roles.indexOf('learner')>=0;})).length %></div><div class="l">Learners</div></div>
-  <div class="stat"><div class="n"><%= (members.filter(function(m){return m.roles.indexOf('elder')>=0;})).length %></div><div class="l">Elders</div></div>
+  <div class="stat"><div class="n"><%= (members.filter(function(m){return (m.roles||[]).indexOf('learner')>=0;})).length %></div><div class="l">Learners</div></div>
+  <div class="stat"><div class="n"><%= (members.filter(function(m){return (m.roles||[]).indexOf('elder')>=0;})).length %></div><div class="l">Elders</div></div>
   <div class="stat"><div class="n"><%= (members.filter(function(m){return m.status==='active';})).length %></div><div class="l">Active</div></div>
 </div>
 
