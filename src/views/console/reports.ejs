@@ -21,5 +21,5 @@
   <% }); %>
   <% if(!reports.length){ %><li class="quiet">No open reports.</li><% } %>
 </ul>
-<%- include("../layouts/pager", { pg: pg, baseUrl: baseUrl }) %>
+<% if (typeof pg !== "undefined" && pg) { %><%- include("../layouts/pager", { pg: pg, baseUrl: (typeof baseUrl !== "undefined" ? baseUrl : "") }) %><% } %>
 <%- include("foot") %>

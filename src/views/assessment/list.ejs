@@ -17,7 +17,7 @@
     <% if (!assessments.length) { %><tr class="empty"><td colspan="4">No assessments yet.</td></tr><% } %>
     </tbody>
   </table>
-  <%- include("../layouts/pager", { pg: pg, baseUrl: baseUrl }) %>
+  <% if (typeof pg !== "undefined" && pg) { %><%- include("../layouts/pager", { pg: pg, baseUrl: (typeof baseUrl !== "undefined" ? baseUrl : "") }) %><% } %>
 </div>
 
 <div class="section" style="margin-top:8px">

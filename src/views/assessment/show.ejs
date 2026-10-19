@@ -21,6 +21,6 @@
     <% if (!submissions.length) { %><tr class="empty"><td colspan="4">Nothing submitted yet.</td></tr><% } %>
     </tbody>
   </table>
-  <%- include("../layouts/pager", { pg: pg, baseUrl: baseUrl }) %>
+  <% if (typeof pg !== "undefined" && pg) { %><%- include("../layouts/pager", { pg: pg, baseUrl: (typeof baseUrl !== "undefined" ? baseUrl : "") }) %><% } %>
 </div>
 <%- include("../layouts/foot") %>

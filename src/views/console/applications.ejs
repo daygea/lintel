@@ -23,5 +23,5 @@
   <% }); %>
   <% if(!applications.length){ %><li class="quiet">No pending applications.</li><% } %>
 </ul>
-<%- include("../layouts/pager", { pg: pg, baseUrl: baseUrl }) %>
+<% if (typeof pg !== "undefined" && pg) { %><%- include("../layouts/pager", { pg: pg, baseUrl: (typeof baseUrl !== "undefined" ? baseUrl : "") }) %><% } %>
 <%- include("foot") %>
