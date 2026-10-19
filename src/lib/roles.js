@@ -26,7 +26,11 @@ const ALL = Object.values(ROLES);
 
 const STAFF = [ROLES.OWNER, ROLES.ADMIN, ROLES.REGISTRAR, ROLES.INSTRUCTOR, ROLES.ASSESSOR, ROLES.ELDER];
 
+// A membership whose `roles` is absent (a legacy or imported document that
+// predates the schema default) means "holds no roles" — never a thrown error.
+// `has` runs on the hot path (completeLogin, the dashboard gate, requireRole),
+// so an unguarded `.includes` here 500's sign-in and the institution root.
 const has = (membership, ...roles) =>
-  !!membership && roles.some((r) => membership.roles.includes(r));
+  !!membership && (membership.roles || []).some((r) => roles.includes(r));
 
 module.exports = { ROLES, ALL, STAFF, has };
