@@ -88,7 +88,39 @@ const TEMPLATES = {
   },
   'enrollment.activated': {
     subject: { en: 'You are enrolled' },
-    text: { en: (d) => `You are now enrolled in ${d.cohortTitle}.` },
+    text: { en: (d) => `You are now enrolled in ${d.cohortTitle || 'your course'}. Sign in to begin.` },
+  },
+  'member.admitted': {
+    subject: { en: (d) => `You've been admitted to ${d.institutionName || 'the institution'}` },
+    text: {
+      en: (d) => `You have been admitted to ${d.institutionName || 'the institution'}. You can now sign in and begin.`,
+    },
+  },
+  'registration.received': {
+    subject: { en: (d) => `We've received your registration${d.institutionName ? ' at ' + d.institutionName : ''}` },
+    text: {
+      en: (d) => `Thanks for registering${d.institutionName ? ' at ' + d.institutionName : ''}. Your request is in — you'll be able to sign in once a registrar has admitted you.`,
+    },
+  },
+  'payment.confirmed': {
+    subject: { en: (d) => `Payment received${d.institutionName ? ' — ' + d.institutionName : ''}` },
+    text: {
+      en: (d) => `We've received your payment of ${d.amount}${d.institutionName ? ' to ' + d.institutionName : ''}. Thank you. Your receipt is on your fees page.`,
+    },
+  },
+  'password_reset': {
+    subject: { en: (d) => `Reset your ${d.institutionName || 'Lintel'} password` },
+    text: {
+      en: (d) => [
+        'We received a request to reset your password.',
+        '',
+        'Set a new password here:',
+        d.setPasswordUrl,
+        `This link expires in ${d.expiresInHours} hours.`,
+        '',
+        "If you didn't request this, you can ignore this email — your current password still works.",
+      ].join('\n'),
+    },
   },
   'breakglass_notice': {
     subject: { en: 'Platform staff accessed your institution\'s content' },
@@ -133,17 +165,27 @@ const TEMPLATES = {
  * Records one Notification per channel. A failure in one is logged and does not
  * stop the others.
  */
-async function notify({ userId, template, data = {}, channels = ['email'], locale = 'en' }) {
+/**
+ * Render a template's subject + text for a locale, WITHOUT sending or recording
+ * anything. Used by notify(), and by platform-context senders that must go out via
+ * sendDirectEmail — a tenant-scoped Notification row can't be written with no tenant
+ * in context (a superadmin resetting any user's password, say).
+ */
+function render(template, data = {}, locale = 'en') {
   const tmpl = TEMPLATES[template];
   if (!tmpl) throw new Error(`Unknown notification template: ${template}`);
-
-  const user = await User.findById(userId).exec();
-  if (!user) throw new Error('No such user');
-
   const subjectVal = pick(tmpl.subject, locale) || pick(tmpl.subject, 'en');
   const subject = typeof subjectVal === 'function' ? subjectVal(data) : subjectVal;
   const textFn = tmpl.text[locale] || tmpl.text.en;
   const text = typeof textFn === 'function' ? textFn(data) : textFn;
+  return { subject, text };
+}
+
+async function notify({ userId, template, data = {}, channels = ['email'], locale = 'en' }) {
+  const user = await User.findById(userId).exec();
+  if (!user) throw new Error('No such user');
+
+  const { subject, text } = render(template, data, locale);
 
   const results = [];
 
@@ -215,4 +257,4 @@ async function sendDirectEmail({ to, subject, text }) {
   }
 }
 
-module.exports = { notify, sendDirectEmail, history, CHANNELS, TEMPLATES };
+module.exports = { notify, render, sendDirectEmail, history, CHANNELS, TEMPLATES };

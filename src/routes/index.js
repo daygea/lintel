@@ -14,6 +14,7 @@ const webCatalog = require('../controllers/web/catalog.controller');
 const apiCatalog = require('../controllers/api/catalog.controller');
 const webCalendar = require('../controllers/web/calendar.controller');
 const webFees = require('../controllers/web/fees.controller');
+const webProfile = require('../controllers/web/profile.controller');
 const webReport = require('../controllers/web/report.controller');
 const apiInvite = require('../controllers/api/invite.controller');
 const webCurriculum = require('../controllers/web/curriculum.controller');
@@ -97,6 +98,11 @@ router.get('/settings/billing', ...staff, webBilling.show);
 router.post('/settings/billing/subscribe', ...staff, webBilling.subscribe);
 router.post('/settings/billing/payouts', ...staff, webBilling.savePayouts);
 router.post('/settings/billing/payouts/remove', ...staff, webBilling.removePayout);
+
+// Every member can edit their own profile (name, phone) and change their password.
+router.get('/settings/profile', requireUser, requireMember, webProfile.show);
+router.post('/settings/profile', requireUser, requireMember, webProfile.save);
+router.post('/settings/profile/password', requireUser, requireMember, webProfile.changePassword);
 router.get('/report', requireUser, requireMember, webReport.show);
 router.post('/report', requireUser, requireMember, webReport.submit);
 router.patch(
@@ -207,6 +213,9 @@ router.get('/calendar/:token', webCalendar.ics);
 router.post('/my/calendar', requireUser, requireMember, webCalendar.ensureToken);
 router.get('/api/v1/me/deadlines', requireUser, requireMember, apiLearner.deadlines);
 router.get('/api/v1/me/grades', requireUser, requireMember, apiLearner.grades);
+router.get('/api/v1/me/profile', requireUser, requireMember, apiLearner.profile);
+router.put('/api/v1/me/profile', requireUser, requireMember, apiLearner.updateProfile);
+router.post('/api/v1/me/password', requireUser, requireMember, apiLearner.changePassword);
 router.post('/my/fees/:invoiceId/pay', requireUser, requireMember, requireFeature('commerce'), webFees.pay);
 router.get('/api/v1/cohorts/:cohortId/applications', ...staff, apiEnrolment.listApplications);
 router.post('/api/v1/applications/:id/decide', ...staff, apiEnrolment.decideApplication);

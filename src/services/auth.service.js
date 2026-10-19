@@ -98,6 +98,22 @@ async function changePassword({ userId, currentPassword, newPassword }) {
   return { ok: true, sessionEpoch: (user.sessionEpoch || 0) + 1 };
 }
 
+/**
+ * Update a signed-in user's own profile. Name and phone only — email is the login
+ * identity (globally unique) and is not changed here, and roles/standing live on
+ * Membership, never on the User.
+ */
+async function updateProfile({ userId, name, phone }) {
+  const user = await User.findById(userId).exec();
+  if (!user) throw new NotAuthenticatedError();
+  const cleanName = String(name || '').trim();
+  if (!cleanName) throw new ValidationError('Your name can’t be empty.');
+  user.name = cleanName;
+  user.phone = String(phone || '').trim() || undefined;
+  await user.save();
+  return user;
+}
+
 async function beginMfaSetup(user) {
   const secret = authenticator.generateSecret();
   await User.updateOne({ _id: user._id }, { $set: { 'mfa.secret': secret, 'mfa.enabled': false } });
@@ -226,12 +242,24 @@ async function selfRegister({ email, name }) {
       roleLabel: 'learner',
       withTempPassword: false, // link only for self-serve; no phone fallback needed
     });
+  } else {
+    // An existing account already has a password (no set-password link to send), but
+    // should still be acknowledged — previously it received nothing. Best-effort.
+    try {
+      const { notify } = require('./notification');
+      await notify({
+        userId: user._id,
+        template: 'registration.received',
+        channels: ['email'],
+        data: { institutionName: undefined },
+      });
+    } catch (err) { /* best-effort */ }
   }
 
   return { user, pending: true };
 }
 
 module.exports = {
-  register, authenticate, authenticatePassword, verifyTotp, changePassword,
+  register, authenticate, authenticatePassword, verifyTotp, changePassword, updateProfile,
   beginMfaSetup, confirmMfa, disableMfa, invite, selfRegister,
 };

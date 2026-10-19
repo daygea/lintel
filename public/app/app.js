@@ -190,7 +190,7 @@ async function renderHome() {
     ${continueBlock}
     ${dueSoon}
     ${grid}
-    <p style="margin-top:22px"><a class="btn" href="/catalogue">Browse courses</a> <a class="btn ghost" href="?grades" style="margin-left:8px">My grades</a> <a class="btn ghost" href="?schedule" style="margin-left:8px">My schedule</a> <a class="btn ghost" href="/my/fees" style="margin-left:8px">Fees &amp; payments</a> <a class="btn ghost" href="?help" style="margin-left:8px">Help</a></p>
+    <p style="margin-top:22px"><a class="btn" href="/catalogue">Browse courses</a> <a class="btn ghost" href="?grades" style="margin-left:8px">My grades</a> <a class="btn ghost" href="?schedule" style="margin-left:8px">My schedule</a> <a class="btn ghost" href="/my/fees" style="margin-left:8px">Fees &amp; payments</a> <a class="btn ghost" href="?profile" style="margin-left:8px">Profile</a> <a class="btn ghost" href="?help" style="margin-left:8px">Help</a></p>
     <div id="offline" style="margin-top:26px"></div>
   </div>`;
   renderOfflineList();
@@ -1042,6 +1042,82 @@ function startTour() {
   paint();
 }
 
+/* ------------------------------------------------------------------ profile */
+
+async function renderProfile() {
+  root.innerHTML = `<p class="muted" style="padding:22px 18px">Loading…</p>`;
+  let data = {};
+  try {
+    const res = await fetch('/api/v1/me/profile', { headers: { accept: 'application/json' } });
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    if (res.ok) data = await res.json();
+  } catch (_) { /* offline */ }
+  if (data.csrfToken) STATE.csrf = data.csrfToken;
+
+  root.innerHTML = `<div class="home">
+    <a class="btn ghost" href="/app/" style="margin-bottom:18px">← Back</a>
+    <h1 class="section-h" style="margin-top:0">Your profile</h1>
+    <p class="quiet" style="margin-top:-6px">Update your name and phone, or change your password.</p>
+    <div id="prof-msg"></div>
+    <form id="prof-form" class="pform">
+      <label class="plbl" for="pf-name">Name</label>
+      <input class="pin" id="pf-name" name="name" value="${escapeAttr(data.name || '')}" required>
+      <label class="plbl" for="pf-phone">Phone (optional)</label>
+      <input class="pin" id="pf-phone" name="phone" value="${escapeAttr(data.phone || '')}" autocomplete="tel">
+      <label class="plbl" for="pf-email">Email</label>
+      <input class="pin" id="pf-email" value="${escapeAttr(data.email || '')}" disabled>
+      <p class="quiet" style="font-size:12px;margin:2px 0 0">Your email is your sign-in and can't be changed here.</p>
+      <button class="btn" type="submit" style="margin-top:12px">Save profile</button>
+    </form>
+    <h2 class="section-h">Change password</h2>
+    <form id="pw-form" class="pform">
+      <label class="plbl" for="pf-cur">Current password</label>
+      <input class="pin" id="pf-cur" name="currentPassword" type="password" autocomplete="current-password" required>
+      <label class="plbl" for="pf-new">New password (at least 10 characters)</label>
+      <input class="pin" id="pf-new" name="newPassword" type="password" autocomplete="new-password" minlength="10" required>
+      <label class="plbl" for="pf-conf">Confirm new password</label>
+      <input class="pin" id="pf-conf" name="confirm" type="password" autocomplete="new-password" minlength="10" required>
+      <button class="btn" type="submit" style="margin-top:12px">Change password</button>
+    </form>
+  </div>`;
+
+  const msg = document.getElementById('prof-msg');
+  const show = (text, ok) => {
+    msg.innerHTML = `<div class="${ok ? 'ok-msg' : 'err'}" style="margin-bottom:12px">${escapeHtml(text)}</div>`;
+  };
+  const val = (id) => document.getElementById(id).value;
+
+  document.getElementById('prof-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/v1/me/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...csrfHeader() },
+        body: JSON.stringify({ name: val('pf-name'), phone: val('pf-phone') }),
+      });
+      const out = await res.json();
+      if (!res.ok) throw new Error(out.error || 'Could not save your profile.');
+      if (out.name) STATE.learnerName = out.name;
+      show('Profile saved.', true);
+    } catch (err) { show(err.message, false); }
+  });
+
+  document.getElementById('pw-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/v1/me/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...csrfHeader() },
+        body: JSON.stringify({ currentPassword: val('pf-cur'), newPassword: val('pf-new'), confirm: val('pf-conf') }),
+      });
+      const out = await res.json();
+      if (!res.ok) throw new Error(out.error || 'Could not change your password.');
+      document.getElementById('pw-form').reset();
+      show('Password changed.', true);
+    } catch (err) { show(err.message, false); }
+  });
+}
+
 /* ------------------------------------------------------------------- router */
 
 function currentView() {
@@ -1052,6 +1128,7 @@ function currentView() {
   if (params.get('help') !== null) return renderHelp;
   if (params.get('schedule') !== null) return renderSchedule;
   if (params.get('grades') !== null) return renderGrades;
+  if (params.get('profile') !== null) return renderProfile;
   if (params.get('preview')) return () => renderPreview(params.get('preview'));
   if (lesson) return () => renderLesson(lesson);
   if (quiz) return () => renderQuiz(quiz);

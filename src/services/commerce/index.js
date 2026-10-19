@@ -428,6 +428,24 @@ async function recordPayment({ invoiceId, amount, method, provider = 'manual', p
     });
   }
 
+  // Confirm the payment to the learner — only a real, newly-recorded, positive
+  // payment (not a replayed webhook, a refund, or a waiver). Best-effort: a mail
+  // failure must never unwind a recorded payment.
+  if (!replay && amount && amount.amount > 0 && !['waiver', 'refund'].includes(method)) {
+    try {
+      const { notify } = require('../notification');
+      const tenant = await Tenant.findById(currentTenantId()).exec();
+      await notify({
+        userId: invoice.userId,
+        template: 'payment.confirmed',
+        channels: ['email'],
+        data: { amount: money.format(amount), institutionName: tenant ? tenant.name : undefined },
+      });
+    } catch (err) {
+      logger.warn({ invoiceId: String(invoice._id), err: err.message }, 'payment confirmation notify failed');
+    }
+  }
+
   return { invoice: await Invoice.findById(invoice._id).exec(), payment, replay };
 }
 

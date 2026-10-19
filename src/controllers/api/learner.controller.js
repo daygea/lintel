@@ -4,6 +4,7 @@ const learner = require('../../services/learner.service');
 const deadlines = require('../../services/deadlines.service');
 const gradebook = require('../../services/gradebook.service');
 const push = require('../../services/push.service');
+const auth = require('../../services/auth.service');
 
 const req2ctx = (req) => ({
   ip: req.ip,
@@ -67,6 +68,36 @@ exports.pack = h(async (req, res) =>
     request: req2ctx(req),
   }))
 );
+
+// Learner self-service profile (the PWA profile view).
+exports.profile = h(async (req, res) =>
+  res.json({
+    name: req.user.name,
+    email: req.user.email,
+    phone: req.user.phone || '',
+    displayName: (req.membership && req.membership.displayName) || null,
+    csrfToken: req.session.csrfToken,
+  })
+);
+
+exports.updateProfile = h(async (req, res) => {
+  const user = await auth.updateProfile({ userId: req.user._id, name: req.body.name, phone: req.body.phone });
+  res.json({ ok: true, name: user.name, phone: user.phone || '' });
+});
+
+exports.changePassword = h(async (req, res) => {
+  if (req.body.newPassword !== req.body.confirm) {
+    return res.status(422).json({ error: 'The new passwords do not match.' });
+  }
+  const result = await auth.changePassword({
+    userId: req.user._id,
+    currentPassword: req.body.currentPassword,
+    newPassword: req.body.newPassword,
+  });
+  // Keep THIS session valid after the epoch bump (see the web profile controller).
+  if (req.session && result && result.sessionEpoch != null) req.session.epoch = result.sessionEpoch;
+  res.json({ ok: true });
+});
 
 exports.pushKey = h(async (_req, res) => res.json({ publicKey: push.publicKey() }));
 exports.pushSubscribe = h(async (req, res) => {

@@ -8,7 +8,7 @@ const { ValidationError } = require('../lib/errors');
 const { PLANS } = require('../config/plans');
 const { runWithTenant } = require('../lib/context');
 const { issueOnboarding } = require('./onboarding.service');
-const { notify } = require('./notification');
+const { notify, render, sendDirectEmail } = require('./notification');
 
 /**
  * Every operation here runs as platform and writes a PlatformAuditLog entry. The
@@ -303,12 +303,11 @@ async function sendPasswordReset(userId, actingUserId) {
     if (!user) throw new ValidationError('No such user');
     await User.updateOne({ _id: user._id }, { $inc: { sessionEpoch: 1 } }).exec();
     const { link } = await issueOnboarding({ userId: user._id, purpose: 'reset_password' });
-    await notify({
-      userId: user._id,
-      template: 'account_created',
-      channels: ['email'],
-      data: { institutionName: null, roleLabel: null, setPasswordUrl: link, expiresInHours: 48, tempPassword: null },
-    });
+    // Platform context (a superadmin resetting any user) — send straight to the
+    // address via sendDirectEmail; a tenant-scoped Notification row can't be written
+    // here, and the previous notify() call would have thrown.
+    const { subject, text } = render('password_reset', { setPasswordUrl: link, expiresInHours: 48 });
+    await sendDirectEmail({ to: user.email, subject, text });
     await audit('user.password_reset_sent', 'User', user._id, { email: user.email });
     return { ok: true };
   }, actingUserId);
@@ -318,9 +317,29 @@ async function sendPasswordReset(userId, actingUserId) {
 
 /** File a report. Callable by anyone — reporter may be anonymous. */
 function fileReport({ tenantId, subjectType, subjectId, subjectRef, category, detail, reportedByUserId, reporterEmail }) {
-  return runAsPlatform('file abuse report', () =>
-    AbuseReport.create({ tenantId, subjectType, subjectId, subjectRef, category, detail, reportedByUserId, reporterEmail })
-  );
+  return runAsPlatform('file abuse report', async () => {
+    const report = await AbuseReport.create({ tenantId, subjectType, subjectId, subjectRef, category, detail, reportedByUserId, reporterEmail });
+    // Alert platform staff so a report isn't seen only if someone happens to open the
+    // console. Best-effort: a mail failure must never fail the filing.
+    try {
+      const { sendDirectEmail } = require('./notification');
+      const admins = await User.find({ platformRole: 'superadmin' }).select('email').exec();
+      let recipients = admins.map((a) => a.email).filter(Boolean);
+      if (!recipients.length && process.env.SUPERADMIN_EMAIL) recipients = [process.env.SUPERADMIN_EMAIL];
+      const subject = `New abuse report: ${category || 'other'}`;
+      const text = [
+        'A new report has been filed on Lintel.',
+        '',
+        `Category: ${category || 'other'}`,
+        `Subject:  ${subjectType}${subjectRef ? ' · ' + subjectRef : ''}`,
+        detail ? `\nDetail:\n${detail}` : '',
+        '',
+        'Open the platform console to review it.',
+      ].join('\n');
+      for (const to of recipients) await sendDirectEmail({ to, subject, text });
+    } catch (err) { /* best-effort */ }
+    return report;
+  });
 }
 
 const listReports = (status = 'open') =>

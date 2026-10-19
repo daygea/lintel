@@ -39,6 +39,20 @@ async function activate(membershipId, actorUserId) {
     subjectId: membership._id,
     meta: { roles: membership.roles },
   });
+  // Tell the admitted person their access is open — best-effort, never blocks the
+  // admission. (Previously nothing was sent when a self-registered member was admitted.)
+  try {
+    const { notify } = require('./notification');
+    const { Tenant } = require('../models');
+    const { currentTenantId } = require('../lib/context');
+    const tenant = await Tenant.findById(currentTenantId()).exec();
+    await notify({
+      userId: membership.userId,
+      template: 'member.admitted',
+      channels: ['email'],
+      data: { institutionName: tenant ? tenant.name : undefined },
+    });
+  } catch (err) { /* best-effort */ }
   return membership;
 }
 

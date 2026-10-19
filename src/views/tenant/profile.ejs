@@ -1,0 +1,47 @@
+<% var nav = 'settings'; var pageTitle = 'Profile'; %>
+<%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
+<% var eyebrow = 'ACCOUNT'; var heading = 'Your profile'; var lede = 'How your name appears and the phone we reach you on. You can also change your password.'; %>
+<%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
+
+<% if (saved) { %><div class="ok-note" style="margin:12px 0"><span class="badge ok">saved</span> Your profile has been updated.</div><% } %>
+<% if (pw) { %><div class="ok-note" style="margin:12px 0"><span class="badge ok">done</span> Your password has been changed.</div><% } %>
+<% if (error) { %><div class="notice err" role="alert" style="margin-bottom:16px"><%= error %></div><% } %>
+
+<form method="post" action="/settings/profile" class="form-narrow">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="field">
+    <label for="name">Name</label>
+    <input id="name" name="name" value="<%= profileUser.name || '' %>" required>
+  </div>
+  <div class="field">
+    <label for="phone">Phone <span class="quiet">(optional)</span></label>
+    <input id="phone" name="phone" value="<%= profileUser.phone || '' %>">
+  </div>
+  <div class="field">
+    <label for="email">Email</label>
+    <input id="email" value="<%= profileUser.email %>" disabled>
+    <div class="note">Your email is your sign-in and can't be changed here — ask an administrator.</div>
+  </div>
+  <button class="btn" type="submit">Save profile</button>
+</form>
+
+<div class="section" style="margin-top:34px">
+  <h2 style="font-size:16px">Change password</h2>
+  <form method="post" action="/settings/profile/password" class="form-narrow">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="currentPassword">Current password</label>
+      <input id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required>
+    </div>
+    <div class="field">
+      <label for="newPassword">New password <span class="quiet">(at least 10 characters)</span></label>
+      <input id="newPassword" name="newPassword" type="password" autocomplete="new-password" minlength="10" required>
+    </div>
+    <div class="field">
+      <label for="confirm">Confirm new password</label>
+      <input id="confirm" name="confirm" type="password" autocomplete="new-password" minlength="10" required>
+    </div>
+    <button class="btn" type="submit">Change password</button>
+  </form>
+</div>
+<%- include("../layouts/foot") %>

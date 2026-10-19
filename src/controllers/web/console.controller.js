@@ -149,7 +149,9 @@ exports.forceLogout = h(async (req, res) => {
 });
 exports.resetPassword = h(async (req, res) => {
   await platform.sendPasswordReset(req.params.id, req.user._id);
-  res.redirect(req.get('referer') || '/console');
+  // Confirm on-screen (the action gave no feedback before — it just bounced back).
+  const ref = req.get('referer') || '/console';
+  res.redirect(ref + (ref.includes('?') ? '&' : '?') + 'pwreset=1');
 });
 
 /* ---- Abuse reports ---- */
@@ -160,7 +162,7 @@ exports.reports = h(async (req, res) => {
 exports.report = h(async (req, res) => {
   const report = await platform.reportDetail(req.params.id);
   const grants = await platform.listBreakglass();
-  res.render('console/report', { report, grants, error: null });
+  res.render('console/report', { report, grants, error: null, pwreset: req.query.pwreset || null });
 });
 exports.resolveReport = h(async (req, res) => {
   await platform.resolveReport(req.params.id, { status: req.body.status, resolution: req.body.resolution }, req.user._id);

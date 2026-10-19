@@ -5,6 +5,7 @@
   <h1><%= report.category ? report.category.replace(/_/g,' ') : 'other' %></h1>
   <p class="lede mono" style="font-size:13px"><%= report.subjectType %><%= report.subjectRef ? ' · '+report.subjectRef : '' %> · filed <%= new Date(report.createdAt).toLocaleString() %></p>
 </div>
+<% if (typeof pwreset !== 'undefined' && pwreset) { %><div class="notice ok" style="margin-bottom:16px"><span class="badge ok">sent</span> A password-reset link has been emailed to the user.</div><% } %>
 <% if (report.detail) { %><div class="panel" style="margin-bottom:22px;white-space:pre-wrap"><%= report.detail %></div><% } %>
 
 <div class="section">

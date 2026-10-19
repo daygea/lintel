@@ -17,6 +17,7 @@ const { notify } = require('./notification');
 const { PLANS } = require('../config/plans');
 const { ValidationError, NotAuthorisedError } = require('../lib/errors');
 const { currentUserId, currentTenantId } = require('../lib/context');
+const { pick } = require('../plugins/locale-map');
 
 /**
  * Enforce the plan's seat cap before creating a NEW active enrolment. Re-enrolling
@@ -189,6 +190,17 @@ async function enrol({ cohortId, userId }) {
     paymentState: 'unpaid',
   });
   await audit('enrollment.created', 'Enrollment', enrollment._id, { cohortId, by: 'registrar' });
+  // Tell the learner they're in — best-effort, never blocks the enrolment. (Admission
+  // via an application sends 'admitted'; a direct registrar enrolment previously sent
+  // nothing, so this is the "you now have access" message for that path.)
+  try {
+    await notify({
+      userId,
+      template: 'enrollment.activated',
+      channels: ['email'],
+      data: { cohortTitle: pick(cohort.title, 'en') },
+    });
+  } catch (err) { /* best-effort */ }
   return enrollment;
 }
 
