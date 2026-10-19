@@ -1,4 +1,7 @@
 <% var pageTitle = listing.displayName; %>
+<% var barActions = (typeof instBase !== 'undefined' && instBase)
+  ? '<a class="btn small" href="' + instBase + '/login">Sign in</a><a class="btn ghost small" href="' + instBase + '/join">Register</a>'
+  : ''; %>
 <%- include("../layouts/public-head") %>
 <article class="pub-wide">
   <div class="page-head">
@@ -9,7 +12,16 @@
   <% if (listing.contact && (listing.contact.city || listing.contact.country)) { %>
     <p class="mono quiet" style="font-size:13px"><%= [listing.contact.city, listing.contact.country].filter(Boolean).join(' · ') %></p>
   <% } %>
-  <% if (listing.about) { %><div class="prose" style="margin-top:18px;max-width:60ch"><%- pick(listing.about, 'en') %></div><% } %>
+
+  <%# Primary actions, up top so a long About can never bury them (they also live in the sticky bar). %>
+  <% if (typeof instBase !== 'undefined' && instBase) { %>
+  <p class="inst-cta" style="margin:18px 0 0">
+    <a class="btn" href="<%= instBase %>/login">Sign in to <%= listing.displayName %></a>
+    <a class="btn ghost" href="<%= instBase %>/join" style="margin-left:8px">Register as a learner</a>
+  </p>
+  <% } %>
+
+  <% if (listing.about) { %><div class="prose" style="margin-top:22px;max-width:60ch"><%- pick(listing.about, 'en') %></div><% } %>
 
   <% if (listing.courses && listing.courses.length) { %>
     <div class="section">
@@ -21,13 +33,6 @@
       </ul>
       <p class="quiet" style="font-size:13px">Titles are shown for information. Enrolment and access are arranged with the institution.</p>
     </div>
-  <% } %>
-
-  <% if (typeof instBase !== 'undefined' && instBase) { %>
-  <p style="margin-top:24px">
-    <a class="btn" href="<%= instBase %>/login">Sign in to <%= listing.displayName %></a>
-    <a class="btn ghost" href="<%= instBase %>/join" style="margin-left:8px">Register as a learner</a>
-  </p>
   <% } %>
 
   <% if (listing.contact && (listing.contact.website || listing.contact.email)) { %>

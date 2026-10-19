@@ -8,7 +8,8 @@
   <link rel="stylesheet" href="/css/lintel.css">
   <style>
     .pub { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
-    .pub-bar { padding: 20px 32px; border-bottom: 1px solid var(--rule); }
+    .pub-bar { padding: 14px 24px; border-bottom: 1px solid var(--rule); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; position: sticky; top: 0; z-index: 20; background: var(--paper); }
+    .pub-bar-cta { display: flex; gap: 8px; align-items: center; }
     .pub-bar .brand { display: inline-flex; align-items: baseline; gap: 9px; font-family: var(--serif); font-size: 20px; font-weight: 600; color: var(--ink); text-decoration: none; }
     .pub-bar .brand:hover { text-decoration: none; }
     .pub-bar .mark { display:inline-block; width:14px; height:14px; position:relative; }
@@ -22,5 +23,8 @@
 </head>
 <body>
 <div class="pub">
-  <header class="pub-bar"><a class="brand" href="/" aria-label="Lintel home"><span class="mark"></span> Lintel</a></header>
+  <header class="pub-bar">
+    <a class="brand" href="/" aria-label="Lintel home"><span class="mark"></span> Lintel</a>
+    <% if (typeof barActions !== 'undefined' && barActions) { %><nav class="pub-bar-cta" aria-label="Account"><%- barActions %></nav><% } %>
+  </header>
   <main class="pub-main">
