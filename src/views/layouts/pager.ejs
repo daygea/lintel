@@ -1,0 +1,10 @@
+<%# Reusable pager. Expects: pg = { page, pages, hasPrev, hasNext } and baseUrl
+    (the current path with any filter query, minus page). Renders nothing for a
+    single page. %>
+<% if (typeof pg !== 'undefined' && pg && pg.pages > 1) { var _sep = baseUrl.indexOf('?') >= 0 ? '&' : '?'; %>
+<nav class="pager" aria-label="Pagination">
+  <% if (pg.hasPrev) { %><a class="pager-btn" href="<%= baseUrl + _sep + 'page=' + (pg.page - 1) %>" rel="prev">&larr; Prev</a><% } else { %><span class="pager-btn is-off">&larr; Prev</span><% } %>
+  <span class="pager-at">Page <%= pg.page %> of <%= pg.pages %></span>
+  <% if (pg.hasNext) { %><a class="pager-btn" href="<%= baseUrl + _sep + 'page=' + (pg.page + 1) %>" rel="next">Next &rarr;</a><% } else { %><span class="pager-btn is-off">Next &rarr;</span><% } %>
+</nav>
+<% } %>

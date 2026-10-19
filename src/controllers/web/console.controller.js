@@ -47,8 +47,13 @@ exports.dashboard = h(async (req, res) => {
 
 exports.institutions = h(async (req, res) => {
   const includeArchived = req.query.archived === '1';
-  const tenants = await platform.listTenants({ includeArchived });
-  res.render('console/institutions', { tenants, includeArchived });
+  const pg = await platform.pageTenants({ includeArchived, page: req.query.page });
+  res.render('console/institutions', {
+    tenants: pg.rows,
+    pg,
+    baseUrl: '/console/institutions' + (includeArchived ? '?archived=1' : ''),
+    includeArchived,
+  });
 });
 
 exports.deleteInstitution = h(async (req, res) => {
@@ -95,8 +100,8 @@ exports.closeInstitution = h(async (req, res) => {
 });
 
 exports.applications = h(async (req, res) => {
-  const applications = await signup.listApplications('pending');
-  res.render('console/applications', { applications });
+  const pg = await signup.pageApplications({ status: 'pending', page: req.query.page });
+  res.render('console/applications', { applications: pg.rows, pg, baseUrl: '/console/applications' });
 });
 
 exports.approveApplication = h(async (req, res) => {
@@ -130,8 +135,8 @@ exports.revokeOperator = h(async (req, res) => {
 });
 
 exports.audit = h(async (req, res) => {
-  const entries = await platform.recentAudit(150);
-  res.render('console/audit', { entries });
+  const pg = await platform.pageAudit({ page: req.query.page });
+  res.render('console/audit', { entries: pg.rows, pg, baseUrl: '/console/audit' });
 });
 
 /* ---- Users (abuse response) ---- */
@@ -156,8 +161,8 @@ exports.resetPassword = h(async (req, res) => {
 
 /* ---- Abuse reports ---- */
 exports.reports = h(async (req, res) => {
-  const reports = await platform.listReports('open');
-  res.render('console/reports', { reports });
+  const pg = await platform.pageReports({ status: 'open', page: req.query.page });
+  res.render('console/reports', { reports: pg.rows, pg, baseUrl: '/console/reports' });
 });
 exports.report = h(async (req, res) => {
   const report = await platform.reportDetail(req.params.id);
@@ -171,8 +176,8 @@ exports.resolveReport = h(async (req, res) => {
 
 /* ---- Break-glass ---- */
 exports.breakglass = h(async (req, res) => {
-  const grants = await platform.listBreakglass();
-  res.render('console/breakglass', { grants });
+  const pg = await platform.pageBreakglass({ page: req.query.page });
+  res.render('console/breakglass', { grants: pg.rows, pg, baseUrl: '/console/breakglass' });
 });
 exports.openBreakglass = h(async (req, res) => {
   await platform.openBreakglass({

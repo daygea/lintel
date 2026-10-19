@@ -1,6 +1,7 @@
 'use strict';
 
 const { TenantApplication, Tenant, User, Membership } = require('../models');
+const { paginate } = require('../lib/paginate');
 const { provision } = require('./tenant.service');
 const { sendAccountDetails } = require('./onboarding.service');
 const { notify, sendDirectEmail } = require('./notification');
@@ -191,4 +192,9 @@ const listApplications = (status = 'pending') =>
     TenantApplication.find(status ? { status } : {}).sort({ createdAt: -1 }).exec()
   );
 
-module.exports = { apply, approve, decline, slugAvailable, validateSlug, listApplications };
+const pageApplications = ({ status = 'pending', page = 1, perPage = 25 } = {}) =>
+  runAsPlatform('list tenant applications (paged)', () =>
+    paginate(TenantApplication, status ? { status } : {}, { page, perPage, sort: { createdAt: -1 } })
+  );
+
+module.exports = { apply, approve, decline, slugAvailable, validateSlug, listApplications, pageApplications };

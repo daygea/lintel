@@ -21,4 +21,5 @@
   <% }); %>
   <% if(!reports.length){ %><li class="quiet">No open reports.</li><% } %>
 </ul>
+<%- include("../layouts/pager", { pg: pg, baseUrl: baseUrl }) %>
 <%- include("foot") %>

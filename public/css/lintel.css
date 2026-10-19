@@ -151,6 +151,13 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
 .rows li .title { font-size: 15px; }
 .rows li .meta { color: var(--muted); font-size: 13px; margin-top: 3px; }
 
+/* Pagination control (admin + console lists) */
+.pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin: 22px 0 4px; }
+.pager-btn { font-size: 13px; padding: 7px 13px; border: 1px solid var(--rule-2, #ccc); border-radius: 6px; color: var(--ink); text-decoration: none; background: var(--paper); }
+.pager-btn:hover { border-color: var(--muted); text-decoration: none; }
+.pager-btn.is-off { opacity: .4; pointer-events: none; }
+.pager-at { font-size: 13px; color: var(--muted); }
+
 /* Rendered rich-text (the sanitised institution About, and any future HTML prose).
    Long URLs/words break rather than forcing the page wider. */
 .prose { line-height: 1.65; overflow-wrap: anywhere; }

@@ -9,6 +9,7 @@ const { PLANS } = require('../config/plans');
 const { runWithTenant } = require('../lib/context');
 const { issueOnboarding } = require('./onboarding.service');
 const { notify, render, sendDirectEmail } = require('./notification');
+const { paginate } = require('../lib/paginate');
 
 /**
  * Every operation here runs as platform and writes a PlatformAuditLog entry. The
@@ -104,6 +105,22 @@ const listTenants = ({ includeArchived = false } = {}) =>
       .sort({ createdAt: -1 })
       .limit(500)
       .exec()
+  );
+
+// Paginated institution list — what the console renders, so a platform with
+// thousands of institutions pages through them instead of fetching 500 at once.
+const pageTenants = ({ includeArchived = false, page = 1, perPage = 25 } = {}) =>
+  runAsPlatform('list tenants (paged)', () =>
+    paginate(Tenant, includeArchived ? {} : { status: { $nin: ['closed', 'deleted'] } },
+      { page, perPage, sort: { createdAt: -1 } })
+  );
+
+// Paginated platform audit log (append-only and grows forever — must page).
+const pageAudit = ({ page = 1, perPage = 50 } = {}) =>
+  runAsPlatform('platform audit (paged)', () =>
+    paginate(PlatformAuditLog, {}, {
+      page, perPage, sort: { at: -1 }, populate: { path: 'actorUserId', select: 'email name' },
+    })
   );
 
 async function tenantDetail(tenantId) {
@@ -347,6 +364,11 @@ const listReports = (status = 'open') =>
     AbuseReport.find(status ? { status } : {}).sort({ createdAt: -1 }).limit(200).exec()
   );
 
+const pageReports = ({ status = 'open', page = 1, perPage = 25 } = {}) =>
+  runAsPlatform('list abuse reports (paged)', () =>
+    paginate(AbuseReport, status ? { status } : {}, { page, perPage, sort: { createdAt: -1 } })
+  );
+
 const reportDetail = (id) =>
   runAsPlatform('abuse report detail', () => AbuseReport.findById(id).exec());
 
@@ -422,6 +444,13 @@ const listBreakglass = () =>
     BreakglassGrant.find({}).sort({ grantedAt: -1 }).limit(100).populate('operatorUserId', 'email').exec()
   );
 
+const pageBreakglass = ({ page = 1, perPage = 25 } = {}) =>
+  runAsPlatform('list break-glass grants (paged)', () =>
+    paginate(BreakglassGrant, {}, {
+      page, perPage, sort: { grantedAt: -1 }, populate: { path: 'operatorUserId', select: 'email' },
+    })
+  );
+
 /**
  * Consume an active break-glass grant to READ a tenant's content. The grant must
  * exist, be unexpired and unrevoked, and belong to the operator asking. Every read
@@ -488,11 +517,11 @@ const recentAudit = (limit = 100) =>
 
 module.exports = {
   overview,
-  listTenants, tenantDetail, suspendTenant, reactivateTenant, setPlan,
+  listTenants, pageTenants, pageAudit, tenantDetail, suspendTenant, reactivateTenant, setPlan,
   editTenantMetadata, closeTenant, deleteTenant, restoreTenant,
   suspendUser, reactivateUser, forceLogout, sendPasswordReset,
-  fileReport, listReports, reportDetail, resolveReport,
-  openBreakglass, revokeBreakglass, listBreakglass, breakglassRead, breakglassLesson,
+  fileReport, listReports, pageReports, reportDetail, resolveReport,
+  openBreakglass, revokeBreakglass, listBreakglass, pageBreakglass, breakglassRead, breakglassLesson,
   listSuperadmins, grantSuperadmin, revokeSuperadmin,
   recentAudit,
 };
