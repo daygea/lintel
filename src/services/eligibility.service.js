@@ -14,6 +14,7 @@ const {
 const { evaluate } = require('./eligibility/evaluator');
 const { pick } = require('../plugins/locale-map');
 const { currentUserId, currentTenantId } = require('../lib/context');
+const { paginate } = require('../lib/paginate');
 
 /* ------------------------------------------------------------------ policies */
 
@@ -125,6 +126,11 @@ async function canAccessLesson({ lessonId, userId, locale = 'en', request = {} }
 const accessLog = (filter = {}) =>
   AccessLog.find(filter).sort({ at: -1 }).limit(200).exec();
 
+// Paginated access log — append-only and grows with every content access, so the
+// admin view pages through it instead of capping silently at 200.
+const pageAccessLog = ({ filter = {}, page = 1, perPage = 50 } = {}) =>
+  paginate(AccessLog, filter, { page, perPage, sort: { at: -1 } });
+
 /* ---------------------------------------------------- explain (learner panel) */
 
 const humanise = (s) => String(s || '').replace(/[-_]+/g, ' ').trim() || 'a requirement';
@@ -219,5 +225,5 @@ module.exports = {
   previewAccess,
   canAccessLesson,
   explain,
-  accessLog,
+  accessLog, pageAccessLog,
 };

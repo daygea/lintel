@@ -63,9 +63,29 @@
         <a href="/"><%= tenant.name %></a>
         <% if (typeof pageTitle !== 'undefined' && pageTitle) { %><span class="sep">/</span><%= pageTitle %><% } %>
       </div>
+      <% var _ph = (typeof pageHelp !== 'undefined' && pageHelp && pageHelp.tenant) ? pageHelp.tenant[active] : null; %>
+      <% if (_ph) { %>
+        <button class="pagehelp-btn" type="button" aria-haspopup="dialog" aria-label="About this page: <%= _ph.title %>"
+          onclick="var d=document.getElementById('pagehelp-dlg');if(d.showModal)d.showModal();">?</button>
+      <% } %>
       <div class="who">
         <% if (typeof user !== "undefined" && user) { %><span class="uname"><%= (typeof membership !== 'undefined' && membership && membership.displayName) ? membership.displayName : user.name %></span><% } %>
         <a href="/settings/profile" style="margin-right:12px">Profile</a><a href="/report" style="margin-right:12px">Report</a><a href="/security" style="margin-right:12px">Security</a><form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">Sign out</button></form>
       </div>
     </div>
+    <% if (_ph) { %>
+      <dialog id="pagehelp-dlg" class="pagehelp" aria-labelledby="pagehelp-h"
+        onclick="if(event.target===this)this.close();">
+        <form method="dialog" class="pagehelp-close"><button aria-label="Close">&times;</button></form>
+        <div class="pagehelp-eyebrow">About this page</div>
+        <h2 id="pagehelp-h"><%= _ph.title %></h2>
+        <p class="pagehelp-what"><%= _ph.what %></p>
+        <% if (_ph.actions && _ph.actions.length) { %>
+          <p class="pagehelp-lbl">What you can do here</p>
+          <ul class="pagehelp-actions"><% _ph.actions.forEach(function (a) { %><li><%= a %></li><% }); %></ul>
+        <% } %>
+        <% if (_ph.tip) { %><p class="pagehelp-tip"><%= _ph.tip %></p><% } %>
+        <p class="pagehelp-more"><a href="/help">Full help &amp; guides &rarr;</a></p>
+      </dialog>
+    <% } %>
     <main class="main">

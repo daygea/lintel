@@ -47,6 +47,7 @@
     <% if (!attestations.length) { %><tr class="empty"><td colspan="3">No attestations issued yet.</td></tr><% } %>
     </tbody>
   </table>
+  <%- include("../layouts/pager", { pg: pg, baseUrl: baseUrl }) %>
 </div>
 
 <div class="section" style="margin-top:8px">

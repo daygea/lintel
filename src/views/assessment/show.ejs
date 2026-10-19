@@ -21,5 +21,6 @@
     <% if (!submissions.length) { %><tr class="empty"><td colspan="4">Nothing submitted yet.</td></tr><% } %>
     </tbody>
   </table>
+  <%- include("../layouts/pager", { pg: pg, baseUrl: baseUrl }) %>
 </div>
 <%- include("../layouts/foot") %>

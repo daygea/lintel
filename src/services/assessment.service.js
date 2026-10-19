@@ -6,6 +6,7 @@ const {
 } = require('../models');
 const { ValidationError, NotAuthorisedError } = require('../lib/errors');
 const { currentUserId } = require('../lib/context');
+const { paginate } = require('../lib/paginate');
 
 /* ------------------------------------------------------------------ rubrics */
 
@@ -19,6 +20,9 @@ async function createRubric({ title, criteria }) {
 /* -------------------------------------------------------------- assessments */
 
 const listAssessments = (filter = {}) => Assessment.find(filter).sort({ createdAt: -1 }).exec();
+
+const pageAssessments = ({ filter = {}, page = 1, perPage = 25 } = {}) =>
+  paginate(Assessment, filter, { page, perPage, sort: { createdAt: -1 } });
 const getAssessment = (id) => Assessment.findById(id).exec();
 const getSubmission = (id) => Submission.findById(id).exec();
 const getRubric = (id) => Rubric.findById(id).exec();
@@ -60,6 +64,11 @@ async function submit({ assessmentId, userId, text, assetIds }) {
 
 const listSubmissions = (assessmentId) =>
   Submission.find({ assessmentId }).populate('userId', 'name email').sort({ submittedAt: 1 }).exec();
+
+const pageSubmissions = ({ assessmentId, page = 1, perPage = 25 } = {}) =>
+  paginate(Submission, { assessmentId }, {
+    page, perPage, sort: { submittedAt: 1 }, populate: { path: 'userId', select: 'name email' },
+  });
 
 /* ---------------------------------------------------------------- assessors */
 
@@ -192,7 +201,7 @@ module.exports = {
   listRubrics, createRubric,
   listAssessments, getAssessment, createAssessment,
   getSubmission, getRubric,
-  submit, listSubmissions,
+  submit, listSubmissions, pageAssessments, pageSubmissions,
   assignAssessor,
   grade, moderate, gradesFor, finalGrade,
 };

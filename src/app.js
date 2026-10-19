@@ -30,6 +30,10 @@ function createApp() {
   // shadow this one).
   app.locals.pick = pick;
 
+  // Per-page help copy ("?" in each admin/console top bar). App-level so every
+  // view has it unconditionally, exactly like `pick` — no controller passes it.
+  app.locals.pageHelp = require('./lib/page-help');
+
   app.use(pinoHttp({ logger }));
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));

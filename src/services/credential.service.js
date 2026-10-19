@@ -6,6 +6,7 @@ const {
 } = require('../models');
 const { ValidationError } = require('../lib/errors');
 const { currentUserId, currentTenantId, runAsPlatform } = require('../lib/context');
+const { paginate } = require('../lib/paginate');
 
 /* ------------------------------------------------------------------ templates */
 
@@ -81,6 +82,9 @@ async function revoke({ credentialId, reason }) {
 const listFor = (userId) => Credential.find({ userId }).sort({ issuedAt: -1 }).exec();
 const listAll = () => Credential.find({}).sort({ issuedAt: -1 }).limit(200).exec();
 
+const pageAll = ({ page = 1, perPage = 25 } = {}) =>
+  paginate(Credential, {}, { page, perPage, sort: { issuedAt: -1 } });
+
 /**
  * PUBLIC verification. Called with no session, across tenants, by a stranger with
  * a QR. Returns ONLY: the award, the holder's name, the date, and validity.
@@ -114,5 +118,5 @@ async function verifyPublic(verificationCode) {
 
 module.exports = {
   listTemplates, createTemplate,
-  issue, revoke, listFor, listAll, verifyPublic,
+  issue, revoke, listFor, listAll, pageAll, verifyPublic,
 };

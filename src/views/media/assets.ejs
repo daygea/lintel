@@ -21,5 +21,6 @@
     <% if (!assets.length) { %><tr class="empty"><td colspan="3">No media uploaded yet.</td></tr><% } %>
     </tbody>
   </table>
+  <%- include("../layouts/pager", { pg: pg, baseUrl: baseUrl }) %>
 </div>
 <%- include("../layouts/foot") %>

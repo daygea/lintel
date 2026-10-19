@@ -3,6 +3,9 @@
 const mediaService = require('../../services/media.service');
 const { isConfigured } = require('../../lib/storage');
 
+// @parity-exempt mediaService.pageAssets — the media library is an authoring web
+// view; no API/learner surface lists a tenant's raw assets.
+
 exports.uploadPage = async (req, res, next) => {
   try {
     res.render('media/upload', { error: null });
@@ -11,8 +14,8 @@ exports.uploadPage = async (req, res, next) => {
 
 exports.listAssets = async (req, res, next) => {
   try {
-    const assets = await mediaService.listAssets();
-    res.render('media/assets', { assets, storageReady: isConfigured() });
+    const pg = await mediaService.pageAssets({ page: req.query.page });
+    res.render('media/assets', { assets: pg.rows, pg, baseUrl: '/media', storageReady: isConfigured() });
   } catch (err) {
     next(err);
   }

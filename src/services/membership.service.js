@@ -3,8 +3,16 @@
 const { Membership, AuditLog } = require('../models');
 const { ALL: ALL_ROLES } = require('../lib/roles');
 const { ValidationError } = require('../lib/errors');
+const { paginate } = require('../lib/paginate');
 
 const list = (filter = {}) => Membership.find(filter).populate('userId', 'name email status').lean();
+
+// Paginated members list — what the admin dashboard renders, so a large institution
+// pages through its people instead of loading every membership at once.
+const pageMembers = ({ filter = {}, page = 1, perPage = 25 } = {}) =>
+  paginate(Membership, filter, {
+    page, perPage, sort: { createdAt: -1 }, populate: { path: 'userId', select: 'name email status' },
+  });
 
 async function setRoles({ membershipId, roles, actorUserId }) {
   if (!roles?.length || !roles.every((r) => ALL_ROLES.includes(r))) {
@@ -56,4 +64,4 @@ async function activate(membershipId, actorUserId) {
   return membership;
 }
 
-module.exports = { list, setRoles, activate };
+module.exports = { list, pageMembers, setRoles, activate };

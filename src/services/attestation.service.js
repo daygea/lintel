@@ -3,6 +3,7 @@
 const { AttestationType, Attestation, Membership, AuditLog } = require('../models');
 const { ValidationError, NotAuthorisedError } = require('../lib/errors');
 const { currentUserId } = require('../lib/context');
+const { paginate } = require('../lib/paginate');
 
 /* ------------------------------------------------------------------- types */
 
@@ -113,4 +114,7 @@ async function currentFor(subjectUserId) {
 
 const listAll = () => Attestation.find({}).sort({ createdAt: -1 }).limit(200).exec();
 
-module.exports = { listTypes, createType, issue, revoke, currentFor, listAll };
+const pageAll = ({ page = 1, perPage = 25 } = {}) =>
+  paginate(Attestation, {}, { page, perPage, sort: { createdAt: -1 } });
+
+module.exports = { listTypes, createType, issue, revoke, currentFor, listAll, pageAll };

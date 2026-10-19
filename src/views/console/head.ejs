@@ -71,9 +71,29 @@
       <button class="c-rail-toggle" type="button" aria-label="Open menu" aria-expanded="false"
         onclick="var o=document.body.classList.toggle('nav-open');this.setAttribute('aria-expanded',o)">&#9776;</button>
       <div class="mono quiet" style="font-size:12px;letter-spacing:.06em">PLATFORM<% if (typeof pageTitle!=='undefined'){ %> / <%= pageTitle %><% } %></div>
+      <% var _ph = (typeof pageHelp !== 'undefined' && pageHelp && pageHelp.console) ? pageHelp.console[active] : null; %>
+      <% if (_ph) { %>
+        <button class="pagehelp-btn pagehelp-btn-c" type="button" aria-haspopup="dialog" aria-label="About this page: <%= _ph.title %>"
+          onclick="var d=document.getElementById('pagehelp-dlg');if(d.showModal)d.showModal();">?</button>
+      <% } %>
       <div class="who">
         <% if (typeof user !== 'undefined' && user) { %><%= user.email %><% } %>
         <form method="post" action="/console/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">Sign out</button></form>
       </div>
     </div>
+    <% if (_ph) { %>
+      <dialog id="pagehelp-dlg" class="pagehelp pagehelp-dark" aria-labelledby="pagehelp-h"
+        onclick="if(event.target===this)this.close();">
+        <form method="dialog" class="pagehelp-close"><button aria-label="Close">&times;</button></form>
+        <div class="pagehelp-eyebrow">About this page</div>
+        <h2 id="pagehelp-h"><%= _ph.title %></h2>
+        <p class="pagehelp-what"><%= _ph.what %></p>
+        <% if (_ph.actions && _ph.actions.length) { %>
+          <p class="pagehelp-lbl">What you can do here</p>
+          <ul class="pagehelp-actions"><% _ph.actions.forEach(function (a) { %><li><%= a %></li><% }); %></ul>
+        <% } %>
+        <% if (_ph.tip) { %><p class="pagehelp-tip"><%= _ph.tip %></p><% } %>
+        <p class="pagehelp-more"><a href="/console/help">Full help &amp; guides &rarr;</a></p>
+      </dialog>
+    <% } %>
     <main class="c-main">

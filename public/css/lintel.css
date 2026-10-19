@@ -321,3 +321,32 @@ input:focus, select:focus, textarea:focus { border-color: var(--brass); backgrou
 .cover-opt.sel{border-color:var(--brass,#8C6E33);box-shadow:0 0 0 2px rgba(140,110,51,.2)}
 .cover-opt .cover-none{font-size:12px;color:#6E6B63}
 .cover-opt:has(input:checked){border-color:var(--brass,#8C6E33);box-shadow:0 0 0 2px rgba(140,110,51,.2)}
+
+/* ---- Per-page help ("?" in the top bar; panel is a native <dialog>) ---- */
+.pagehelp-btn{ flex:0 0 auto; margin-right:auto; margin-left:14px; width:24px; height:24px; border-radius:50%; border:1.5px solid var(--rule-2); background:none; color:var(--muted); font-size:13px; font-weight:700; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+.pagehelp-btn:hover{ border-color:var(--brass); color:var(--ink); }
+.pagehelp-btn-c{ border-color:#3a4060; color:#C9A567; }
+.pagehelp-btn-c:hover{ border-color:#C9A567; color:#fff; }
+dialog.pagehelp{ width:min(92vw,440px); border:1px solid var(--rule); border-radius:12px; padding:26px 26px 22px; background:var(--paper-2); color:var(--ink); box-shadow:0 24px 60px rgba(0,0,0,.22); }
+dialog.pagehelp::backdrop{ background:rgba(20,24,40,.42); }
+.pagehelp-close{ position:absolute; top:8px; right:12px; margin:0; }
+.pagehelp-close button{ background:none; border:0; font-size:26px; line-height:1; color:var(--muted); cursor:pointer; padding:2px 6px; }
+.pagehelp-close button:hover{ color:var(--ink); }
+.pagehelp-eyebrow{ font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--brass); margin-bottom:6px; }
+dialog.pagehelp h2{ margin:0 0 10px; font-size:19px; }
+.pagehelp-what{ margin:0 0 15px; font-size:14px; line-height:1.6; }
+.pagehelp-lbl{ font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:600; margin:0 0 6px; }
+.pagehelp-actions{ margin:0 0 15px; padding-left:18px; }
+.pagehelp-actions li{ margin:5px 0; font-size:13.5px; line-height:1.5; }
+.pagehelp-tip{ font-size:13px; line-height:1.55; color:var(--muted); border-left:2px solid var(--brass); padding:2px 0 2px 12px; margin:0 0 15px; }
+.pagehelp-more{ margin:0; font-size:13px; }
+.pagehelp-more a{ color:var(--brass); }
+/* Platform console wears the dark palette. */
+dialog.pagehelp.pagehelp-dark{ background:#1b2036; color:#EDECE9; border-color:#2a3050; }
+dialog.pagehelp.pagehelp-dark .pagehelp-eyebrow,
+dialog.pagehelp.pagehelp-dark .pagehelp-more a{ color:#C9A567; }
+dialog.pagehelp.pagehelp-dark .pagehelp-what{ color:#C9CAD4; }
+dialog.pagehelp.pagehelp-dark .pagehelp-lbl{ color:#8E91A3; }
+dialog.pagehelp.pagehelp-dark .pagehelp-close button{ color:#9A9CAC; }
+dialog.pagehelp.pagehelp-dark .pagehelp-close button:hover{ color:#fff; }
+dialog.pagehelp.pagehelp-dark .pagehelp-tip{ color:#9A9CAC; border-left-color:#C9A567; }

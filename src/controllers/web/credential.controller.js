@@ -18,13 +18,16 @@ exports.verify = h(async (req, res) => {
 
 /** Staff view: templates and issued credentials. */
 exports.index = h(async (req, res) => {
-  const [templates, credentials, members, courses] = await Promise.all([
+  const [templates, credPage, members, courses] = await Promise.all([
     cred.listTemplates(),
-    cred.listAll(),
+    cred.pageAll({ page: req.query.page }),
     membership.list({ status: 'active' }),
     curriculum.listCourses().catch(() => []),
   ]);
-  res.render('credential/index', { templates, credentials, members, courses, pick, locale: req.tenant.defaultLocale, error: null });
+  res.render('credential/index', {
+    templates, credentials: credPage.rows, pg: credPage, baseUrl: '/credentials',
+    members, courses, pick, locale: req.tenant.defaultLocale, error: null,
+  });
 });
 
 exports.createTemplate = h(async (req, res) => {

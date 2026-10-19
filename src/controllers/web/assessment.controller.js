@@ -9,20 +9,26 @@ const h = (fn) => async (req, res, next) => {
 };
 
 exports.list = h(async (req, res) => {
-  const [assessments, rubrics, courses] = await Promise.all([
-    svc.listAssessments(),
+  const [aPage, rubrics, courses] = await Promise.all([
+    svc.pageAssessments({ page: req.query.page }),
     svc.listRubrics(),
     curriculum.listCourses().catch(() => []),
   ]);
-  res.render('assessment/list', { assessments, rubrics, courses, pick, locale: req.tenant.defaultLocale, error: null });
+  res.render('assessment/list', {
+    assessments: aPage.rows, pg: aPage, baseUrl: '/assessments',
+    rubrics, courses, pick, locale: req.tenant.defaultLocale, error: null,
+  });
 });
 
 exports.show = h(async (req, res) => {
-  const [assessment, submissions] = await Promise.all([
+  const [assessment, subPage] = await Promise.all([
     svc.getAssessment(req.params.id),
-    svc.listSubmissions(req.params.id),
+    svc.pageSubmissions({ assessmentId: req.params.id, page: req.query.page }),
   ]);
-  res.render('assessment/show', { assessment, submissions, pick, locale: req.tenant.defaultLocale });
+  res.render('assessment/show', {
+    assessment, submissions: subPage.rows, pg: subPage, baseUrl: `/assessments/${req.params.id}`,
+    pick, locale: req.tenant.defaultLocale,
+  });
 });
 
 exports.createRubric = h(async (req, res) => {

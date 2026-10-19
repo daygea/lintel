@@ -7,6 +7,7 @@ const logger = require('../lib/logger');
 const { enqueue } = require('../lib/queue');
 const { currentTenantId, currentUserId } = require('../lib/context');
 const { ValidationError } = require('../lib/errors');
+const { paginate } = require('../lib/paginate');
 
 const KIND_BY_MIME = [
   [/^audio\//, 'audio'],
@@ -132,6 +133,10 @@ async function playbackUrl(assetId, { rung } = {}) {
 }
 
 const listAssets = (filter = {}) => Asset.find(filter).sort({ createdAt: -1 }).limit(100).exec();
+
+// Paginated asset list for the media library view.
+const pageAssets = ({ filter = {}, page = 1, perPage = 24 } = {}) =>
+  paginate(Asset, filter, { page, perPage, sort: { createdAt: -1 } });
 const getAsset = (id) => Asset.findById(id).exec();
 
 async function setTranscript(assetId, transcript) {
@@ -234,7 +239,7 @@ module.exports = {
   completeUpload,
   abandonUpload,
   playbackUrl,
-  listAssets,
+  listAssets, pageAssets,
   getAsset,
   setTranscript,
   setCaption,

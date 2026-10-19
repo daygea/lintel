@@ -36,13 +36,16 @@ exports.revokeAttestation = h(async (req, res) => {
 });
 
 exports.register = h(async (req, res) => {
-  const [types, attestations, members] = await Promise.all([
+  const [types, attPage, members] = await Promise.all([
     att.listTypes(),
-    att.listAll(),
+    att.pageAll({ page: req.query.page }),
     membership.list({ status: 'active' }),
   ]);
   const roles = ['owner', 'admin', 'registrar', 'instructor', 'assessor', 'elder'];
-  res.render('eligibility/register', { types, attestations, members, roles, pick, locale: req.tenant.defaultLocale, error: null });
+  res.render('eligibility/register', {
+    types, attestations: attPage.rows, pg: attPage, baseUrl: '/register',
+    members, roles, pick, locale: req.tenant.defaultLocale, error: null,
+  });
 });
 
 exports.createPolicy = h(async (req, res) => {
@@ -71,8 +74,8 @@ exports.policies = h(async (req, res) => {
 });
 
 exports.accessLog = h(async (req, res) => {
-  const log = await elig.accessLog();
-  res.render('eligibility/access-log', { log });
+  const pg = await elig.pageAccessLog({ page: req.query.page });
+  res.render('eligibility/access-log', { log: pg.rows, pg, baseUrl: '/access-log' });
 });
 
 /** Build a locale map from label_en / label_yo style form fields. */
