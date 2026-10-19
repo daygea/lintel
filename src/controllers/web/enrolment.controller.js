@@ -5,6 +5,7 @@ const curriculum = require('../../services/curriculum.service');
 const membership = require('../../services/membership.service');
 const commerce = require('../../services/commerce');
 const { pick } = require('../../plugins/locale-map');
+const { pageOf, DEFAULT_PER_PAGE } = require('../../lib/paginate');
 const { ValidationError } = require('../../lib/errors');
 
 const h = (fn) => async (req, res, next) => {
@@ -30,14 +31,30 @@ exports.showCohort = h(async (req, res) => {
     membership.list(),
     commerce.listSchedules(),
   ]);
+  // The roster TABLE is paginated for display. The full `enrollments` list stays
+  // intact for the per-session attendance forms (which must list every learner)
+  // and for computing who is still enrollable — so pagination can't drop anyone
+  // from attendance. We slice the already-loaded array (same objects, no reshape).
+  const all = enrollments || [];
+  const perPage = DEFAULT_PER_PAGE;
+  const total = all.length;
+  const pages = Math.max(1, Math.ceil(total / perPage));
+  const current = pageOf(req.query.page, pages);
+  const roster = all.slice((current - 1) * perPage, current * perPage);
+  const rosterPg = {
+    page: current, pages, perPage, total,
+    hasPrev: current > 1, hasNext: current < pages,
+  };
+
   // Attach each enrolment's invoice (if any) so the roster can show fee state and
-  // offer "raise invoice" where there's none yet.
+  // offer "raise invoice" where there's none yet. Scoped to the visible page —
+  // the invoice column only appears in the roster table.
   const invoiceByEnrollment = {};
-  await Promise.all((enrollments || []).map(async (e) => {
+  await Promise.all(roster.map(async (e) => {
     invoiceByEnrollment[String(e._id)] = await commerce.invoiceFor(e._id);
   }));
 
-  const enrolledIds = new Set((enrollments || []).map((e) => String(e.userId?._id || e.userId)));
+  const enrolledIds = new Set(all.map((e) => String(e.userId?._id || e.userId)));
   const enrollable = (members || []).filter(
     (m) => m.status === 'active' && (m.roles || []).includes('learner') &&
       m.userId && !enrolledIds.has(String(m.userId._id || m.userId))
@@ -47,6 +64,9 @@ exports.showCohort = h(async (req, res) => {
     cohort,
     applications,
     enrollments,
+    roster,
+    rosterPg,
+    rosterBase: `/cohorts/${req.params.id}`,
     sessions,
     enrollable,
     schedules,

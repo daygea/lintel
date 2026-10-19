@@ -19,7 +19,7 @@
   <table class="table">
     <thead><tr><th>Learner</th><th>Status</th><th>Fees</th></tr></thead>
     <tbody>
-    <% (enrollments||[]).forEach(function (e) { %>
+    <% (typeof roster!=="undefined" ? roster : (enrollments||[])).forEach(function (e) { %>
       <tr>
         <td><%= e.userId && e.userId.name ? e.userId.name : '—' %></td>
         <td><span class="badge <%= e.status==='active'?'ok':'flat' %>"><%= e.status %></span></td>
@@ -45,6 +45,7 @@
     <% if (!(enrollments||[]).length) { %><tr class="empty"><td colspan="3">No one enrolled yet.</td></tr><% } %>
     </tbody>
   </table>
+  <% if (typeof rosterPg !== "undefined") { %><%- include("../layouts/pager", { pg: rosterPg, baseUrl: rosterBase }) %><% } %>
 
   <% if ((enrollable||[]).length) { %>
     <form method="post" action="/cohorts/<%= cohortId %>/enrol" style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
