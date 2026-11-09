@@ -130,6 +130,7 @@ async function browse({ q, country, limit = 50 } = {}) {
       tagline: l.tagline,
       city: l.contact?.city,
       country: l.contact?.country,
+      tenantId: l.tenantId,
     }));
 
     if (country) {
@@ -142,7 +143,23 @@ async function browse({ q, country, limit = 50 } = {}) {
         [r.displayName, pick(r.tagline, 'en'), r.city, r.country]
           .some((v) => (v || '').toLowerCase().includes(needle)));
     }
-    return rows.slice(0, limit);
+    rows = rows.slice(0, limit);
+
+    // Attach each institution's logo (resolved to the public /brand route) so the
+    // listing can show a mark beside each name. One bounded read for the shown rows.
+    const brand = require('../lib/brand');
+    const tenants = await Tenant.find({ _id: { $in: rows.map((r) => r.tenantId) } })
+      .select('_id updatedAt branding')
+      .exec();
+    const byId = new Map(tenants.map((t) => [String(t._id), t]));
+    return rows.map((r) => ({
+      handle: r.handle,
+      displayName: r.displayName,
+      tagline: r.tagline,
+      city: r.city,
+      country: r.country,
+      logo: brand.brandImageSrc(byId.get(String(r.tenantId)), 'logo'),
+    }));
   });
 }
 

@@ -17,6 +17,8 @@
     .auth-brand { position:relative; background:linear-gradient(150deg,#161A2E 0%,#20233c 55%,#2b2140 100%);
       color:#EDECE9; padding:40px 36px; display:flex; flex-direction:column; justify-content:space-between; min-height:440px; }
     .auth-logo { display:inline-flex; align-items:baseline; gap:9px; font-family:var(--serif); font-size:20px; font-weight:600; color:#fff; text-decoration:none; }
+    /* An uploaded logo sits on a white chip so it reads on the dark panel whatever its own colours. */
+    .auth-logo-img { display:block; max-height:36px; max-width:180px; width:auto; background:#fff; padding:7px 11px; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.22); }
     .auth-logo .mark { display:inline-block; width:15px; height:15px; position:relative; }
     .auth-logo .mark::before { content:""; position:absolute; left:2px; top:0; width:11px; height:3px; background:var(--brass); }
     .auth-logo .mark::after  { content:""; position:absolute; left:4px; top:3px; width:3px; height:12px; background:#C9CAD4; }
@@ -51,10 +53,15 @@
     }
   </style>
 </head>
+<% var _bd = (typeof brandFor === 'function' && typeof tenant !== 'undefined' && tenant) ? brandFor(tenant) : null; %>
 <body class="authbody">
   <div class="auth-wrap">
     <aside class="auth-brand">
-      <a class="auth-logo" href="/" aria-label="Lintel home"><span class="mark"></span> Lintel</a>
+      <% if (_bd && _bd.logo) { %>
+        <a class="auth-logo" href="/" aria-label="<%= _bd.name %> home"><img class="auth-logo-img" src="<%= _bd.logo %>" alt="<%= _bd.name %>"></a>
+      <% } else { %>
+        <a class="auth-logo" href="/" aria-label="<%= _bd ? _bd.name : 'Lintel' %> home"><span class="mark"></span> <%= _bd ? _bd.name : 'Lintel' %></a>
+      <% } %>
       <div class="auth-brand-inner">
         <div class="auth-eyebrow"><%= (typeof tenant !== 'undefined' && tenant && tenant.name) ? tenant.name : 'Lintel' %></div>
         <h1 class="auth-title"><%= typeof panelTitle !== 'undefined' ? panelTitle : 'Welcome' %></h1>
