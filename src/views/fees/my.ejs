@@ -1,6 +1,8 @@
 <% var pageTitle = 'My fees'; %>
-<%- include("../layouts/public-head") %>
+<% var _brand = (typeof brandFor === 'function' && typeof tenant !== 'undefined' && tenant) ? brandFor(tenant) : null; %>
+<%- include("../layouts/public-head", { brand: _brand }) %>
 <div class="pub-wide">
+  <% if (_brand && _brand.banner) { %><div class="inst-banner"><img src="<%= _brand.banner %>" alt=""></div><% } %>
   <div class="page-head">
     <div class="eyebrow"><%= typeof tenant !== 'undefined' && tenant ? tenant.name.toUpperCase() : 'LINTEL' %></div>
     <h1 style="font-size:26px">My fees</h1>

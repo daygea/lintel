@@ -33,6 +33,14 @@ function applyBrand(brand) {
   if (brand.name) document.title = brand.name;
 }
 
+// The institution's banner as a block for the top of a learner view (or '' if
+// none). src is our own /brand route; escaped anyway. Reused across views.
+function brandBanner() {
+  return (STATE.brand && STATE.brand.banner)
+    ? `<div class="learn-banner"><img src="${escapeHtml(STATE.brand.banner)}" alt=""></div>`
+    : '';
+}
+
 async function boot() {
   if ('serviceWorker' in navigator) {
     try { await navigator.serviceWorker.register('/sw.js'); } catch {}
@@ -204,10 +212,6 @@ async function renderHome() {
   const resume = pickResume(courses);
   const continueBlock = resume ? continueCard(resume) : '';
   const dueSoon = dueSoonBlock(STATE.deadlines || []);
-  // The institution's banner, if it set one (src is our own /brand route).
-  const bannerBlock = (STATE.brand && STATE.brand.banner)
-    ? `<div class="learn-banner"><img src="${escapeHtml(STATE.brand.banner)}" alt=""></div>`
-    : '';
 
   const grid = courses.length
     ? `<h2 class="section-h">Your courses</h2><div class="grid">${courses.map(homeCard).join('')}</div>`
@@ -215,7 +219,7 @@ async function renderHome() {
         <p class="muted" style="margin:8px 0 0">Apply to an open programme below, or a registrar can enrol you directly.</p></div>`;
 
   root.innerHTML = `<div class="home">
-    ${bannerBlock}
+    ${brandBanner()}
     ${hero}
     ${continueBlock}
     ${dueSoon}
@@ -279,6 +283,7 @@ async function renderSchedule() {
     : `<div class="card"><p class="muted" style="margin:0">Nothing scheduled. Session dates, fee due dates and assessment deadlines will show here.</p></div>`;
 
   root.innerHTML = `<div class="home">
+    ${brandBanner()}
     <a class="btn ghost" href="/app/" style="margin-bottom:18px">← Back</a>
     <h1 class="section-h" style="margin-top:0">My schedule</h1>
     <p class="quiet" style="margin-top:-6px">Your upcoming sessions, fee due dates and assessment deadlines.</p>
@@ -563,6 +568,7 @@ async function renderGrades() {
     ? courses.map(gradeCourseCard).join('')
     : `<div class="card"><p class="muted" style="margin:0">No graded work yet. Scores appear here once your assessments and quizzes are marked.</p></div>`;
   root.innerHTML = `<div class="home">
+    ${brandBanner()}
     <a class="btn ghost" href="/app/" style="margin-bottom:18px">← Back</a>
     <h1 class="section-h" style="margin-top:0">My grades</h1>
     <p class="quiet" style="margin-top:-6px">Your scored work, course by course.</p>
@@ -1085,6 +1091,7 @@ async function renderProfile() {
   if (data.csrfToken) STATE.csrf = data.csrfToken;
 
   root.innerHTML = `<div class="home">
+    ${brandBanner()}
     <a class="btn ghost" href="/app/" style="margin-bottom:18px">← Back</a>
     <h1 class="section-h" style="margin-top:0">Your profile</h1>
     <p class="quiet" style="margin-top:-6px">Update your name and phone, or change your password.</p>
