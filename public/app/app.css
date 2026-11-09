@@ -318,7 +318,8 @@ ul.lessons{list-style:none;margin:0;padding:0}
 
 /* ---- Per-institution branding (logo in the header, accent colour) ---- */
 header .brand.has-logo{display:inline-flex;align-items:center}
-.brand-logo{max-height:24px;max-width:150px;width:auto;display:block;background:#fff;padding:4px 7px;border-radius:5px}
+header .brand.has-logo{padding:2px 0}
+.brand-logo{max-height:38px;max-width:190px;width:auto;display:block;background:#fff;padding:6px 10px;border-radius:7px}
 /* The institution's colour themes the primary action; falls back to --ink. */
 .btn{background:var(--brand,var(--ink))}
 .btn.ghost{background:transparent}

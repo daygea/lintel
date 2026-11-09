@@ -18,7 +18,8 @@
       color:#EDECE9; padding:40px 36px; display:flex; flex-direction:column; justify-content:space-between; min-height:440px; }
     .auth-logo { display:inline-flex; align-items:baseline; gap:9px; font-family:var(--serif); font-size:20px; font-weight:600; color:#fff; text-decoration:none; }
     /* An uploaded logo sits on a white chip so it reads on the dark panel whatever its own colours. */
-    .auth-logo-img { display:block; max-height:36px; max-width:180px; width:auto; background:#fff; padding:7px 11px; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.22); }
+    .auth-logo-img { display:block; max-height:64px; max-width:240px; width:auto; background:#fff; padding:12px 16px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.24); }
+    @media (max-width:760px) { .auth-logo-img { max-height:52px; max-width:200px; } }
     .auth-logo .mark { display:inline-block; width:15px; height:15px; position:relative; }
     .auth-logo .mark::before { content:""; position:absolute; left:2px; top:0; width:11px; height:3px; background:var(--brass); }
     .auth-logo .mark::after  { content:""; position:absolute; left:4px; top:3px; width:3px; height:12px; background:#C9CAD4; }
