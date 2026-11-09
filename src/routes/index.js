@@ -98,7 +98,7 @@ router.post('/settings/branding', ...staff, webSettings.saveBranding);
 router.post(
   '/settings/branding/image/:kind',
   ...staff,
-  express.raw({ type: () => true, limit: '6mb' }),
+  express.raw({ type: () => true, limit: '8mb' }),
   webSettings.uploadBrandImage
 );
 router.post('/settings/branding/image/:kind/remove', ...staff, webSettings.removeBrandImage);

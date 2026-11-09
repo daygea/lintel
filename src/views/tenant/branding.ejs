@@ -75,6 +75,25 @@
     else { img.removeAttribute('src'); show(img, false); show(empty, true); show(rm, false); }
   }
 
+  // Always resolve to { ok, error } — even when the server returns a non-JSON
+  // error page — so the real reason (session expired, too large, storage not
+  // configured) is shown instead of a misleading "check your connection".
+  function send(url, opts) {
+    return fetch(url, Object.assign({ credentials: 'same-origin' }, opts)).then(function (r) {
+      return r.text().then(function (text) {
+        var data = null;
+        try { data = JSON.parse(text); } catch (e) { /* non-JSON response */ }
+        if (data && typeof data.ok === 'boolean') return { ok: r.ok && data.ok, error: data.error, data: data };
+        var msg = 'Upload failed (HTTP ' + r.status + ').';
+        if (r.status === 413) msg = 'That image is too large.';
+        else if (r.status === 403) msg = 'Your session expired — reload the page and try again.';
+        else if (r.status === 401) msg = 'Please sign in again, then retry.';
+        else if (r.status === 503) msg = 'Image storage is not available on the server yet.';
+        return { ok: false, error: msg };
+      });
+    });
+  }
+
   document.querySelectorAll('.brand-file').forEach(function (input) {
     input.addEventListener('change', function () {
       var kind = input.getAttribute('data-kind');
@@ -82,18 +101,16 @@
       var msg = slot(kind).querySelector('.brand-msg');
       if (!file) return;
       msg.textContent = 'Uploading…';
-      fetch('/settings/branding/image/' + kind, {
+      send('/settings/branding/image/' + kind, {
         method: 'POST',
-        headers: { 'Content-Type': file.type, 'x-csrf-token': CSRF },
+        headers: { 'Content-Type': file.type || 'application/octet-stream', 'x-csrf-token': CSRF },
         body: file,
-      }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
-        .then(function (res) {
-          if (!res.ok || !res.j.ok) { msg.textContent = (res.j && res.j.error) || 'Upload failed.'; return; }
-          setPreview(kind, res.j.src);
-          msg.textContent = 'Saved.';
-          input.value = '';
-        })
-        .catch(function () { msg.textContent = 'Upload failed. Check your connection and try again.'; });
+      }).then(function (res) {
+        if (!res.ok) { msg.textContent = res.error || 'Upload failed.'; return; }
+        setPreview(kind, res.data.src);
+        msg.textContent = 'Saved.';
+        input.value = '';
+      }).catch(function () { msg.textContent = 'Upload failed. Check your connection and try again.'; });
     });
   });
 
@@ -102,16 +119,14 @@
       var kind = btn.getAttribute('data-kind');
       var msg = slot(kind).querySelector('.brand-msg');
       msg.textContent = 'Removing…';
-      fetch('/settings/branding/image/' + kind + '/remove', {
+      send('/settings/branding/image/' + kind + '/remove', {
         method: 'POST',
         headers: { 'x-csrf-token': CSRF },
-      }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
-        .then(function (res) {
-          if (!res.ok || !res.j.ok) { msg.textContent = (res.j && res.j.error) || 'Could not remove.'; return; }
-          setPreview(kind, null);
-          msg.textContent = 'Removed.';
-        })
-        .catch(function () { msg.textContent = 'Could not remove. Try again.'; });
+      }).then(function (res) {
+        if (!res.ok) { msg.textContent = res.error || 'Could not remove.'; return; }
+        setPreview(kind, null);
+        msg.textContent = 'Removed.';
+      }).catch(function () { msg.textContent = 'Could not remove. Try again.'; });
     });
   });
 })();
