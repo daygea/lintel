@@ -315,3 +315,10 @@ ul.lessons{list-style:none;margin:0;padding:0}
   .tour-backdrop { align-items:flex-end; padding:0; }
   .tour-card { max-width:none; border-radius:12px 12px 0 0; padding:24px 18px calc(18px + env(safe-area-inset-bottom)); }
 }
+
+/* ---- Per-institution branding (logo in the header, accent colour) ---- */
+header .brand.has-logo{display:inline-flex;align-items:center}
+.brand-logo{max-height:24px;max-width:150px;width:auto;display:block;background:#fff;padding:4px 7px;border-radius:5px}
+/* The institution's colour themes the primary action; falls back to --ink. */
+.btn{background:var(--brand,var(--ink))}
+.btn.ghost{background:transparent}

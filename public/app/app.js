@@ -8,7 +8,30 @@
  */
 
 const root = document.getElementById('root');
-let STATE = { csrf: '', institution: '', lessonTitles: {}, courses: null, loaded: false };
+let STATE = { csrf: '', institution: '', brand: null, lessonTitles: {}, courses: null, loaded: false };
+
+// Paint the institution's branding into the app shell: its logo in the header
+// (falling back to its name) and its accent colour as --brand. Uses textContent
+// / img attributes, never innerHTML, so the institution name can't inject markup.
+function applyBrand(brand) {
+  if (!brand) return;
+  if (brand.color) document.documentElement.style.setProperty('--brand', brand.color);
+  const el = document.querySelector('header .brand');
+  if (el) {
+    if (brand.logo) {
+      el.textContent = '';
+      el.classList.add('has-logo');
+      const img = document.createElement('img');
+      img.className = 'brand-logo';
+      img.src = brand.logo;
+      img.alt = brand.name || '';
+      el.appendChild(img);
+    } else if (brand.name) {
+      el.textContent = brand.name;
+    }
+  }
+  if (brand.name) document.title = brand.name;
+}
 
 async function boot() {
   if ('serviceWorker' in navigator) {
@@ -33,6 +56,8 @@ async function loadLearning(force) {
   STATE.csrf = data.csrfToken || '';
   setCsrfMeta(STATE.csrf);
   STATE.institution = data.institution || '';
+  STATE.brand = data.brand || null;
+  applyBrand(STATE.brand);
   STATE.learnerName = data.learnerName || '';
   STATE.courses = data.courses || [];
   STATE.deadlines = data.deadlines || [];

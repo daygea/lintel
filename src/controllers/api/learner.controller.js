@@ -5,6 +5,7 @@ const deadlines = require('../../services/deadlines.service');
 const gradebook = require('../../services/gradebook.service');
 const push = require('../../services/push.service');
 const auth = require('../../services/auth.service');
+const { brandFor } = require('../../lib/brand');
 
 const req2ctx = (req) => ({
   ip: req.ip,
@@ -25,6 +26,8 @@ exports.myLearning = h(async (req, res) =>
     // guard as the rest of the app.
     csrfToken: req.session.csrfToken,
     institution: req.tenant.name,
+    // Per-institution branding for the learner app shell (logo, accent colour).
+    brand: brandFor(req.tenant),
     learnerName: req.user && req.user.name,
     help: require('../../config/help').learner,
     helpCategories: require('../../config/help').categories.learner,
