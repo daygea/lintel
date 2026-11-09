@@ -21,6 +21,12 @@ const { rateLimit } = require('../middleware/rate-limit');
  * transcript.
  */
 const router = express.Router();
+const webBrand = require('../controllers/web/brand.controller');
+
+// Public institution logo/banner — streamed from the private bucket, keyed by
+// tenant id, so it loads on the cross-host directory page and for signed-out
+// visitors. No tenant context, no session.
+router.get('/brand/:tenantId/:kind', webBrand.serve);
 
 // Human-facing verification page (QR points here).
 router.get('/verify/:code', webCredential.verify);

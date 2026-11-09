@@ -24,7 +24,15 @@ const TenantSchema = new Schema(
     timezone: { type: String, default: 'Africa/Lagos' },
 
     branding: {
+      // A logo/banner can be an uploaded file (…Key points into the private media
+      // bucket, served via GET /brand/:tenantId/:kind) or an external URL. An
+      // uploaded image wins over a URL for the same slot. See src/lib/brand.js.
       logoUrl: String,
+      logoKey: String,
+      logoMime: String,
+      bannerUrl: String,
+      bannerKey: String,
+      bannerMime: String,
       primaryColor: { type: String, default: '#26314F' },
       wordmark: String,
     },

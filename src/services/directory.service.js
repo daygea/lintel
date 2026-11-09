@@ -98,6 +98,10 @@ async function publicView(handle) {
         country: listing.contact?.country,
       },
       institution: tenant?.name,
+      // Public branding for the directory page — logo/banner resolve to the
+      // /brand/:tenantId/:kind streaming route (works cross-host), colour themes
+      // the page's accents.
+      brand: require('../lib/brand').brandFor(tenant),
       // TITLES ONLY. No modules, no lessons, no content, no counts of learners.
       courses: courses.map((c) => ({ title: c.title, code: c.code })),
     };

@@ -350,3 +350,17 @@ dialog.pagehelp.pagehelp-dark .pagehelp-lbl{ color:#8E91A3; }
 dialog.pagehelp.pagehelp-dark .pagehelp-close button{ color:#9A9CAC; }
 dialog.pagehelp.pagehelp-dark .pagehelp-close button:hover{ color:#fff; }
 dialog.pagehelp.pagehelp-dark .pagehelp-tip{ color:#9A9CAC; border-left-color:#C9A567; }
+
+/* ---- Per-institution branding (logo, banner, accent colour) ---- */
+.rail .brand { align-items: center; gap: 8px; }
+.rail .brand .inst-logo { max-height: 26px; max-width: 128px; width: auto; border-radius: 3px; display: inline-block; }
+.pub-bar .brand .inst-logo { max-height: 28px; max-width: 140px; width: auto; vertical-align: middle; border-radius: 3px; }
+.inst-banner { margin: 0 0 20px; border-radius: 10px; overflow: hidden; border: 1px solid var(--rule); }
+.inst-banner img { display: block; width: 100%; height: auto; max-height: 220px; object-fit: cover; }
+.inst-logo-lg { display: block; max-height: 72px; max-width: 200px; width: auto; margin-bottom: 14px; border-radius: 6px; }
+/* The accent colour (set as --brand on .app / .pub) themes the primary action.
+   Falls back to --ink wherever no institution branding is in scope. */
+.btn { background: var(--brand, var(--ink)); border-color: var(--brand, var(--ink)); }
+.btn:hover { background: var(--brand, var(--ink)); filter: brightness(1.1); }
+.btn.ghost { background: transparent; border-color: var(--rule-2); filter: none; }
+.btn.ghost:hover { background: var(--paper-2); border-color: var(--muted); filter: none; }

@@ -5,6 +5,7 @@ const { PLANS } = require('../config/plans');
 const { ValidationError } = require('../lib/errors');
 const { ROLES } = require('../lib/roles');
 const { runWithTenant, runAsPlatform } = require('../lib/context');
+const { brandKey } = require('../lib/brand');
 
 /**
  * Tenant creation is a PLATFORM operation — there is no tenant context yet.
@@ -62,10 +63,56 @@ async function setPlan(tenantId, plan) {
   );
 }
 
-async function updateBranding({ name, branding, locales }) {
+async function updateBranding({ name, branding = {}, locales }) {
   const tenantId = require('../lib/context').currentTenantId();
+  // Dot-path update, NOT a whole-subdoc replace: the uploaded image keys
+  // (branding.logoKey/bannerKey, managed by setBrandImage) must survive a text
+  // save. Empty text fields are $unset so a cleared wordmark/URL actually clears.
+  const $set = {};
+  const $unset = {};
+  if (name) $set.name = name;
+  if (locales) $set.locales = locales;
+  const textFields = {
+    wordmark: 'branding.wordmark',
+    logoUrl: 'branding.logoUrl',
+    bannerUrl: 'branding.bannerUrl',
+    primaryColor: 'branding.primaryColor',
+  };
+  for (const [k, path] of Object.entries(textFields)) {
+    if (!(k in branding)) continue;
+    const v = branding[k];
+    if (v === undefined || v === null || v === '') $unset[path] = '';
+    else $set[path] = v;
+  }
+  const update = {};
+  if (Object.keys($set).length) update.$set = $set;
+  if (Object.keys($unset).length) update.$unset = $unset;
   return runAsPlatform('tenant admin updating own branding', () =>
-    Tenant.findByIdAndUpdate(tenantId, { name, branding, locales }, { new: true })
+    Tenant.findByIdAndUpdate(tenantId, update, { new: true })
+  );
+}
+
+/** Record an uploaded logo/banner (the bytes are already in the media bucket). */
+async function setBrandImage({ kind, mime }) {
+  const tenantId = require('../lib/context').currentTenantId();
+  return runAsPlatform('tenant admin updating own branding image', () =>
+    Tenant.findByIdAndUpdate(
+      tenantId,
+      { $set: { [`branding.${kind}Key`]: brandKey(tenantId, kind), [`branding.${kind}Mime`]: mime } },
+      { new: true }
+    )
+  );
+}
+
+/** Forget an uploaded logo/banner (the stored object is harmlessly overwritten on re-upload). */
+async function clearBrandImage({ kind }) {
+  const tenantId = require('../lib/context').currentTenantId();
+  return runAsPlatform('tenant admin clearing own branding image', () =>
+    Tenant.findByIdAndUpdate(
+      tenantId,
+      { $unset: { [`branding.${kind}Key`]: '', [`branding.${kind}Mime`]: '' } },
+      { new: true }
+    )
   );
 }
 
@@ -80,4 +127,4 @@ async function updateAccess({ openLessonsForMembers }) {
   );
 }
 
-module.exports = { provision, setPlan, updateBranding, updateAccess };
+module.exports = { provision, setPlan, updateBranding, updateAccess, setBrandImage, clearBrandImage };

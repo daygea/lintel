@@ -1,27 +1,55 @@
 <% var nav = 'settings'; var pageTitle = 'Branding'; %>
 <%- include("../layouts/head", { nav: nav, pageTitle: typeof pageTitle!=="undefined"?pageTitle:null }) %>
-<% var eyebrow = 'SETTINGS'; var heading = 'Branding'; var lede = 'How this institution presents itself — its name, mark, and accent colour.'; %>
+<% var eyebrow = 'SETTINGS'; var heading = 'Branding'; var lede = 'How this institution presents itself — its name, mark, banner, and accent colour. These appear on your sign-in pages, your admin, and your public directory listing.'; %>
 <%- include("../layouts/page-head", { eyebrow: typeof eyebrow!=="undefined"?eyebrow:null, heading: heading, lede: typeof lede!=="undefined"?lede:null }) %>
 
 <% if (saved) { %><div class="ok-note" style="margin:12px 0"><span class="badge ok">saved</span> Branding updated.</div><% } %>
 <% if (error) { %><div class="err" role="alert" style="margin:12px 0"><%= error %></div><% } %>
 
-<form method="post" action="/settings/branding" class="card" style="max-width:520px">
+<%# ---- Images: uploaded via fetch (raw bytes + CSRF header), not the main form ---- %>
+<div class="card" style="max-width:640px;margin-bottom:18px">
+  <h2 style="margin-top:0">Logo &amp; banner</h2>
+  <p class="quiet" style="font-size:13px;margin-top:-6px">PNG, JPEG, WebP or GIF. The logo is your square-ish mark; the banner is a wide image shown across the top of your public page.</p>
+
+  <% ['logo','banner'].forEach(function (kind) { %>
+    <% var src = kind === 'logo' ? brand.logo : brand.banner; %>
+    <div class="brand-slot" data-kind="<%= kind %>" style="display:flex;gap:16px;align-items:flex-start;padding:14px 0;border-top:1px solid var(--rule)">
+      <div class="brand-preview <%= kind %>" style="flex:0 0 auto">
+        <img class="brand-img" alt="<%= kind %> preview" src="<%= src || '' %>" style="<%= src ? '' : 'display:none;' %>max-width:<%= kind==='banner' ? '220px' : '96px' %>;max-height:96px;border:1px solid var(--rule);border-radius:8px;background:var(--paper)">
+        <div class="brand-empty quiet mono" style="<%= src ? 'display:none;' : '' %>display:flex;align-items:center;justify-content:center;width:<%= kind==='banner' ? '220px' : '96px' %>;height:72px;border:1px dashed var(--rule-2);border-radius:8px;font-size:11px">no <%= kind %></div>
+      </div>
+      <div style="flex:1 1 auto">
+        <label style="font-weight:600;text-transform:capitalize"><%= kind %></label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px">
+          <input type="file" class="brand-file" accept="image/png,image/jpeg,image/webp,image/gif" data-kind="<%= kind %>">
+          <button type="button" class="btn ghost small brand-remove" data-kind="<%= kind %>" style="<%= src ? '' : 'display:none;' %>">Remove</button>
+        </div>
+        <div class="brand-msg quiet" style="font-size:12px;margin-top:6px"></div>
+      </div>
+    </div>
+  <% }); %>
+</div>
+
+<%# ---- Text fields: the ordinary form ---- %>
+<form method="post" action="/settings/branding" class="card" style="max-width:640px">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
   <label for="b-name">Institution name</label>
   <input id="b-name" name="name" type="text" value="<%= t.name %>" required>
 
-  <label for="b-wordmark" style="margin-top:12px">Wordmark <span class="quiet">(shown if no logo)</span></label>
+  <label for="b-wordmark" style="margin-top:12px">Wordmark <span class="quiet">(shown where no logo is set)</span></label>
   <input id="b-wordmark" name="wordmark" type="text" value="<%= (t.branding && t.branding.wordmark) || '' %>" placeholder="e.g. OISS">
 
-  <label for="b-logo" style="margin-top:12px">Logo URL <span class="quiet">(optional)</span></label>
+  <label for="b-logo" style="margin-top:12px">External logo URL <span class="quiet">(used only if no logo is uploaded)</span></label>
   <input id="b-logo" name="logoUrl" type="url" value="<%= (t.branding && t.branding.logoUrl) || '' %>" placeholder="https://…/logo.png">
+
+  <label for="b-banner" style="margin-top:12px">External banner URL <span class="quiet">(used only if no banner is uploaded)</span></label>
+  <input id="b-banner" name="bannerUrl" type="url" value="<%= (t.branding && t.branding.bannerUrl) || '' %>" placeholder="https://…/banner.jpg">
 
   <label for="b-color" style="margin-top:12px">Accent colour</label>
   <div style="display:flex;gap:10px;align-items:center">
-    <input id="b-color" name="primaryColor" type="color" value="<%= (t.branding && t.branding.primaryColor) || '#26314F' %>" style="width:52px;height:36px;padding:2px">
-    <span class="mono quiet"><%= (t.branding && t.branding.primaryColor) || '#26314F' %></span>
+    <input id="b-color" name="primaryColor" type="color" value="<%= brand.color %>" style="width:52px;height:36px;padding:2px">
+    <span class="mono quiet" id="b-color-hex"><%= brand.color %></span>
   </div>
 
   <label for="b-locales" style="margin-top:12px">Languages <span class="quiet">(comma-separated codes)</span></label>
@@ -29,4 +57,63 @@
 
   <div style="margin-top:18px"><button class="btn" type="submit">Save branding</button></div>
 </form>
+
+<script>
+(function () {
+  var CSRF = <%- JSON.stringify(csrfToken) %>;
+  // Live hex readout next to the colour picker.
+  var color = document.getElementById('b-color'), hex = document.getElementById('b-color-hex');
+  if (color && hex) color.addEventListener('input', function () { hex.textContent = color.value; });
+
+  function slot(kind) { return document.querySelector('.brand-slot[data-kind="' + kind + '"]'); }
+  function show(el, on) { if (el) el.style.display = on ? '' : 'none'; }
+
+  function setPreview(kind, src) {
+    var s = slot(kind); if (!s) return;
+    var img = s.querySelector('.brand-img'), empty = s.querySelector('.brand-empty'), rm = s.querySelector('.brand-remove');
+    if (src) { img.src = src; show(img, true); show(empty, false); show(rm, true); }
+    else { img.removeAttribute('src'); show(img, false); show(empty, true); show(rm, false); }
+  }
+
+  document.querySelectorAll('.brand-file').forEach(function (input) {
+    input.addEventListener('change', function () {
+      var kind = input.getAttribute('data-kind');
+      var file = input.files && input.files[0];
+      var msg = slot(kind).querySelector('.brand-msg');
+      if (!file) return;
+      msg.textContent = 'Uploading…';
+      fetch('/settings/branding/image/' + kind, {
+        method: 'POST',
+        headers: { 'Content-Type': file.type, 'x-csrf-token': CSRF },
+        body: file,
+      }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          if (!res.ok || !res.j.ok) { msg.textContent = (res.j && res.j.error) || 'Upload failed.'; return; }
+          setPreview(kind, res.j.src);
+          msg.textContent = 'Saved.';
+          input.value = '';
+        })
+        .catch(function () { msg.textContent = 'Upload failed. Check your connection and try again.'; });
+    });
+  });
+
+  document.querySelectorAll('.brand-remove').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var kind = btn.getAttribute('data-kind');
+      var msg = slot(kind).querySelector('.brand-msg');
+      msg.textContent = 'Removing…';
+      fetch('/settings/branding/image/' + kind + '/remove', {
+        method: 'POST',
+        headers: { 'x-csrf-token': CSRF },
+      }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          if (!res.ok || !res.j.ok) { msg.textContent = (res.j && res.j.error) || 'Could not remove.'; return; }
+          setPreview(kind, null);
+          msg.textContent = 'Removed.';
+        })
+        .catch(function () { msg.textContent = 'Could not remove. Try again.'; });
+    });
+  });
+})();
+</script>
 <%- include("../layouts/foot") %>

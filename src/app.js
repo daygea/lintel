@@ -34,6 +34,10 @@ function createApp() {
   // view has it unconditionally, exactly like `pick` — no controller passes it.
   app.locals.pageHelp = require('./lib/page-help');
 
+  // Per-institution branding resolver, available to every layout so the shell
+  // and public pages can render a tenant's logo/wordmark/colour from `tenant`.
+  app.locals.brandFor = require('./lib/brand').brandFor;
+
   app.use(pinoHttp({ logger }));
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));

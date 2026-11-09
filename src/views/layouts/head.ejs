@@ -12,6 +12,7 @@
   /* Navigation model, grouped the way an administrator thinks.
      Each item is [key, href, label]; `nav` (set by the view) marks the active one. */
   var active = typeof nav !== 'undefined' ? nav : '';
+  var bd = (typeof brandFor === 'function' && typeof tenant !== 'undefined' && tenant) ? brandFor(tenant) : null;
   var groups = [
     ['Teaching', [
       ['courses',   '/courses',    'Courses'],
@@ -37,9 +38,12 @@
     ]],
   ];
 %>
-<div class="app">
+<div class="app"<%- bd ? ' style="--brand:' + bd.color + '"' : '' %>>
   <aside class="rail">
-    <div class="brand"><span class="mark"></span> Lintel</div>
+    <div class="brand">
+      <% if (bd && bd.logo) { %><img class="inst-logo" src="<%= bd.logo %>" alt=""><% } else { %><span class="mark"></span><% } %>
+      <span class="brand-name"><%= bd ? bd.name : 'Lintel' %></span>
+    </div>
     <div class="inst"><%= tenant.name %></div>
     <nav>
       <% groups.forEach(function (g) { %>

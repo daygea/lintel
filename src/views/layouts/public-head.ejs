@@ -21,10 +21,15 @@
     .pub-foot { padding: 20px 32px; border-top: 1px solid var(--rule); font-size: 12.5px; color: var(--muted); font-family: var(--mono); }
   </style>
 </head>
+<% var _brand = (typeof brand !== 'undefined' && brand) ? brand : null; %>
 <body>
-<div class="pub">
+<div class="pub"<%- _brand ? ' style="--brand:' + _brand.color + '"' : '' %>>
   <header class="pub-bar">
-    <a class="brand" href="/" aria-label="Lintel home"><span class="mark"></span> Lintel</a>
+    <% if (_brand && _brand.logo) { %>
+      <a class="brand" href="/" aria-label="<%= _brand.name %>"><img class="inst-logo" src="<%= _brand.logo %>" alt=""> <span><%= _brand.name %></span></a>
+    <% } else { %>
+      <a class="brand" href="/" aria-label="<%= _brand ? _brand.name : 'Lintel' %> home"><span class="mark"></span> <%= _brand ? _brand.name : 'Lintel' %></a>
+    <% } %>
     <% if (typeof barActions !== 'undefined' && barActions) { %><nav class="pub-bar-cta" aria-label="Account"><%- barActions %></nav><% } %>
   </header>
   <main class="pub-main">

@@ -2,9 +2,13 @@
 <% var barActions = (typeof instBase !== 'undefined' && instBase)
   ? '<a class="btn small" href="' + instBase + '/login">Sign in</a><a class="btn ghost small" href="' + instBase + '/join">Register</a>'
   : ''; %>
-<%- include("../layouts/public-head") %>
+<%- include("../layouts/public-head", { brand: listing.brand }) %>
 <article class="pub-wide">
+  <% if (listing.brand && listing.brand.banner) { %>
+    <div class="inst-banner"><img src="<%= listing.brand.banner %>" alt=""></div>
+  <% } %>
   <div class="page-head">
+    <% if (listing.brand && listing.brand.logo) { %><img class="inst-logo-lg" src="<%= listing.brand.logo %>" alt=""><% } %>
     <div class="eyebrow">INSTITUTION</div>
     <h1><%= listing.displayName %></h1>
     <% if (listing.tagline) { %><p class="lede"><%= pick(listing.tagline, 'en') %></p><% } %>

@@ -92,6 +92,16 @@ router.post('/security/mfa/confirm', requireUser, webSecurity.confirmMfa);
 router.post('/security/mfa/disable', requireUser, webSecurity.disableMfa);
 router.get('/settings/branding', ...staff, webSettings.showBranding);
 router.post('/settings/branding', ...staff, webSettings.saveBranding);
+// Logo/banner upload: raw image bytes in the body (the global json/urlencoded
+// parsers skip image content-types, so this per-route raw parser receives them).
+// CSRF still applies — the uploader sends the token in the x-csrf-token header.
+router.post(
+  '/settings/branding/image/:kind',
+  ...staff,
+  express.raw({ type: () => true, limit: '6mb' }),
+  webSettings.uploadBrandImage
+);
+router.post('/settings/branding/image/:kind/remove', ...staff, webSettings.removeBrandImage);
 router.get('/settings/access', ...staff, webSettings.showAccess);
 router.post('/settings/access', ...staff, webSettings.saveAccess);
 router.get('/settings/billing', ...staff, webBilling.show);
