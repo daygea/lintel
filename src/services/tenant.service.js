@@ -59,7 +59,7 @@ async function provision({ slug, name, ownerUserId, plan = 'trial', baseCurrency
 async function setPlan(tenantId, plan) {
   if (!PLANS[plan]) throw new ValidationError(`Unknown plan: ${plan}`);
   return runAsPlatform('changing a tenant subscription plan', () =>
-    Tenant.findByIdAndUpdate(tenantId, { plan, features: PLANS[plan].features }, { new: true })
+    Tenant.findByIdAndUpdate(tenantId, { plan, features: PLANS[plan].features }, { new: true }).exec()
   );
 }
 
@@ -88,7 +88,7 @@ async function updateBranding({ name, branding = {}, locales }) {
   if (Object.keys($set).length) update.$set = $set;
   if (Object.keys($unset).length) update.$unset = $unset;
   return runAsPlatform('tenant admin updating own branding', () =>
-    Tenant.findByIdAndUpdate(tenantId, update, { new: true })
+    Tenant.findByIdAndUpdate(tenantId, update, { new: true }).exec()
   );
 }
 
@@ -100,7 +100,7 @@ async function setBrandImage({ kind, mime }) {
       tenantId,
       { $set: { [`branding.${kind}Key`]: brandKey(tenantId, kind), [`branding.${kind}Mime`]: mime } },
       { new: true }
-    )
+    ).exec()
   );
 }
 
@@ -112,7 +112,7 @@ async function clearBrandImage({ kind }) {
       tenantId,
       { $unset: { [`branding.${kind}Key`]: '', [`branding.${kind}Mime`]: '' } },
       { new: true }
-    )
+    ).exec()
   );
 }
 
@@ -123,7 +123,7 @@ async function updateAccess({ openLessonsForMembers }) {
       tenantId,
       { 'access.openLessonsForMembers': !!openLessonsForMembers },
       { new: true }
-    )
+    ).exec()
   );
 }
 
