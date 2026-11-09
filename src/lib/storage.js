@@ -48,6 +48,13 @@ function s3() {
         accessKeyId: media.accessKeyId,
         secretAccessKey: media.secretAccessKey,
       },
+      // Cloudflare R2 does not implement the CRC32 checksum trailer that AWS SDK
+      // v3 (>= 3.729) adds to PutObject by default — it makes a server-side
+      // upload fail with an aws-chunked / "not implemented" error. Compute a
+      // checksum only when the operation actually requires one. (Presigned
+      // browser uploads are unaffected, which is why media upload still works.)
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
     });
   }
   return client;

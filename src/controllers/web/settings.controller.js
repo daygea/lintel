@@ -71,9 +71,11 @@ exports.uploadBrandImage = h(async (req, res) => {
     await storage.put(brand.brandKey(tenantId, kind), buf, checked.mime);
     await tenant.setBrandImage({ kind, mime: checked.mime });
   } catch (e) {
-    // Return JSON (not an HTML error page) so the uploader shows the real reason
-    // — e.g. "Media storage is not configured. Missing: …" when R2 env vars are
-    // unset — instead of a generic failure.
+    // Log the real cause (swallowed otherwise, since we don't rethrow), then
+    // return JSON (not an HTML error page) so the uploader shows a reason — e.g.
+    // "Media storage is not configured. Missing: …" when R2 env vars are unset.
+    if (req.log && req.log.error) req.log.error({ err: e, kind }, 'brand image upload failed');
+    else console.error('brand image upload failed:', e && e.message, e && e.name);
     const status = e.status || 502;
     const msg = e.expose ? e.message : 'Could not store the image right now. Please try again.';
     return res.status(status).json({ ok: false, error: msg });
