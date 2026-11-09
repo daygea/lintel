@@ -322,3 +322,5 @@ header .brand.has-logo{display:inline-flex;align-items:center}
 /* The institution's colour themes the primary action; falls back to --ink. */
 .btn{background:var(--brand,var(--ink))}
 .btn.ghost{background:transparent}
+.learn-banner{margin:0 0 20px;border-radius:12px;overflow:hidden;border:1px solid var(--rule)}
+.learn-banner img{display:block;width:100%;height:auto;max-height:200px;object-fit:cover}

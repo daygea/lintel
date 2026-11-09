@@ -204,6 +204,10 @@ async function renderHome() {
   const resume = pickResume(courses);
   const continueBlock = resume ? continueCard(resume) : '';
   const dueSoon = dueSoonBlock(STATE.deadlines || []);
+  // The institution's banner, if it set one (src is our own /brand route).
+  const bannerBlock = (STATE.brand && STATE.brand.banner)
+    ? `<div class="learn-banner"><img src="${escapeHtml(STATE.brand.banner)}" alt=""></div>`
+    : '';
 
   const grid = courses.length
     ? `<h2 class="section-h">Your courses</h2><div class="grid">${courses.map(homeCard).join('')}</div>`
@@ -211,6 +215,7 @@ async function renderHome() {
         <p class="muted" style="margin:8px 0 0">Apply to an open programme below, or a registrar can enrol you directly.</p></div>`;
 
   root.innerHTML = `<div class="home">
+    ${bannerBlock}
     ${hero}
     ${continueBlock}
     ${dueSoon}
